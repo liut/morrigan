@@ -18,7 +18,7 @@ import (
 	"github.com/liut/morrigan/pkg/web"
 )
 
-//go:embed htdocs
+//go:embed htdocs all:htdocs/app
 var static embed.FS
 
 func main() {

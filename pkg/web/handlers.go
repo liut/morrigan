@@ -8,10 +8,13 @@ import (
 	"strings"
 
 	"github.com/go-chi/render"
+	"github.com/jpillora/eventsource"
+	"github.com/liut/morrigan/pkg/sevices/stores"
 	"github.com/marcsv/go-binder/binder"
 	"github.com/sashabaranov/go-openai"
 )
 
+type ChatCompletionMessage = openai.ChatCompletionMessage
 type ChatCompletionRequest = openai.ChatCompletionRequest
 type CompletionRequest = openai.CompletionRequest
 
@@ -98,21 +101,31 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var isStream bool
-	if strings.HasSuffix(r.URL.Path, "-process") {
+	isProcess := strings.HasSuffix(r.URL.Path, "-process")
+	isSSE := strings.HasSuffix(r.URL.Path, "-sse")
+	if isProcess || isSSE {
 		isStream = true
 	}
+	cs := stores.NewConversation(param.ConversationID)
+	var messages []ChatCompletionMessage
+	if s.ps != nil {
+		for _, msg := range s.ps.Messages {
+			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+		}
+	}
+	// TODO: history
+	messages = append(messages, ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: param.Prompt,
+	})
 	ccr := ChatCompletionRequest{
-		Model: openai.GPT3Dot5Turbo,
-		Messages: []openai.ChatCompletionMessage{
-			{
-				Role:    openai.ChatMessageRoleUser,
-				Content: param.Prompt,
-			},
-		},
-		Stream: isStream,
-		User:   "mog-uid-" + user.UID,
+		Model:    openai.GPT3Dot5Turbo,
+		Messages: messages,
+		Stream:   isStream,
+		User:     "mog-uid-" + user.UID,
 	}
 	logger().Infow("chat", "req", &ccr)
+
 	if isStream {
 		flusher, ok := w.(http.Flusher)
 		if !ok {
@@ -122,7 +135,11 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
-		w.Header().Add("Content-type", "application/octet-stream")
+		if isSSE {
+			w.Header().Set("Content-Type", "text/event-stream")
+		} else if isProcess {
+			w.Header().Add("Content-type", "application/octet-stream")
+		}
 
 		ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr)
 		if err != nil {
@@ -135,6 +152,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 
 		var cm ChatMessage
+		cm.ID = cs.GetID()
 		var wrote int
 		for {
 			ccsr, err := ccs.Recv()
@@ -150,13 +168,25 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			// if wrote>0 {
 			// 	w.Write([]byte("\n"))
 			// }
-			cm.ID = ccsr.ID
 			if len(ccsr.Choices) > 0 {
 				cm.Delta = ccsr.Choices[0].Delta.Content
-				cm.Text += cm.Delta
-				if err = json.NewEncoder(w).Encode(&cm); err != nil {
-					logger().Infow("json enc fail", "err", err)
-					break
+				// logger().Debugw("cm", "delta", cm.Delta)
+				if isSSE {
+					b, err := json.Marshal(&cm)
+					if err != nil {
+						logger().Infow("json marshal fail", "cm", &cm, "err", err)
+						break
+					}
+					err = eventsource.WriteEvent(w, eventsource.Event{
+						ID:   ccsr.ID,
+						Data: b,
+					})
+				} else {
+					cm.Text += cm.Delta
+					if err = json.NewEncoder(w).Encode(&cm); err != nil {
+						logger().Infow("json enc fail", "err", err)
+						break
+					}
 				}
 			}
 
@@ -174,6 +204,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	logger().Infow("chat", "res", &res)
 	var cr ConversationResponse
+	cr.ConversationID = cs.GetID()
 	cr.Detail.Created = res.Created
 	cr.Detail.ID = res.ID
 	cr.Detail.Model = res.Model
@@ -201,4 +232,19 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apiOk(w, r, res, 0)
+}
+
+func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
+	if s.ps != nil {
+		msgs := s.ps.Welcomes
+		if len(msgs) > 0 && len(msgs[0].ID) == 0 {
+			cs := stores.NewConversation("")
+			msgs[0].ID = cs.GetID()
+		}
+		apiOk(w, r, msgs)
+	}
+}
+
+func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
+
 }

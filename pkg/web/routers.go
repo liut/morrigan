@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/marcsv/go-binder/binder"
 
 	staffio "github.com/liut/staffio-client"
 
 	"github.com/liut/morrigan/pkg/settings"
 )
+
+type M = render.M
 
 // User online user
 type User = staffio.User
@@ -45,9 +48,15 @@ func (s *server) strapRouter() {
 	s.ar.Route("/api", func(r chi.Router) {
 		r.Use(authzr.Middleware())
 		r.Get("/me", handleMe)
+		r.Get("/session", handleSession)
+		r.Post("/session", handleSession)
+		r.Post("/verify", handleVerify)
+
 		r.Get("/models", s.getModels)
+		r.Get("/welcome", s.getWelcome)
+		r.Get("/history/{cid}", s.getHistory)
 		r.Post("/chat", s.postChat)
-		r.Post("/chat-process", s.postChat)
+		r.Post("/chat-{suffix}", s.postChat)
 		r.Post("/completions", s.postCompletions)
 		// r.Get("/status/{idx}", handlerStatus)
 		// r.Post("/client/send", handlerSendClient)
@@ -88,6 +97,36 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 	} else {
 		apiFail(w, r, 401, "not login")
 	}
+}
+
+func handleSession(w http.ResponseWriter, r *http.Request) {
+	if _, ok := UserFromContext(r.Context()); ok {
+		render.JSON(w, r, M{"data": M{
+			"auth": true,
+			// "user": user,
+		}, "status": "Success"})
+	} else {
+		apiFail(w, r, 401, "not login")
+	}
+}
+
+type verifyReq struct {
+	Token string `json:"token"`
+}
+
+func handleVerify(w http.ResponseWriter, r *http.Request) {
+	var param verifyReq
+	if err := binder.BindBody(r, &param); err != nil {
+		apiFail(w, r, 400, err)
+		return
+	}
+	user := new(User)
+	if err := user.Decode(param.Token); err != nil {
+		apiFail(w, r, 401, err)
+		return
+	}
+
+	render.JSON(w, r, M{"status": "Success"})
 }
 
 func apiFail(w http.ResponseWriter, r *http.Request, status int, err interface{}) {

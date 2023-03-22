@@ -31,6 +31,7 @@ type Config struct {
 	CookieMaxAge int      `envconfig:"Cookie_MaxAge"`
 
 	OpenAIAPIKey string `envconfig:"openAi_Api_Key"`
+	PresetFile   string `envconfig:"preset_file"`
 }
 
 var (

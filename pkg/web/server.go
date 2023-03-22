@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sashabaranov/go-openai"
 
+	"github.com/liut/morrigan/pkg/models/conversatio"
 	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morrigan/pkg/sevices/stores"
 )
 
 type Service interface {
@@ -34,6 +36,7 @@ type server struct {
 	hs *http.Server // http server
 
 	oc *openai.Client
+	ps *conversatio.Preset
 }
 
 // New return new web server
@@ -48,6 +51,10 @@ func New(cfg Config) Service {
 		Addr: cfg.Addr, ar: ar,
 		cfg: cfg,
 		oc:  openai.NewClient(settings.Current.OpenAIAPIKey),
+	}
+	if doc, err := stores.LoadPreset(); err == nil {
+		s.ps = doc
+		logger().Infow("load preset", "messages", len(doc.Messages))
 	}
 	s.strapRouter()
 
