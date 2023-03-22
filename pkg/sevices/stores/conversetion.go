@@ -78,7 +78,7 @@ func (s *conversation) ClearHistory(ctx context.Context) error {
 }
 
 func (s *conversation) getKey() string {
-	return s.GetID()
+	return "convs-" + s.GetID()
 }
 
 func LoadPreset() (doc *conversatio.Preset, err error) {
