@@ -9,7 +9,7 @@ type Message struct {
 type Messages []Message
 
 type Preset struct {
-	Welcomes    Messages `json:"welcome,omitempty" yaml:"welcome,omitempty"`
+	Welcome     *Message `json:"welcome,omitempty" yaml:"welcome,omitempty"`
 	Messages    Messages `json:"messages,omitempty" yaml:"messages,omitempty"`
 	Model       string   `json:"model,omitempty" yaml:"model,omitempty"`
 	MaxTokens   int      `json:"maxTokens,omitempty" yaml:"maxTokens,omitempty"`

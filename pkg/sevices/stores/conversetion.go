@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/cupogo/andvari/models/oid"
 	"gopkg.in/yaml.v3"
@@ -11,9 +12,16 @@ import (
 	"github.com/liut/morrigan/pkg/settings"
 )
 
+const (
+	historyLifetimeS = time.Second * 86400
+	historyMaxLength = 25
+)
+
 type Conversation interface {
 	GetID() string
+	AddHistory(ctx context.Context, item *conversatio.HistoryItem) error
 	ListHistory(ctx context.Context) (conversatio.HistoryItems, error)
+	ClearHistory(ctx context.Context) error
 }
 
 func NewConversation(id any) Conversation {
@@ -21,7 +29,7 @@ func NewConversation(id any) Conversation {
 	if cid.IsZero() {
 		cid = oid.NewID(oid.OtEvent)
 	}
-	return &conversation{cid, SgtRC()}
+	return &conversation{id: cid, rc: SgtRC()}
 }
 
 type conversation struct {
@@ -33,10 +41,40 @@ func (s *conversation) GetID() string {
 	return s.id.String()
 }
 
+func (s *conversation) AddHistory(ctx context.Context, item *conversatio.HistoryItem) error {
+	key := s.getKey()
+	b, err := item.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	res := s.rc.RPush(ctx, key, b)
+	logger().Infow("add history", "item", item, "res", res)
+	err = res.Err()
+	if err == nil {
+		count, _ := res.Result()
+		if err = s.rc.Expire(ctx, key, historyLifetimeS).Err(); err != nil {
+			return err
+		}
+		if count > historyMaxLength {
+			logger().Infow("history length overflow", "count", count)
+			err = s.rc.LPop(ctx, key).Err()
+		}
+	}
+	if err != nil {
+		logger().Infow("add history fail", "err", err)
+	}
+	return err
+}
+
 func (s *conversation) ListHistory(ctx context.Context) (data conversatio.HistoryItems, err error) {
 	key := s.getKey()
-	s.rc.LRange(ctx, key, 0, -1)
+	ss := s.rc.LRange(ctx, key, 0, -1)
+	err = ss.ScanSlice(&data)
 	return
+}
+
+func (s *conversation) ClearHistory(ctx context.Context) error {
+	return s.rc.Del(ctx, s.getKey()).Err()
 }
 
 func (s *conversation) getKey() string {

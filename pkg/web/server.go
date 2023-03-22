@@ -47,10 +47,16 @@ func New(cfg Config) Service {
 	}
 	ar.Use(middleware.Recoverer)
 
+	occ := openai.DefaultConfig(settings.Current.OpenAIAPIKey)
+	occ.HTTPClient = &http.Client{
+		Timeout:   time.Second * 20,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+	}
+
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
 		cfg: cfg,
-		oc:  openai.NewClient(settings.Current.OpenAIAPIKey),
+		oc:  openai.NewClientWithConfig(occ),
 	}
 	if doc, err := stores.LoadPreset(); err == nil {
 		s.ps = doc

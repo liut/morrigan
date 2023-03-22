@@ -6,17 +6,28 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/jpillora/eventsource"
+	"github.com/liut/morrigan/pkg/models/conversatio"
 	"github.com/liut/morrigan/pkg/sevices/stores"
 	"github.com/marcsv/go-binder/binder"
 	"github.com/sashabaranov/go-openai"
 )
 
 type ChatCompletionMessage = openai.ChatCompletionMessage
-type ChatCompletionRequest = openai.ChatCompletionRequest
+
 type CompletionRequest = openai.CompletionRequest
+
+type ChatCompletionRequest struct {
+	openai.ChatCompletionRequest
+
+	isSSE bool
+	cs    stores.Conversation
+	hi    *conversatio.HistoryItem
+}
 
 func (s *server) getModels(w http.ResponseWriter, r *http.Request) {
 	res, err := s.oc.ListModels(r.Context())
@@ -113,91 +124,46 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 		}
 	}
-	// TODO: history
+	data, err := cs.ListHistory(r.Context())
+	if err == nil {
+		for _, hi := range data {
+			if hi.ChatItem != nil {
+				if len(hi.ChatItem.User) > 0 {
+					messages = append(messages, ChatCompletionMessage{
+						Role: openai.ChatMessageRoleUser, Content: hi.ChatItem.User})
+				} else if len(hi.ChatItem.Assistant) > 0 {
+					messages = append(messages, ChatCompletionMessage{
+						Role: openai.ChatMessageRoleAssistant, Content: hi.ChatItem.Assistant})
+				}
+			}
+		}
+	}
 	messages = append(messages, ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: param.Prompt,
 	})
-	ccr := ChatCompletionRequest{
-		Model:    openai.GPT3Dot5Turbo,
-		Messages: messages,
-		Stream:   isStream,
-		User:     "mog-uid-" + user.UID,
+	logger().Infow("chat", "cid", param.ConversationID, "msgs", len(messages))
+	ccr := new(ChatCompletionRequest)
+	ccr.Model = openai.GPT3Dot5Turbo
+	ccr.Messages = messages
+	ccr.Stream = isStream
+	ccr.User = "mog-uid-" + user.UID
+	ccr.isSSE = isSSE
+	ccr.cs = cs
+	ccr.hi = &conversatio.HistoryItem{
+		Time: time.Now().Unix(),
+		ChatItem: &conversatio.HistoryChatItem{
+			User: param.Prompt,
+		},
 	}
-	logger().Infow("chat", "req", &ccr)
 
-	if isStream {
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-			return
-		}
+	logger().Debugw("chat", "req", &ccr)
 
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		if isSSE {
-			w.Header().Set("Content-Type", "text/event-stream")
-		} else if isProcess {
-			w.Header().Add("Content-type", "application/octet-stream")
-		}
-
-		ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr)
-		if err != nil {
-			apiFail(w, r, 500, err)
-			return
-		}
-		defer ccs.Close()
-
-		w.WriteHeader(http.StatusOK)
-		flusher.Flush()
-
-		var cm ChatMessage
-		cm.ID = cs.GetID()
-		var wrote int
-		for {
-			ccsr, err := ccs.Recv()
-			if errors.Is(err, io.EOF) {
-				logger().Debug("ccs recv end")
-				break
-			}
-			if err != nil {
-				logger().Infow("ccs recv fail", "err", err)
-				break
-			}
-			// logger().Debugw("ccs recv", "res", &ccsr)
-			// if wrote>0 {
-			// 	w.Write([]byte("\n"))
-			// }
-			if len(ccsr.Choices) > 0 {
-				cm.Delta = ccsr.Choices[0].Delta.Content
-				// logger().Debugw("cm", "delta", cm.Delta)
-				if isSSE {
-					b, err := json.Marshal(&cm)
-					if err != nil {
-						logger().Infow("json marshal fail", "cm", &cm, "err", err)
-						break
-					}
-					err = eventsource.WriteEvent(w, eventsource.Event{
-						ID:   ccsr.ID,
-						Data: b,
-					})
-				} else {
-					cm.Text += cm.Delta
-					if err = json.NewEncoder(w).Encode(&cm); err != nil {
-						logger().Infow("json enc fail", "err", err)
-						break
-					}
-				}
-			}
-
-			wrote++
-			flusher.Flush()
-		}
-		logger().Infow("ccs recv done", "wrote", wrote)
+	if ccr.Stream {
+		s.chatStreamResponse(ccr, w, r)
 		return
-
 	}
-	res, err := s.oc.CreateChatCompletion(r.Context(), ccr)
+	res, err := s.oc.CreateChatCompletion(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
 		apiFail(w, r, 500, err)
 		return
@@ -220,6 +186,94 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, cr)
 }
 
+func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) {
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	if ccr.isSSE {
+		w.Header().Set("Content-Type", "text/event-stream")
+	} else {
+		w.Header().Add("Content-type", "application/octet-stream")
+	}
+
+	ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
+	if err != nil {
+		logger().Infow("call chat stream fail", "err", err)
+		apiFail(w, r, 500, err)
+		return
+	}
+	defer ccs.Close()
+
+	var cm ChatMessage
+	cm.ID = ccr.cs.GetID()
+	var answer string
+	for {
+		var wrote bool
+		ccsr, err := ccs.Recv()
+		if errors.Is(err, io.EOF) {
+			logger().Debug("ccs recv end")
+			if ccr.isSSE {
+				if err = eventsource.WriteEvent(w, eventsource.Event{
+					ID:   ccsr.ID,
+					Data: []byte("[DONE]"),
+				}); err == nil {
+					wrote = true
+				} else {
+					logger().Infow("eventsource write fail", "err", err)
+				}
+			}
+			break
+		}
+		if err != nil {
+			logger().Infow("ccs recv fail", "err", err)
+			break
+		}
+		// logger().Debugw("ccs recv", "res", &ccsr)
+		// if wrote>0 {
+		// 	w.Write([]byte("\n"))
+		// }
+		if len(ccsr.Choices) > 0 {
+			cm.Delta = ccsr.Choices[0].Delta.Content
+			answer += cm.Delta
+			// logger().Debugw("cm", "delta", cm.Delta)
+			if ccr.isSSE {
+				b, err := json.Marshal(&cm)
+				if err != nil {
+					logger().Infow("json marshal fail", "cm", &cm, "err", err)
+					break
+				}
+				if err = eventsource.WriteEvent(w, eventsource.Event{
+					ID:   ccsr.ID,
+					Data: b,
+				}); err == nil {
+					wrote = true
+				} else {
+					logger().Infow("eventsource write fail", "err", err)
+				}
+			} else {
+				cm.Text += cm.Delta
+				if err = json.NewEncoder(w).Encode(&cm); err != nil {
+					logger().Infow("json enc fail", "err", err)
+					break
+				}
+			}
+		}
+		if !wrote {
+			flusher.Flush()
+		}
+
+	}
+	ccr.hi.ChatItem.Assistant = answer
+	ccr.cs.AddHistory(r.Context(), ccr.hi)
+	logger().Infow("ccs recv done", "answer", len(answer))
+}
+
 func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	var param CompletionRequest
 	if err := binder.BindBody(r, &param); err != nil {
@@ -236,15 +290,23 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
 	if s.ps != nil {
-		msgs := s.ps.Welcomes
-		if len(msgs) > 0 && len(msgs[0].ID) == 0 {
+		var msg conversatio.Message
+		if s.ps.Welcome != nil {
+			msg = *s.ps.Welcome
 			cs := stores.NewConversation("")
-			msgs[0].ID = cs.GetID()
+			msg.ID = cs.GetID()
 		}
-		apiOk(w, r, msgs)
+		apiOk(w, r, &msg)
 	}
 }
 
 func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
-
+	cid := chi.URLParam(r, "cid")
+	cs := stores.NewConversation(cid)
+	data, err := cs.ListHistory(r.Context())
+	if err != nil {
+		apiFail(w, r, 500, err)
+		return
+	}
+	apiOk(w, r, data, 0)
 }
