@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	staffio "github.com/liut/staffio-client"
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/conversatio"
@@ -35,8 +36,9 @@ type server struct {
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
 
-	oc *openai.Client
-	ps *conversatio.Preset
+	authzr staffio.Authorizer
+	oc     *openai.Client
+	ps     *conversatio.Preset
 }
 
 // New return new web server
@@ -57,6 +59,13 @@ func New(cfg Config) Service {
 		Addr: cfg.Addr, ar: ar,
 		cfg: cfg,
 		oc:  openai.NewClientWithConfig(occ),
+	}
+	if settings.Current.AuthRequired {
+		s.authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(
+			settings.Current.CookieName,
+			settings.Current.CookiePath,
+			settings.Current.CookieDomain,
+		))
 	}
 	if doc, err := stores.LoadPreset(); err == nil {
 		s.ps = doc

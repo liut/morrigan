@@ -20,19 +20,18 @@ type User = staffio.User
 
 // vars from staffio
 var (
-	SetLoginPath    = staffio.SetLoginPath
-	SetAdminPath    = staffio.SetAdminPath
 	UserFromContext = staffio.UserFromContext
-
-	authzr staffio.Authorizer
 )
 
-func init() {
-	authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(
-		settings.Current.CookieName,
-		settings.Current.CookiePath,
-		settings.Current.CookieDomain,
-	))
+func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
+	if settings.Current.AuthRequired {
+		return s.authzr.MiddlewareWordy(redir)
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			next.ServeHTTP(rw, req)
+		})
+	}
 }
 
 func (s *server) strapRouter() {
@@ -46,7 +45,7 @@ func (s *server) strapRouter() {
 	})
 
 	s.ar.Route("/api", func(r chi.Router) {
-		r.Use(authzr.Middleware())
+		r.Use(s.authMw(false))
 		r.Get("/me", handleMe)
 		r.Get("/session", handleSession)
 		r.Post("/session", handleSession)
@@ -58,19 +57,14 @@ func (s *server) strapRouter() {
 		r.Post("/chat", s.postChat)
 		r.Post("/chat-{suffix}", s.postChat)
 		r.Post("/completions", s.postCompletions)
-		// r.Get("/status/{idx}", handlerStatus)
-		// r.Post("/client/send", handlerSendClient)
 	})
 
-	// s.ar.Get("/", handleNoContent)
-	SetAdminPath("/")
+	staffio.SetAdminPath("/")
 	s.ar.Group(func(r chi.Router) {
-		r.Use(authzr.MiddlewareWordy(true))
+		r.Use(s.authMw(true))
 		if s.cfg.DocHandler != nil {
 			r.Get("/", s.cfg.DocHandler.ServeHTTP)
 		}
-
-		// r.Get("/", handlerHome)
 	})
 	if s.cfg.DocHandler != nil {
 		s.ar.NotFound(s.cfg.DocHandler.ServeHTTP)
@@ -92,6 +86,9 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {
+	if !settings.Current.AuthRequired {
+		apiOk(w, r, &User{})
+	}
 	if user, ok := UserFromContext(r.Context()); ok {
 		apiOk(w, r, user)
 	} else {

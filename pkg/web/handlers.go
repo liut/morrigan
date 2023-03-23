@@ -11,10 +11,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/jpillora/eventsource"
-	"github.com/liut/morrigan/pkg/models/conversatio"
-	"github.com/liut/morrigan/pkg/sevices/stores"
 	"github.com/marcsv/go-binder/binder"
 	"github.com/sashabaranov/go-openai"
+
+	"github.com/liut/morrigan/pkg/models/conversatio"
+	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morrigan/pkg/sevices/stores"
 )
 
 type ChatCompletionMessage = openai.ChatCompletionMessage
@@ -102,10 +104,6 @@ type ChatMessage struct {
 }
 
 func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
-	user, ok := UserFromContext(r.Context())
-	if !ok {
-		apiFail(w, r, 401, "not login")
-	}
 	var param ChatRequest
 	if err := binder.BindBody(r, &param); err != nil {
 		apiFail(w, r, 400, err)
@@ -120,6 +118,10 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	cs := stores.NewConversation(param.ConversationID)
 	var messages []ChatCompletionMessage
 	if s.ps != nil {
+		if s.ps.Welcome != nil {
+			messages = append(messages, ChatCompletionMessage{
+				Role: openai.ChatMessageRoleAssistant, Content: s.ps.Welcome.Content})
+		}
 		for _, msg := range s.ps.Messages {
 			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 		}
@@ -147,7 +149,12 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	ccr.Model = openai.GPT3Dot5Turbo
 	ccr.Messages = messages
 	ccr.Stream = isStream
-	ccr.User = "mog-uid-" + user.UID
+	if settings.Current.AuthRequired {
+		if user, ok := UserFromContext(r.Context()); ok {
+			ccr.User = "mog-uid-" + user.UID
+		}
+	}
+
 	ccr.isSSE = isSSE
 	ccr.cs = cs
 	ccr.hi = &conversatio.HistoryItem{

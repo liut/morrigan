@@ -25,6 +25,7 @@ type Config struct {
 	RedisURI     string   `envconfig:"redis_uri" default:"redis://localhost:6379/1"`
 	AllowOrigins []string `envconfig:"allow_origins" default:"*"` // CORS: 允许的 Origin 调用来源
 	TrustProxies []string `envconfig:"Trust_Proxies" default:"127.0.0.1,::1"`
+	AuthRequired bool     `envconfig:"Auth_Required"`
 	CookieName   string   `envconfig:"Cookie_Name" default:"oaic"`
 	CookiePath   string   `envconfig:"Cookie_Path" default:"/"`
 	CookieDomain string   `envconfig:"Cookie_Domain"`
