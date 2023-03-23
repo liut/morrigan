@@ -1,0 +1,12 @@
+
+welcome:
+  content: Hello, I am a chat assistant and can answer various questions for you.
+  role: assistant
+
+messages:
+  - content: You are a helpful assistant.
+    role: system
+  - content: When is my birthday?
+    role: user
+  - content: How would I know?
+    role: assistant
