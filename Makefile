@@ -14,10 +14,8 @@ MDs=$(shell find docs -type f \( -name "*.yaml" ! -name "swagger.yaml" \) -print
 SPEC=7
 
 help:
-	echo "make modcodegen"
-
-docs:
-	$(info docs: $(MDs))
+	echo "make deps"
+	echo "make dist"
 
 codegen:
 	mkdir -p ./pkg/models ./pkg/services/stores ./pkg/web
@@ -28,13 +26,6 @@ codegen:
 
 generate:
 	GO111MODULE=$(GOMOD) $(GO) generate ./...
-
-modcodegen: # deprecated
-	mkdir -p ./pkg/models
-	for name in $(MDs); do \
-		echo $${name}; \
-		GO111MODULE=$(GOMOD) $(GO) run -tags=sdkcodegen ./scripts/sdkcodegen docs/$${name} ./pkg/models/$${name}.go ; \
-	done
 
 vet:
 	echo "Checking ./pkg/... ./cmd/... , with GOMOD=$(GOMOD)"
@@ -53,7 +44,7 @@ lint:
 clean:
 	echo "Cleaning dist"
 	rm -rf dist
-	rm -f ./$(NAME)-*
+	rm -f $(NAME) $(NAME)-*
 
 showver:
 	echo "version: $(TAG)"
