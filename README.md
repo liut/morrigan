@@ -11,6 +11,7 @@ OpenAI/ChatGPT Backend with conversation and API
  - Chat History for Conversation (based on redis)
  - RESTful API
  - Welcome message and preset messages
+ - Login with OAuth2 client for general Security Provider
 
 ## APIs
 
