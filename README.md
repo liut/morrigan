@@ -25,14 +25,15 @@ OpenAI/ChatGPT 后端
 ### Post chat prompt and return Server Side Event
 
 <details>
- <summary><code>GET</code> <code><b>/api/chat-sse</b></code></summary>
+ <summary><code>POST</code> <code><b>/api/chat-sse</b></code> or <code><b>/api/chat</b></code> with <code>{steam: true}</code></summary>
 
 ##### Parameters
 
 > | name              |  type     | data type      | description                         |
 > |-------------------|-----------|----------------|-------------------------------------|
 > | `csid` |  optional | string    | conversation ID        |
-> | `prompt` |  required | string   | message for ask        |
+> | `prompt` |  required | string  | message for ask        |
+> | `stream` |  optional | bool    | enable event-steam, force <code><b>/api/chat-sse</b></code>       |
 
 
 ##### Responses

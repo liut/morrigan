@@ -88,6 +88,7 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 func handleMe(w http.ResponseWriter, r *http.Request) {
 	if !settings.Current.AuthRequired {
 		apiOk(w, r, &User{})
+		return
 	}
 	if user, ok := UserFromContext(r.Context()); ok {
 		apiOk(w, r, user)

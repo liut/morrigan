@@ -53,6 +53,7 @@ type ChatRequest struct {
 	Prompt          string `json:"prompt"`
 	ConversationID  string `json:"csid"`
 	ParentMessageID string `json:"pmid"`
+	Stream          bool   `json:"stream"`
 }
 
 /*
@@ -109,12 +110,10 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		apiFail(w, r, 400, err)
 		return
 	}
-	var isStream bool
 	isProcess := strings.HasSuffix(r.URL.Path, "-process")
-	isSSE := strings.HasSuffix(r.URL.Path, "-sse")
-	if isProcess || isSSE {
-		isStream = true
-	}
+	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
+	isStream := param.Stream || isSSE || isProcess
+
 	cs := stores.NewConversation(param.ConversationID)
 	var messages []ChatCompletionMessage
 

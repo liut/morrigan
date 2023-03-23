@@ -1,6 +1,6 @@
 
 welcome:
-  content: Hello, I am a chat assistant and can answer various questions for you.
+  content: Hello, I am your virtual assistant. How can I help you?
   role: assistant
 
 messages:
