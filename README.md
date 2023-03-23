@@ -1,6 +1,10 @@
 # Morrigan
 
-OpenAI/ChatGPT 后端
+OpenAI/ChatGPT Backend with conversation and API
+
+## Supported Frontend
+
+- [chatgpt-svelte](https://github.com/liut/chatgpt-svelte/tree/dev)
 
 ## APIs
 
@@ -61,4 +65,30 @@ forego start
 make dist GOMOD=auto
 
 
+```
+
+### Prepare preset data file in YAML
+
+```yaml
+
+welcome:
+  content: Hello, I am your virtual assistant. How can I help you?
+  role: assistant
+
+messages:
+  - content: You are a helpful assistant.
+    role: system
+  - content: When is my birthday?
+    role: user
+  - content: How would I know?
+    role: assistant
+
+ # more messages
+
+```
+
+Change settings with environment
+
+```plan
+MORRIGAN_PRESET_FILE=./data/preset.yaml
 ```
