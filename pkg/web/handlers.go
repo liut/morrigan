@@ -54,6 +54,11 @@ type ChatRequest struct {
 	ConversationID  string `json:"csid"`
 	ParentMessageID string `json:"pmid"`
 	Stream          bool   `json:"stream"`
+
+	// for github.com/Chanzhaoyu/chatgpt-web only
+	Options struct {
+		ConversationId string `json:"conversationId,omitempty"`
+	}
 }
 
 /*
@@ -102,6 +107,9 @@ type ChatMessage struct {
 	Text  string `json:"text"`
 	Role  string `json:"role,omitempty"`
 	Name  string `json:"name,omitempty"`
+
+	// for github.com/Chanzhaoyu/chatgpt-web only
+	ConversationId string `json:"conversationId,omitempty"`
 }
 
 func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +122,14 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
 	isStream := param.Stream || isSSE || isProcess
 
-	cs := stores.NewConversation(param.ConversationID)
+	var cs stores.Conversation
+	if len(param.ConversationID) > 0 {
+		cs = stores.NewConversation(param.ConversationID)
+	} else {
+		// for github.com/Chanzhaoyu/chatgpt-web only
+		cs = stores.NewConversation(param.Options.ConversationId)
+	}
+
 	var messages []ChatCompletionMessage
 
 	if s.preset != nil {
@@ -220,6 +235,10 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 
 	var cm ChatMessage
 	cm.ID = ccr.cs.GetID()
+	if !ccr.isSSE {
+		// for github.com/Chanzhaoyu/chatgpt-web only
+		cm.ConversationId = cm.ID
+	}
 	var answer string
 	for {
 		var wrote bool

@@ -11,7 +11,8 @@ OpenAI/ChatGPT Backend with conversation and API
 
 ## Supported Frontend
 
-- [chatgpt-svelte](https://github.com/liut/chatgpt-svelte/tree/dev)
+- [chatgpt-svelte](https://github.com/liut/chatgpt-svelte) based on Svelte
+- [chatgpt-web](https://github.com/liut/chatgpt-web) based on Vue.js
 
 
 ## APIs

@@ -97,15 +97,23 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type respSession struct {
+	Status string `json:"status"`
+	Data   struct {
+		Auth bool `json:"auth"` // need auth
+	} `json:"data"`
+}
+
+// for github.com/Chanzhaoyu/chatgpt-web
 func handleSession(w http.ResponseWriter, r *http.Request) {
-	if _, ok := UserFromContext(r.Context()); ok {
-		render.JSON(w, r, M{"data": M{
-			"auth": true,
-			// "user": user,
-		}, "status": "Success"})
-	} else {
-		apiFail(w, r, 401, "not login")
+	var res respSession
+	res.Status = "Success"
+	if !settings.Current.AuthRequired {
+		res.Data.Auth = len(settings.Current.AuthSecret) > 0
+	} else if _, ok := UserFromContext(r.Context()); !ok {
+		res.Data.Auth = true
 	}
+	render.JSON(w, r, &res)
 }
 
 type verifyReq struct {

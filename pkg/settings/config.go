@@ -26,6 +26,7 @@ type Config struct {
 	AllowOrigins []string `envconfig:"allow_origins" default:"*"` // CORS: 允许的 Origin 调用来源
 	TrustProxies []string `envconfig:"Trust_Proxies" default:"127.0.0.1,::1"`
 	AuthRequired bool     `envconfig:"Auth_Required"`
+	AuthSecret   string   `envconfig:"Auth_Secret"`
 	CookieName   string   `envconfig:"Cookie_Name" default:"oaic"`
 	CookiePath   string   `envconfig:"Cookie_Path" default:"/"`
 	CookieDomain string   `envconfig:"Cookie_Domain"`
