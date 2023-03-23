@@ -117,15 +117,15 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	cs := stores.NewConversation(param.ConversationID)
 	var messages []ChatCompletionMessage
-	if s.ps != nil {
-		if s.ps.Welcome != nil {
-			messages = append(messages, ChatCompletionMessage{
-				Role: openai.ChatMessageRoleAssistant, Content: s.ps.Welcome.Content})
-		}
-		for _, msg := range s.ps.Messages {
-			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-		}
+
+	if s.preset.Welcome != nil {
+		messages = append(messages, ChatCompletionMessage{
+			Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
 	}
+	for _, msg := range s.preset.Messages {
+		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+	}
+
 	data, err := cs.ListHistory(r.Context())
 	if err == nil {
 		for _, hi := range data {
@@ -296,15 +296,14 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
-	if s.ps != nil {
-		var msg conversatio.Message
-		if s.ps.Welcome != nil {
-			msg = *s.ps.Welcome
-			cs := stores.NewConversation("")
-			msg.ID = cs.GetID()
-		}
-		apiOk(w, r, &msg)
+	var msg conversatio.Message
+
+	if s.preset.Welcome != nil {
+		msg = *s.preset.Welcome
 	}
+	cs := stores.NewConversation("")
+	msg.ID = cs.GetID()
+	apiOk(w, r, &msg)
 }
 
 func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {

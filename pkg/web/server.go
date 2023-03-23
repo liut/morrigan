@@ -38,7 +38,7 @@ type server struct {
 
 	authzr staffio.Authorizer
 	oc     *openai.Client
-	ps     *conversatio.Preset
+	preset *conversatio.Preset
 }
 
 // New return new web server
@@ -67,9 +67,10 @@ func New(cfg Config) Service {
 			settings.Current.CookieDomain,
 		))
 	}
-	if doc, err := stores.LoadPreset(); err == nil {
-		s.ps = doc
-		logger().Infow("load preset", "messages", len(doc.Messages))
+	var err error
+	s.preset, err = stores.LoadPreset()
+	if err == nil {
+		logger().Infow("load preset", "messages", len(s.preset.Messages))
 	}
 	s.strapRouter()
 

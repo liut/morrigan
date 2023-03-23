@@ -82,6 +82,7 @@ func (s *conversation) getKey() string {
 }
 
 func LoadPreset() (doc *conversatio.Preset, err error) {
+	doc = new(conversatio.Preset)
 	if len(settings.Current.PresetFile) > 0 {
 		logger().Infow("load preset", "file", settings.Current.PresetFile)
 		yf, err := os.Open(settings.Current.PresetFile)
@@ -89,9 +90,9 @@ func LoadPreset() (doc *conversatio.Preset, err error) {
 			return nil, err
 		}
 		defer yf.Close()
-		doc = new(conversatio.Preset)
 		err = yaml.NewDecoder(yf).Decode(doc)
 		if err != nil {
+			logger().Infow("decode preset fail", "err", err)
 			return nil, err
 		}
 	}
