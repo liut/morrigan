@@ -2,16 +2,17 @@
 
 OpenAI/ChatGPT Backend with conversation and API
 
-## Supported Frontend
-
-- [chatgpt-svelte](https://github.com/liut/chatgpt-svelte/tree/dev)
-
 ## Features
  - Support text/event-steam
  - Chat History for Conversation (based on redis)
  - RESTful API
  - Welcome message and preset messages
  - Login with OAuth2 client for general Security Provider
+
+## Supported Frontend
+
+- [chatgpt-svelte](https://github.com/liut/chatgpt-svelte/tree/dev)
+
 
 ## APIs
 
