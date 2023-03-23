@@ -84,9 +84,9 @@ func (s *conversation) getKey() string {
 func LoadPreset() (doc *conversatio.Preset, err error) {
 	doc = new(conversatio.Preset)
 	if len(settings.Current.PresetFile) > 0 {
-		logger().Infow("load preset", "file", settings.Current.PresetFile)
 		yf, err := os.Open(settings.Current.PresetFile)
 		if err != nil {
+			logger().Infow("load preset fail", "file", settings.Current.PresetFile, "err", err)
 			return nil, err
 		}
 		defer yf.Close()

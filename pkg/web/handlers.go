@@ -117,12 +117,14 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	cs := stores.NewConversation(param.ConversationID)
 	var messages []ChatCompletionMessage
 
-	if s.preset.Welcome != nil {
-		messages = append(messages, ChatCompletionMessage{
-			Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
-	}
-	for _, msg := range s.preset.Messages {
-		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+	if s.preset != nil {
+		if s.preset.Welcome != nil {
+			messages = append(messages, ChatCompletionMessage{
+				Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
+		}
+		for _, msg := range s.preset.Messages {
+			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+		}
 	}
 
 	data, err := cs.ListHistory(r.Context())
@@ -294,15 +296,22 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, res, 0)
 }
 
-func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
-	var msg conversatio.Message
+const (
+	welcomeText = "Hello, I am your virtual assistant. How can I help you?"
+)
 
-	if s.preset.Welcome != nil {
-		msg = *s.preset.Welcome
+func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
+	msg := new(conversatio.Message)
+
+	if s.preset != nil && s.preset.Welcome != nil {
+		msg.Content = s.preset.Welcome.Content
+	} else {
+		msg.Content = welcomeText
 	}
+
 	cs := stores.NewConversation("")
 	msg.ID = cs.GetID()
-	apiOk(w, r, &msg)
+	apiOk(w, r, msg)
 }
 
 func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
