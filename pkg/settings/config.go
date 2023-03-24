@@ -20,20 +20,18 @@ type Config struct {
 	PgQueryDebug bool     `envconfig:"PG_QUERY_DEBUG"`
 	DbAutoInit   bool     `envconfig:"DB_AUTO_INIT"`
 	SentryDSN    string   `envconfig:"SENTRY_DSN" `
-	HTTPListen   string   `envconfig:"HTTP_LISTEN" default:":5001"`
-	GrpcListen   string   `envconfig:"GRPC_LISTEN" default:"127.0.0.1:5012"`
-	RedisURI     string   `envconfig:"redis_uri" default:"redis://localhost:6379/1"`
-	AllowOrigins []string `envconfig:"allow_origins" default:"*"` // CORS: 允许的 Origin 调用来源
-	TrustProxies []string `envconfig:"Trust_Proxies" default:"127.0.0.1,::1"`
+	HTTPListen   string   `envconfig:"HTTP_LISTEN" default:":5001" required:"true"`
+	RedisURI     string   `envconfig:"redis_uri" default:"redis://localhost:6379/1" required:"true"`
+	AllowOrigins []string `envconfig:"allow_origins" default:"*" desc:"cors"` // CORS: 允许的 Origin 调用来源
 	AuthRequired bool     `envconfig:"Auth_Required"`
-	AuthSecret   string   `envconfig:"Auth_Secret"`
-	CookieName   string   `envconfig:"Cookie_Name" default:"oaic"`
-	CookiePath   string   `envconfig:"Cookie_Path" default:"/"`
-	CookieDomain string   `envconfig:"Cookie_Domain"`
-	CookieMaxAge int      `envconfig:"Cookie_MaxAge"`
+	AuthSecret   string   `envconfig:"Auth_Secret" desc:"for chatgpt-web session only"`
+	CookieName   string   `envconfig:"Cookie_Name" default:"oaic" desc:"for oauth client"`
+	CookiePath   string   `envconfig:"Cookie_Path" default:"/" desc:"for oauth client"`
+	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
+	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"for oauth client"`
 
-	OpenAIAPIKey string `envconfig:"openAi_Api_Key"`
-	PresetFile   string `envconfig:"preset_file"`
+	OpenAIAPIKey string `envconfig:"openAi_Api_Key" required:"true"`
+	PresetFile   string `envconfig:"preset_file" desc:"custom welcome and messages"`
 }
 
 var (
