@@ -35,7 +35,7 @@ OpenAI/ChatGPT Backend with conversation and API
 
 </details>
 
-### Post chat prompt and return Server Side Event
+### Post chat prompt and return Streaming messages
 
 <details>
  <summary><code>POST</code> <code><b>/api/chat-sse</b></code> or <code><b>/api/chat</b></code> with <code>{steam: true}</code></summary>
@@ -63,7 +63,8 @@ OpenAI/ChatGPT Backend with conversation and API
 ```bash
 
 test -e .env || cp .env.example .env
-# edit .env and change api key of OpenAI
+# Edit .env and change api key of OpenAI
+# Embedding and replacing frontend resources
 
 make deps
 
@@ -71,7 +72,7 @@ forego start
 
 # or
 
-make dist GOMOD=auto
+make dist
 
 
 ```
@@ -96,8 +97,44 @@ messages:
 
 ```
 
-Change settings with environment
+### Change settings with environment
+
+#### Show all local settings
+```bash
+go run . -usage
+```
+
+Example:
 
 ```plan
+MORRIGAN_OPENAI_API_KEY=oo-xx
+MORRIGAN_HTTP_LISTEN=:3002
+
+# optional preset data
 MORRIGAN_PRESET_FILE=./data/preset.yaml
+
+# optional OAuth2 login
+MORRIGAN_AUTH_REQUIRED=true
+OAUTH_PREFIX=https://portal.my-company.xyz
+
+# optional proxy
+HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 ```
+
+### Embedding frontend resources
+
+1. Go to frontend project directory
+2. Build frontend pages and accompanying static resources.
+3. Copy them into ./htdocs
+
+Example:
+
+```bash
+cd ../chatgpt-svelte
+npm run build
+rsync -a --delete dist/* ../morrigan/htdocs/
+cd -
+```
+
+During the development and debugging phase, you can still use with proxy to collaborate with the front-end project.
+
