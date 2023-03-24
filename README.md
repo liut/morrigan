@@ -35,6 +35,25 @@ OpenAI/ChatGPT Backend with conversation and API
 
 </details>
 
+### Get user information of that has been verified or signed in
+
+<details>
+ <summary><code>GET</code> <code><b>/api/me</b></code></summary>
+
+##### Parameters
+
+> None
+
+##### Responses
+
+> | http code     | content-type                      | response                                           |
+> |---------------|-----------------------------------|---------------------------------------------------------------------|
+> | `200`         | `application/json`        | `{"data": {"avatar": "", "name": "name", "uid": "uid"}}`                                         |
+> | `401`         | `application/json`        | `{"error": "", "message": ""}`                                         |
+
+
+</details>
+
 ### Post chat prompt and return Streaming messages
 
 <details>
@@ -42,18 +61,40 @@ OpenAI/ChatGPT Backend with conversation and API
 
 ##### Parameters
 
-> | name              |  type     | data type      | description                         |
-> |-------------------|-----------|----------------|-------------------------------------|
-> | `csid` |  optional | string    | conversation ID        |
-> | `prompt` |  required | string  | message for ask        |
-> | `stream` |  optional | bool    | enable event-steam, force <code><b>/api/chat-sse</b></code>       |
+> | name       |  type     | data type      | description                         |
+> |------------|-----------|----------------|-------------------------------------|
+> | `csid`     |  optional | string       | conversation ID        |
+> | `prompt`   |  required | string       | message for ask        |
+> | `stream`   |  optional |  bool        | enable event-steam, force <code><b>/api/chat-sse</b></code>       |
 
 
 ##### Responses
 
-> | http code     | content-type                      | response                                           |
-> |---------------|-----------------------------------|---------------------------------------------------------------------|
-> | `200`         | `text/event-stream`        | `{"delta": "message fragments", "id": "conversation ID"}`                                         |
+> | http code     | content-type               | response                                           |
+> |---------------|----------------------------|----------------------------------------------------|
+> | `200`         | `text/event-stream`        | `{"delta": "message fragments", "id": "conversation ID"}`                                          |
+> | `401`         | `application/json`        | `{"status": "Unauthorized", "message": ""}`                                         |
+
+
+</details>
+
+<details>
+ <summary><code>POST</code> <code><b>/api/chat-process</b></code> for chatgpt-web only</summary>
+
+##### Parameters
+
+> | name        |  type     | data type      | description                         |
+> |-------------|-----------|----------------|-------------------------------------|
+> | `prompt`    | required  |    string      | message for ask        |
+> | `options`   | optional  |    object      | <code>{ conversationId: "" }</code>    |
+
+
+##### Responses
+
+> | http code     | content-type                    | response                                           |
+> |---------------|---------------------------------|-----------------------------------------------------|
+> | `200`         | `application/octet-stream`      | `{"delta": "message fragments", "text": "message", "conversationId": ""}`                                          |
+> | `401`         | `application/json`        | `{"status": "Unauthorized", "message": ""}`                                         |
 
 
 </details>
