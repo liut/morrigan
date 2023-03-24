@@ -27,9 +27,17 @@ func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
 	if settings.Current.AuthRequired {
 		return s.authzr.MiddlewareWordy(redir)
 	}
+	needAuth := len(settings.Current.AuthSecret) > 0
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			next.ServeHTTP(rw, req)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if needAuth {
+				tok, err := s.authzr.TokenFromRequest(r)
+				if err != nil || tok != settings.Current.AuthSecret {
+					render.JSON(w, r, M{"status": "Unauthorized", "message": "Please authenticate."})
+					return
+				}
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }
@@ -47,9 +55,6 @@ func (s *server) strapRouter() {
 	s.ar.Route("/api", func(r chi.Router) {
 		r.Use(s.authMw(false))
 		r.Get("/me", handleMe)
-		r.Get("/session", handleSession)
-		r.Post("/session", handleSession)
-		r.Post("/verify", handleVerify)
 
 		r.Get("/models", s.getModels)
 		r.Get("/welcome", s.getWelcome)
@@ -58,6 +63,9 @@ func (s *server) strapRouter() {
 		r.Post("/chat-{suffix}", s.postChat)
 		r.Post("/completions", s.postCompletions)
 	})
+
+	s.ar.Post("/api/session", s.handleSession)
+	s.ar.Post("/api/verify", s.handleVerify)
 
 	staffio.SetAdminPath("/")
 	s.ar.Group(func(r chi.Router) {
@@ -105,7 +113,7 @@ type respSession struct {
 }
 
 // for github.com/Chanzhaoyu/chatgpt-web
-func handleSession(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
 	var res respSession
 	res.Status = "Success"
 	if !settings.Current.AuthRequired {
@@ -120,17 +128,21 @@ type verifyReq struct {
 	Token string `json:"token"`
 }
 
-func handleVerify(w http.ResponseWriter, r *http.Request) {
+// for github.com/Chanzhaoyu/chatgpt-web
+func (s *server) handleVerify(w http.ResponseWriter, r *http.Request) {
 	var param verifyReq
 	if err := binder.BindBody(r, &param); err != nil {
 		apiFail(w, r, 400, err)
 		return
 	}
-	user := new(User)
-	if err := user.Decode(param.Token); err != nil {
-		apiFail(w, r, 401, err)
-		return
+	if param.Token != settings.Current.AuthSecret {
+		apiFail(w, r, 401, "mismatch token")
 	}
+	// user := new(User)
+	// if err := user.Decode(param.Token); err != nil {
+	// 	apiFail(w, r, 401, err)
+	// 	return
+	// }
 
 	render.JSON(w, r, M{"status": "Success"})
 }

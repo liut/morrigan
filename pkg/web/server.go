@@ -60,13 +60,13 @@ func New(cfg Config) Service {
 		cfg: cfg,
 		oc:  openai.NewClientWithConfig(occ),
 	}
-	if settings.Current.AuthRequired {
-		s.authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(
-			settings.Current.CookieName,
-			settings.Current.CookiePath,
-			settings.Current.CookieDomain,
-		))
-	}
+
+	s.authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(
+		settings.Current.CookieName,
+		settings.Current.CookiePath,
+		settings.Current.CookieDomain,
+	))
+
 	var err error
 	s.preset, err = stores.LoadPreset()
 	if err == nil {
