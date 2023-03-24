@@ -12,7 +12,7 @@ OpenAI/ChatGPT Backend with conversation and API
 ## Supported Frontend
 
 <details>
- <summary>chatgpt-svelte based on Svelte screen ⤸</summary>
+ <summary>chatgpt-svelte based on Svelte  ⤸</summary>
 
  ![chatgpt-svelte](./docs/screen-svelte-s.png)
 
@@ -21,7 +21,7 @@ OpenAI/ChatGPT Backend with conversation and API
 </details>
 
 <details>
- <summary>chatgpt-web based on Vue.js screen ⤸</summary>
+ <summary>chatgpt-web based on Vue.js  ⤸</summary>
 
  ![chatgpt-web](./docs/screen-web-s.png)
 
@@ -80,7 +80,7 @@ OpenAI/ChatGPT Backend with conversation and API
 > |------------|-----------|----------------|-------------------------------------|
 > | `csid`     |  optional | string       | conversation ID        |
 > | `prompt`   |  required | string       | message for ask        |
-> | `stream`   |  optional |  bool        | enable event-steam, force <code><b>/api/chat-sse</b></code>       |
+> | `stream`   |  optional |  bool        | enable event-steam, force on <code><b>/api/chat-sse</b></code>       |
 
 
 ##### Responses
