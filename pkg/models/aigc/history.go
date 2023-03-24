@@ -1,4 +1,4 @@
-package conversatio
+package aigc
 
 import "encoding/json"
 

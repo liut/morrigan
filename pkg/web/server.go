@@ -12,7 +12,7 @@ import (
 	staffio "github.com/liut/staffio-client"
 	"github.com/sashabaranov/go-openai"
 
-	"github.com/liut/morrigan/pkg/models/conversatio"
+	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/settings"
 	"github.com/liut/morrigan/pkg/sevices/stores"
 )
@@ -38,7 +38,7 @@ type server struct {
 
 	authzr staffio.Authorizer
 	oc     *openai.Client
-	preset *conversatio.Preset
+	preset *aigc.Preset
 }
 
 // New return new web server

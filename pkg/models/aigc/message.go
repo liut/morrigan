@@ -1,4 +1,4 @@
-package conversatio
+package aigc
 
 type Message struct {
 	Role    string `json:"role,omitempty" yaml:"role,omitempty"`

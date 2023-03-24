@@ -14,7 +14,7 @@ import (
 	"github.com/marcsv/go-binder/binder"
 	"github.com/sashabaranov/go-openai"
 
-	"github.com/liut/morrigan/pkg/models/conversatio"
+	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/settings"
 	"github.com/liut/morrigan/pkg/sevices/stores"
 )
@@ -28,7 +28,7 @@ type ChatCompletionRequest struct {
 
 	isSSE bool
 	cs    stores.Conversation
-	hi    *conversatio.HistoryItem
+	hi    *aigc.HistoryItem
 }
 
 func (s *server) getModels(w http.ResponseWriter, r *http.Request) {
@@ -57,13 +57,13 @@ type ChatRequest struct {
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
 	Options struct {
-		ConversationId string `json:"conversationId,omitempty"`
+		ConversationId string `json:"aigcnId,omitempty"`
 	}
 }
 
 /*
 	interface ConversationResponse {
-		conversationId: string
+		aigcnId: string
 		detail: {
 			choices: { finish_reason: string; index: number; logprobs: any; text: string }[]
 			created: number
@@ -109,7 +109,7 @@ type ChatMessage struct {
 	Name  string `json:"name,omitempty"`
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
-	ConversationId string `json:"conversationId,omitempty"`
+	ConversationId string `json:"aigcnId,omitempty"`
 }
 
 func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
@@ -173,9 +173,9 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 	ccr.isSSE = isSSE
 	ccr.cs = cs
-	ccr.hi = &conversatio.HistoryItem{
+	ccr.hi = &aigc.HistoryItem{
 		Time: time.Now().Unix(),
-		ChatItem: &conversatio.HistoryChatItem{
+		ChatItem: &aigc.HistoryChatItem{
 			User: param.Prompt,
 		},
 	}
@@ -320,7 +320,7 @@ const (
 )
 
 func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
-	msg := new(conversatio.Message)
+	msg := new(aigc.Message)
 
 	if s.preset != nil && s.preset.Welcome != nil {
 		msg.Content = s.preset.Welcome.Content

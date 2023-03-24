@@ -8,7 +8,7 @@ import (
 	"github.com/cupogo/andvari/models/oid"
 	"gopkg.in/yaml.v3"
 
-	"github.com/liut/morrigan/pkg/models/conversatio"
+	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -19,8 +19,8 @@ const (
 
 type Conversation interface {
 	GetID() string
-	AddHistory(ctx context.Context, item *conversatio.HistoryItem) error
-	ListHistory(ctx context.Context) (conversatio.HistoryItems, error)
+	AddHistory(ctx context.Context, item *aigc.HistoryItem) error
+	ListHistory(ctx context.Context) (aigc.HistoryItems, error)
 	ClearHistory(ctx context.Context) error
 }
 
@@ -41,7 +41,7 @@ func (s *conversation) GetID() string {
 	return s.id.String()
 }
 
-func (s *conversation) AddHistory(ctx context.Context, item *conversatio.HistoryItem) error {
+func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) error {
 	key := s.getKey()
 	b, err := item.MarshalBinary()
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *conversation) AddHistory(ctx context.Context, item *conversatio.History
 	return err
 }
 
-func (s *conversation) ListHistory(ctx context.Context) (data conversatio.HistoryItems, err error) {
+func (s *conversation) ListHistory(ctx context.Context) (data aigc.HistoryItems, err error) {
 	key := s.getKey()
 	ss := s.rc.LRange(ctx, key, 0, -1)
 	err = ss.ScanSlice(&data)
@@ -81,8 +81,8 @@ func (s *conversation) getKey() string {
 	return "convs-" + s.GetID()
 }
 
-func LoadPreset() (doc *conversatio.Preset, err error) {
-	doc = new(conversatio.Preset)
+func LoadPreset() (doc *aigc.Preset, err error) {
+	doc = new(aigc.Preset)
 	if len(settings.Current.PresetFile) > 0 {
 		yf, err := os.Open(settings.Current.PresetFile)
 		if err != nil {
