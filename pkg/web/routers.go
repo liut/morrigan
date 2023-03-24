@@ -33,6 +33,7 @@ func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
 			if needAuth {
 				tok, err := s.authzr.TokenFromRequest(r)
 				if err != nil || tok != settings.Current.AuthSecret {
+					w.WriteHeader(401)
 					render.JSON(w, r, M{"status": "Unauthorized", "message": "Please authenticate."})
 					return
 				}
