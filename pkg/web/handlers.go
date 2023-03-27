@@ -57,13 +57,15 @@ type ChatRequest struct {
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
 	Options struct {
-		ConversationId string `json:"aigcnId,omitempty"`
+		ConversationId string `json:"conversationId,omitempty"`
 	}
 }
 
 /*
+// chatgpt-web:
+
 	interface ConversationResponse {
-		aigcnId: string
+		conversationId: string
 		detail: {
 			choices: { finish_reason: string; index: number; logprobs: any; text: string }[]
 			created: number
@@ -109,7 +111,7 @@ type ChatMessage struct {
 	Name  string `json:"name,omitempty"`
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
-	ConversationId string `json:"aigcnId,omitempty"`
+	ConversationId string `json:"conversationId,omitempty"`
 }
 
 func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
