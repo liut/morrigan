@@ -11,7 +11,7 @@ require (
 	github.com/liut/staffio-client v0.1.11
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/redis/go-redis/v9 v9.0.2
-	github.com/sashabaranov/go-openai v1.4.2
+	github.com/sashabaranov/go-openai v1.5.3
 	go.uber.org/zap v1.24.0
 	gopkg.in/yaml.v3 v3.0.1
 )
