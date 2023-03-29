@@ -15,8 +15,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
+	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
-	"github.com/liut/morrigan/pkg/sevices/stores"
 )
 
 type ChatCompletionMessage = openai.ChatCompletionMessage
@@ -112,6 +112,13 @@ type ChatMessage struct {
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
 	ConversationId string `json:"conversationId,omitempty"`
+}
+
+type CompletionMessage struct {
+	ID    string `json:"id,omitempty"`
+	Delta string `json:"delta,omitempty"`
+	Text  string `json:"text"`
+	Time  int64  `json:"ts"`
 }
 
 func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
@@ -309,12 +316,36 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		apiFail(w, r, 400, err)
 		return
 	}
+
+	header := "Answer the question as truthfully as possible using the provided context."
+	if s.preset != nil {
+		if s.preset.Completion != nil {
+			header = s.preset.Completion.Header
+		}
+	}
+	prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), param.Prompt)
+	if err != nil {
+		apiFail(w, r, 503, err)
+		return
+	}
+	param.Prompt = header + "\n\nContext:\n" + prompt
+	param.Model = openai.GPT3TextDavinci003
+	param.MaxTokens = 1024
+	logger().Infow("completion", "param", &param)
+
 	res, err := s.oc.CreateCompletion(r.Context(), param)
 	if err != nil {
+		logger().Infow("completion fail", "err", err)
 		apiFail(w, r, 400, err)
 		return
 	}
-	apiOk(w, r, res, 0)
+	logger().Infow("completion done", "res", &res)
+	cm := CompletionMessage{Time: res.Created}
+	if len(res.Choices) > 0 {
+		logger().Infow("got choices", "finish_reason", res.Choices[0].FinishReason)
+		cm.Text = strings.TrimSpace(res.Choices[0].Text)
+	}
+	apiOk(w, r, cm, 0)
 }
 
 const (

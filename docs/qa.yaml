@@ -1,0 +1,57 @@
+depends:
+  comm: github.com/cupogo/andvari/models/comm
+  oid: github.com/cupogo/andvari/models/oid
+
+modelpkg: qas
+
+models:
+  - name: Document
+    comment: '文档 语料库'
+    tableTag: 'qa_corpus_document,alias:c'
+    fields:
+      - name: comm.DefaultModel
+      - comment: 主标题
+        name: Title
+        type: string
+        tags: {json: 'title', pg: ',notnull,unique:corpus_title_heading_key'}
+        isset: true
+        query: 'match'
+      - comment: 小节标题
+        name: Heading
+        type: string
+        tags: {json: 'heading', pg: ',notnull,unique:corpus_title_heading_key'}
+        isset: true
+        query: 'match'
+        sortable: true
+      - comment: 内容
+        name: Content
+        type: string
+        tags: {json: 'content', pg: ',notnull'}
+        isset: true
+        query: 'match'
+      - comment: 'Tokens'
+        name: Tokens
+        type: uint
+        tags: {json: 'tokens,omitempty', pg: ",notnull,type:smallint"}
+        isset: true
+      - comment: 向量值 长为1536的浮点数集
+        name: Embedding
+        type: 'Vector'
+        tags: {json: 'embedding,omitempty', pg: ',type:vector(1536)'}
+        isset: true
+      - comment: 相似度 仅用于查询结果
+        name: Similarity
+        type: float32
+        tags: {json: 'similarity,omitempty', pg: ',notnull,type:float4'}
+
+      - type: comm.MetaField
+    oidcat: article
+    hooks:
+      beforeSaving: yes
+
+
+stores:
+  - name: qaStore
+    embed: qaStoreX
+    hodBread: [ Document ]
+

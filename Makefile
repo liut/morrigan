@@ -21,7 +21,7 @@ codegen:
 	mkdir -p ./pkg/models ./pkg/services/stores ./pkg/web
 	for name in $(MDs); do \
 		echo $${name}; \
-		GO111MODULE=on $(GO) run -tags=codegen ./scripts/codegen -spec $(SPEC) $${name} ; \
+		GO111MODULE=on $(GO) run -tags=codegen ../scaffold/scripts/codegen -spec $(SPEC) $${name} ; \
 	done
 
 generate:
