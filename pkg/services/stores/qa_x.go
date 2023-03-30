@@ -26,6 +26,7 @@ func validHead(rec []string) bool {
 type qaStoreX interface {
 	ImportFromCSV(ctx context.Context, r io.Reader) error
 	ConstructPrompt(ctx context.Context, question string) (prompt string, err error)
+	MatchDocments(ctx context.Context, question string) (data qas.Documents, err error)
 	MatchDocmentsWithVector(ctx context.Context, vec qas.Vector) (data qas.Documents, err error)
 }
 
@@ -116,12 +117,8 @@ var (
 )
 
 func (s *qaStore) ConstructPrompt(ctx context.Context, question string) (prompt string, err error) {
-	vec, err := GetEmbedding(ctx, question)
-	if err != nil {
-		return
-	}
 	var docs qas.Documents
-	docs, err = s.MatchDocmentsWithVector(ctx, vec)
+	docs, err = s.MatchDocments(ctx, question)
 	if err != nil {
 		return
 	}
@@ -134,6 +131,15 @@ func (s *qaStore) ConstructPrompt(ctx context.Context, question string) (prompt 
 
 	prompt = strings.Join(sections, "") + "\n\n Q: " + question + "\n A:"
 
+	return
+}
+func (s *qaStore) MatchDocments(ctx context.Context, question string) (data qas.Documents, err error) {
+	var vec qas.Vector
+	vec, err = GetEmbedding(ctx, question)
+	if err != nil {
+		return
+	}
+	data, err = s.MatchDocmentsWithVector(ctx, vec)
 	return
 }
 func (s *qaStore) MatchDocmentsWithVector(ctx context.Context, vec qas.Vector) (data qas.Documents, err error) {
