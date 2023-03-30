@@ -143,10 +143,10 @@ func (s *qaStore) MatchDocments(ctx context.Context, question string) (data qas.
 	return
 }
 func (s *qaStore) MatchDocmentsWithVector(ctx context.Context, vec qas.Vector) (data qas.Documents, err error) {
-	if len(vec) == 0 {
+	if len(vec) != qas.VectorLen {
 		return
 	}
-	logger().Debugw(" embedding", "vec", vec[0:5])
+	logger().Debugw("embedding", "vec", vec[0:5])
 	err = s.w.db.NewRaw("SELECT * FROM qa_match_documents(?, ?, ?)", vec, threshold, matchCount).Scan(ctx, &data)
 	if err != nil {
 		logger().Infow("query fail", "err", err)
