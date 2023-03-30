@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"embed"
 	"flag"
-	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,16 +12,19 @@ import (
 
 	"github.com/cupogo/andvari/utils/zlog"
 
+	"github.com/liut/morrigan/htdocs"
+	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 	"github.com/liut/morrigan/pkg/web"
 )
 
-//go:embed htdocs all:htdocs/app
-var static embed.FS
-
 func main() {
 	var usage bool
 	flag.BoolVar(&usage, "usage", false, "show usage")
+	var initdb bool
+	flag.BoolVar(&initdb, "initdb", false, "init database")
+	var input string
+	flag.StringVar(&input, "input", "", "input file")
 	flag.Parse()
 	if usage {
 		_ = settings.Usage()
@@ -39,13 +40,30 @@ func main() {
 	sugar := zlogger.Sugar()
 	zlog.Set(sugar)
 
-	fsys := fs.FS(static)
-	html, _ := fs.Sub(fsys, "htdocs")
-	// srv.StaticFS("/", http.FS(html))
+	if initdb {
+		_ = stores.InitDB()
+		return
+	}
+
+	if len(input) > 0 {
+		file, err := os.Open(input)
+		if err != nil {
+			sugar.Warnw("open fail", "input", input, "err", err)
+			return
+		}
+		defer file.Close()
+		err = stores.Sgt().Qa().ImportFromCSV(context.Background(), file)
+		if err != nil {
+			sugar.Warnw("import fail", "input", input, "err", err)
+			return
+		}
+		return
+	}
+
 	srv := web.New(web.Config{
 		Addr:       settings.Current.HTTPListen,
 		Debug:      settings.InDevelop(),
-		DocHandler: http.FileServer(http.FS(html)),
+		DocHandler: http.FileServer(http.FS(htdocs.FS())),
 	})
 
 	idleClosed := make(chan struct{})

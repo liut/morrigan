@@ -13,8 +13,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
+	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
-	"github.com/liut/morrigan/pkg/sevices/stores"
 )
 
 type Service interface {
@@ -49,16 +49,10 @@ func New(cfg Config) Service {
 	}
 	ar.Use(middleware.Recoverer)
 
-	occ := openai.DefaultConfig(settings.Current.OpenAIAPIKey)
-	occ.HTTPClient = &http.Client{
-		Timeout:   time.Second * 20,
-		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
-	}
-
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
 		cfg: cfg,
-		oc:  openai.NewClientWithConfig(occ),
+		oc:  stores.NewOpenAIClient(),
 	}
 
 	s.authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(

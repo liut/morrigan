@@ -63,6 +63,7 @@ func (s *server) strapRouter() {
 		r.Post("/chat", s.postChat)
 		r.Post("/chat-{suffix}", s.postChat)
 		r.Post("/completions", s.postCompletions)
+
 	})
 
 	s.ar.Post("/api/session", s.handleSession)

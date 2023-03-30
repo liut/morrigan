@@ -15,7 +15,7 @@ const (
 type Config struct {
 	Name         string   `ignored:"true"`
 	Version      string   `ignored:"true"`
-	PgStoreDSN   string   `envconfig:"PG_STORE_DSN" default:"postgres://scaffold@localhost/scaffold?sslmode=disable"`
+	PgStoreDSN   string   `envconfig:"PG_STORE_DSN" default:"postgres://morrigan@localhost/morrigan?sslmode=disable"`
 	PgTSConfig   string   `envconfig:"PG_TS_CONFIG"`
 	PgQueryDebug bool     `envconfig:"PG_QUERY_DEBUG"`
 	DbAutoInit   bool     `envconfig:"DB_AUTO_INIT"`
