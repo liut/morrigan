@@ -11,8 +11,8 @@ RETURNS table (
   content text,
   similarity float
 )
-language plpgsql
 AS $$
+
 BEGIN
   RETURN query
   SELECT
@@ -25,5 +25,6 @@ BEGIN
   WHERE (qcd.embedding <=> query_embedding) < similarity_threshold
   ORDER BY qcd.embedding <=> query_embedding
   LIMIT match_count;
-end;
-$$;
+END;
+
+$$ LANGUAGE plpgsql;

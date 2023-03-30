@@ -13,20 +13,20 @@ models:
       - comment: 主标题
         name: Title
         type: string
-        tags: {json: 'title', pg: ',notnull,unique:corpus_title_heading_key'}
+        tags: {json: 'title', pg: ',notnull,type:text,unique:corpus_title_heading_key'}
         isset: true
         query: 'match'
       - comment: 小节标题
         name: Heading
         type: string
-        tags: {json: 'heading', pg: ',notnull,unique:corpus_title_heading_key'}
+        tags: {json: 'heading', pg: ',notnull,type:text,unique:corpus_title_heading_key'}
         isset: true
         query: 'match'
         sortable: true
       - comment: 内容
         name: Content
         type: string
-        tags: {json: 'content', pg: ',notnull'}
+        tags: {json: 'content', pg: ',notnull,type:text'}
         isset: true
         query: 'match'
       - comment: 'Tokens'

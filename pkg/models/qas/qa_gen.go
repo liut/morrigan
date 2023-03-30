@@ -30,11 +30,11 @@ type Document struct {
 
 type DocumentBasic struct {
 	// 主标题
-	Title string `bun:",notnull,unique:corpus_title_heading_key" extensions:"x-order=A" form:"title" json:"title" pg:",notnull,unique:corpus_title_heading_key"`
+	Title string `bun:",notnull,type:text,unique:corpus_title_heading_key" extensions:"x-order=A" form:"title" json:"title" pg:",notnull,type:text,unique:corpus_title_heading_key"`
 	// 小节标题
-	Heading string `bun:",notnull,unique:corpus_title_heading_key" extensions:"x-order=B" form:"heading" json:"heading" pg:",notnull,unique:corpus_title_heading_key"`
+	Heading string `bun:",notnull,type:text,unique:corpus_title_heading_key" extensions:"x-order=B" form:"heading" json:"heading" pg:",notnull,type:text,unique:corpus_title_heading_key"`
 	// 内容
-	Content string `bun:",notnull" extensions:"x-order=C" form:"content" json:"content" pg:",notnull"`
+	Content string `bun:",notnull,type:text" extensions:"x-order=C" form:"content" json:"content" pg:",notnull,type:text"`
 	// Tokens
 	Tokens uint `bun:",notnull,type:smallint" extensions:"x-order=D" form:"tokens" json:"tokens,omitempty" pg:",notnull,type:smallint"`
 	// 向量值 长为1536的浮点数集
