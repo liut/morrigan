@@ -13,10 +13,19 @@ import (
 	"github.com/liut/morrigan/pkg/models/qas"
 )
 
+const (
+	Separator  = "\n* "
+	threshold  = 0.52
+	matchCount = 4
+)
+
 var (
 	ErrEmptyParam = errors.New("empty param")
 
 	qaHeads = []string{"title", "heading", "content"}
+
+	replPrompt = strings.NewReplacer("\n", " ")
+	replText   = strings.NewReplacer("\u2028", "\n", "\xa0", "")
 )
 
 func validHead(rec []string) bool {
@@ -47,23 +56,32 @@ func (s *qaStore) ImportFromCSV(ctx context.Context, r io.Reader) error {
 		if len(row) < 3 || len(row[0]) == 0 || len(row[1]) == 0 {
 			return fmt.Errorf("invalid csv row: %+v", row)
 		}
-		doc := new(qas.Document)
-		err = dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", row[0], row[1])
-		if err != nil {
-			doc, err = s.CreateDocument(ctx, qas.DocumentBasic{
-				Title:   row[0],
-				Heading: row[1],
-				Content: row[2],
-			})
-		} else {
-			err = s.UpdateDocument(ctx, doc.StringID(), qas.DocumentSet{
-				Content: &row[2],
-			})
-		}
+		err = s.importLine(ctx, row[0], row[1], row[2])
 		if err != nil {
 			return err
 		}
 	}
+}
+
+func (s *qaStore) importLine(ctx context.Context, title, heading, content string) error {
+	doc := new(qas.Document)
+	content = replText.Replace(content)
+	err := dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", title, heading)
+	if err != nil {
+		doc, err = s.CreateDocument(ctx, qas.DocumentBasic{
+			Title:   title,
+			Heading: heading,
+			Content: content,
+		})
+	} else {
+		err = s.UpdateDocument(ctx, doc.StringID(), qas.DocumentSet{
+			Content: &content,
+		})
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 func dbBeforeSaveDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
 	if len(obj.Content) == 0 {
@@ -105,16 +123,6 @@ func GetEmbedding(ctx context.Context, text string) (vec qas.Vector, err error) 
 	}
 	return
 }
-
-const (
-	Separator  = "\n* "
-	threshold  = 0.52
-	matchCount = 4
-)
-
-var (
-	replPrompt = strings.NewReplacer("\n", " ")
-)
 
 func (s *qaStore) ConstructPrompt(ctx context.Context, question string) (prompt string, err error) {
 	var docs qas.Documents
