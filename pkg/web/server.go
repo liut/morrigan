@@ -38,7 +38,7 @@ type server struct {
 
 	authzr staffio.Authorizer
 	oc     *openai.Client
-	preset *aigc.Preset
+	preset aigc.Preset
 }
 
 // New return new web server

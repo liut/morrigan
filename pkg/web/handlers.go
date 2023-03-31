@@ -141,7 +141,30 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 	var messages []ChatCompletionMessage
 
-	if s.preset != nil {
+	if settings.Current.EmbeddingQA {
+		for _, msg := range s.preset.BeforeQA {
+			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+		}
+
+		docs, err := stores.Sgt().Qa().MatchDocments(r.Context(), stores.MatchSpec{
+			Question: param.Prompt,
+			Limit:    5,
+		})
+		if err == nil {
+			for _, doc := range docs {
+				messages = append(messages,
+					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
+					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
+				)
+				logger().Debugw("hit", "head", doc.Heading)
+			}
+		}
+
+		for _, msg := range s.preset.AfterQA {
+			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+		}
+
+	} else {
 		if s.preset.Welcome != nil {
 			messages = append(messages, ChatCompletionMessage{
 				Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
@@ -318,12 +341,13 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	header := "Answer the question as truthfully as possible using the provided context."
-	if s.preset != nil {
-		if s.preset.Completion != nil {
-			header = s.preset.Completion.Header
-		}
+
+	if s.preset.Completion != nil {
+		header = s.preset.Completion.Header
 	}
-	prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), param.Prompt)
+
+	spec := stores.MatchSpec{Question: param.Prompt}
+	prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
 	if err != nil {
 		apiFail(w, r, 503, err)
 		return
@@ -355,7 +379,7 @@ const (
 func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
 	msg := new(aigc.Message)
 
-	if s.preset != nil && s.preset.Welcome != nil {
+	if s.preset.Welcome != nil {
 		msg.Content = s.preset.Welcome.Content
 	} else {
 		msg.Content = welcomeText

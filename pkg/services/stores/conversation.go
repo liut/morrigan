@@ -81,19 +81,19 @@ func (s *conversation) getKey() string {
 	return "convs-" + s.GetID()
 }
 
-func LoadPreset() (doc *aigc.Preset, err error) {
-	doc = new(aigc.Preset)
+func LoadPreset() (doc aigc.Preset, err error) {
 	if len(settings.Current.PresetFile) > 0 {
-		yf, err := os.Open(settings.Current.PresetFile)
+		var yf *os.File
+		yf, err = os.Open(settings.Current.PresetFile)
 		if err != nil {
 			logger().Infow("load preset fail", "file", settings.Current.PresetFile, "err", err)
-			return nil, err
+			return
 		}
 		defer yf.Close()
-		err = yaml.NewDecoder(yf).Decode(doc)
+		err = yaml.NewDecoder(yf).Decode(&doc)
 		if err != nil {
 			logger().Infow("decode preset fail", "err", err)
-			return nil, err
+			return
 		}
 	}
 

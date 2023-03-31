@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	Separator  = "\n* "
-	threshold  = 0.52
-	matchCount = 4
+	Separator    = "\n* "
+	dftThreshold = 0.52
+	dftLimit     = 4
 )
 
 var (
@@ -28,15 +28,32 @@ var (
 	replText   = strings.NewReplacer("\u2028", "\n", "\xa0", "")
 )
 
+type MatchSpec struct {
+	Question  string
+	Threshold float32
+	Limit     int
+
+	vec qas.Vector
+}
+
+func (ms *MatchSpec) setDefaults() {
+	if ms.Threshold == 0 {
+		ms.Threshold = dftThreshold
+	}
+	if ms.Limit == 0 {
+		ms.Limit = dftLimit
+	}
+}
+
 func validHead(rec []string) bool {
 	return len(rec) >= len(qaHeads) && rec[0] == qaHeads[0] && rec[1] == qaHeads[1] && rec[2] == qaHeads[2]
 }
 
 type qaStoreX interface {
 	ImportFromCSV(ctx context.Context, r io.Reader) error
-	ConstructPrompt(ctx context.Context, question string) (prompt string, err error)
-	MatchDocments(ctx context.Context, question string) (data qas.Documents, err error)
-	MatchDocmentsWithVector(ctx context.Context, vec qas.Vector) (data qas.Documents, err error)
+	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
+	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
+	MatchDocmentsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Documents, err error)
 }
 
 func (s *qaStore) ImportFromCSV(ctx context.Context, r io.Reader) error {
@@ -124,9 +141,9 @@ func GetEmbedding(ctx context.Context, text string) (vec qas.Vector, err error) 
 	return
 }
 
-func (s *qaStore) ConstructPrompt(ctx context.Context, question string) (prompt string, err error) {
+func (s *qaStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
 	var docs qas.Documents
-	docs, err = s.MatchDocments(ctx, question)
+	docs, err = s.MatchDocments(ctx, ms)
 	if err != nil {
 		return
 	}
@@ -137,25 +154,26 @@ func (s *qaStore) ConstructPrompt(ctx context.Context, question string) (prompt 
 		sections = append(sections, text)
 	}
 
-	prompt = strings.Join(sections, "") + "\n\n Q: " + question + "\n A:"
+	prompt = strings.Join(sections, "") + "\n\n Q: " + ms.Question + "\n A:"
 
 	return
 }
-func (s *qaStore) MatchDocments(ctx context.Context, question string) (data qas.Documents, err error) {
+func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error) {
+	ms.setDefaults()
 	var vec qas.Vector
-	vec, err = GetEmbedding(ctx, question)
+	vec, err = GetEmbedding(ctx, ms.Question)
 	if err != nil {
 		return
 	}
-	data, err = s.MatchDocmentsWithVector(ctx, vec)
+	data, err = s.MatchDocmentsWith(ctx, vec, ms.Threshold, ms.Limit)
 	return
 }
-func (s *qaStore) MatchDocmentsWithVector(ctx context.Context, vec qas.Vector) (data qas.Documents, err error) {
+func (s *qaStore) MatchDocmentsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Documents, err error) {
 	if len(vec) != qas.VectorLen {
 		return
 	}
 	logger().Debugw("embedding", "vec", vec[0:5])
-	err = s.w.db.NewRaw("SELECT * FROM qa_match_documents(?, ?, ?)", vec, threshold, matchCount).Scan(ctx, &data)
+	err = s.w.db.NewRaw("SELECT * FROM qa_match_documents(?, ?, ?)", vec, threshold, limit).Scan(ctx, &data)
 	if err != nil {
 		logger().Infow("query fail", "err", err)
 	}
