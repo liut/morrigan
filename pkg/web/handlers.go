@@ -151,6 +151,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			Limit:    5,
 		})
 		if err == nil {
+			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)
 			for _, doc := range docs {
 				messages = append(messages,
 					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
@@ -158,6 +159,8 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 				)
 				logger().Debugw("hit", "head", doc.Heading)
 			}
+		} else {
+			logger().Infow("match fail", "err", err)
 		}
 
 		for _, msg := range s.preset.AfterQA {
@@ -174,14 +177,18 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	const historyLimit = 3000
+
 	data, err := cs.ListHistory(r.Context())
 	if err == nil {
+		data = data.RecentlyWith(historyLimit)
 		for _, hi := range data {
 			if hi.ChatItem != nil {
 				if len(hi.ChatItem.User) > 0 {
 					messages = append(messages, ChatCompletionMessage{
 						Role: openai.ChatMessageRoleUser, Content: hi.ChatItem.User})
-				} else if len(hi.ChatItem.Assistant) > 0 {
+				}
+				if len(hi.ChatItem.Assistant) > 0 {
 					messages = append(messages, ChatCompletionMessage{
 						Role: openai.ChatMessageRoleAssistant, Content: hi.ChatItem.Assistant})
 				}
@@ -215,7 +222,12 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	logger().Debugw("chat", "req", &ccr)
 
 	if ccr.Stream {
-		s.chatStreamResponse(ccr, w, r)
+		answer := s.chatStreamResponse(ccr, w, r)
+		if len(answer) > 0 {
+			ccr.hi.ChatItem.Assistant = answer
+			ccr.cs.AddHistory(r.Context(), ccr.hi)
+		}
+
 		return
 	}
 	res, err := s.oc.CreateChatCompletion(r.Context(), ccr.ChatCompletionRequest)
@@ -241,7 +253,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, cr)
 }
 
-func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) {
+func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -271,12 +283,14 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		// for github.com/Chanzhaoyu/chatgpt-web only
 		cm.ConversationId = cm.ID
 	}
-	var answer string
 	for {
 		var wrote bool
 		ccsr, err := ccs.Recv()
 		if errors.Is(err, io.EOF) {
 			logger().Debug("ccs recv end")
+			if len(ccsr.Choices) > 0 && ccsr.Choices[0].FinishReason != "stop" {
+				logger().Infow("finish", "reason", ccsr.Choices[0].FinishReason)
+			}
 			if ccr.isSSE {
 				if err = eventsource.WriteEvent(w, eventsource.Event{
 					ID:   ccsr.ID,
@@ -326,11 +340,9 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		if !wrote {
 			flusher.Flush()
 		}
-
 	}
-	ccr.hi.ChatItem.Assistant = answer
-	ccr.cs.AddHistory(r.Context(), ccr.hi)
 	logger().Infow("ccs recv done", "answer", len(answer))
+	return
 }
 
 func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
