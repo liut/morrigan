@@ -25,7 +25,7 @@ var (
 	qaHeads = []string{"title", "heading", "content"}
 
 	replPrompt = strings.NewReplacer("\n", " ")
-	replText   = strings.NewReplacer("\u2028", "\n", "\xa0", "")
+	replText   = strings.NewReplacer("\u2028", "\n")
 )
 
 type MatchSpec struct {
