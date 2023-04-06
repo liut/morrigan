@@ -55,6 +55,7 @@ type ChatRequest struct {
 	ConversationID  string `json:"csid"`
 	ParentMessageID string `json:"pmid"`
 	Stream          bool   `json:"stream"`
+	Full            bool   `json:"full,omitempty"`
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
 	Options struct {
@@ -110,6 +111,8 @@ type ChatMessage struct {
 	Text  string `json:"text"`
 	Role  string `json:"role,omitempty"`
 	Name  string `json:"name,omitempty"`
+
+	FinishRsason string `json:"finishReason,omitempty"`
 
 	// for github.com/Chanzhaoyu/chatgpt-web only
 	ConversationId string `json:"conversationId,omitempty"`
@@ -243,21 +246,38 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger().Infow("chat", "res", &res)
-	var cr ConversationResponse
-	cr.ConversationID = ccr.cs.GetID()
-	cr.Detail.Created = res.Created
-	cr.Detail.ID = res.ID
-	cr.Detail.Model = res.Model
-	cr.Detail.Object = res.Object
-	cr.Detail.Choices = []ChatCompletionChoice{{
-		FinishRsason: res.Choices[0].FinishReason,
-		Index:        res.Choices[0].Index,
-		Text:         res.Choices[0].Message.Content,
-	}}
-	cr.Detail.Usage.CompletionTokens = res.Usage.CompletionTokens
-	cr.Detail.Usage.PromptTokens = res.Usage.PromptTokens
-	cr.Detail.Usage.TotalTokens = res.Usage.TotalTokens
-	render.JSON(w, r, cr)
+
+	if param.Full {
+		var cr ConversationResponse
+		cr.ConversationID = ccr.cs.GetID()
+		cr.Detail.Created = res.Created
+		cr.Detail.ID = res.ID
+		cr.Detail.Model = res.Model
+		cr.Detail.Object = res.Object
+		if len(res.Choices) > 0 {
+			cr.Detail.Choices = []ChatCompletionChoice{{
+				FinishRsason: res.Choices[0].FinishReason,
+				Index:        res.Choices[0].Index,
+				Text:         res.Choices[0].Message.Content,
+			}}
+		}
+
+		cr.Detail.Usage.CompletionTokens = res.Usage.CompletionTokens
+		cr.Detail.Usage.PromptTokens = res.Usage.PromptTokens
+		cr.Detail.Usage.TotalTokens = res.Usage.TotalTokens
+		render.JSON(w, r, &cr)
+		return
+	}
+
+	var cm ChatMessage
+	cm.ID = ccr.cs.GetID()
+	if len(res.Choices) > 0 {
+		cm.Text = res.Choices[0].Message.Content
+		if res.Choices[0].FinishReason != "stop" {
+			cm.FinishRsason = res.Choices[0].FinishReason
+		}
+	}
+	render.JSON(w, r, &cm)
 }
 
 func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string) {
