@@ -20,9 +20,20 @@ import (
 	"github.com/liut/morrigan/pkg/settings"
 )
 
+const (
+	esDone = "[DONE]"
+)
+
 type ChatCompletionMessage = openai.ChatCompletionMessage
 
-type CompletionRequest = openai.CompletionRequest
+type CompletionRequest struct {
+	openai.CompletionRequest
+
+	ConversationID string `json:"csid"`
+
+	cs stores.Conversation
+	hi *aigc.HistoryItem
+}
 
 type ChatCompletionRequest struct {
 	openai.ChatCompletionRequest
@@ -282,8 +293,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string) {
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	if _, ok := w.(http.Flusher); !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
@@ -319,14 +329,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 				logger().Infow("finish", "reason", ccsr.Choices[0].FinishReason)
 			}
 			if ccr.isSSE {
-				if err = eventsource.WriteEvent(w, eventsource.Event{
-					ID:   ccsr.ID,
-					Data: []byte("[DONE]"),
-				}); err == nil {
-					wrote = true
-				} else {
-					logger().Infow("eventsource write fail", "err", err)
-				}
+				_ = writeEvent(w, ccsr.ID, esDone)
 			}
 			break
 		}
@@ -343,18 +346,8 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			answer += cm.Delta
 			// logger().Debugw("cm", "delta", cm.Delta)
 			if ccr.isSSE {
-				b, err := json.Marshal(&cm)
-				if err != nil {
-					logger().Infow("json marshal fail", "cm", &cm, "err", err)
+				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
 					break
-				}
-				if err = eventsource.WriteEvent(w, eventsource.Event{
-					ID:   ccsr.ID,
-					Data: b,
-				}); err == nil {
-					wrote = true
-				} else {
-					logger().Infow("eventsource write fail", "err", err)
 				}
 			} else {
 				cm.Text += cm.Delta
@@ -364,12 +357,33 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 				}
 			}
 		}
-		if !wrote {
-			flusher.Flush()
-		}
 	}
 	logger().Infow("ccs recv done", "answer", len(answer))
 	return
+}
+
+func writeEvent(w io.Writer, id string, m any) bool {
+	var b []byte
+	var err error
+	if s, ok := m.(string); ok {
+		b = []byte(s)
+	} else {
+		b, err = json.Marshal(m)
+		if err != nil {
+			logger().Infow("json marshal fail", "m", m, "err", err)
+			return false
+		}
+	}
+
+	if err = eventsource.WriteEvent(w, eventsource.Event{
+		ID:   id,
+		Data: b,
+	}); err != nil {
+		logger().Infow("eventsource write fail", "err", err)
+		return false
+	}
+
+	return true
 }
 
 func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
@@ -378,6 +392,8 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		apiFail(w, r, 400, err)
 		return
 	}
+
+	param.cs = stores.NewConversation(param.ConversationID)
 
 	header := "Answer the question as truthfully as possible using the provided context."
 
@@ -396,14 +412,59 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	param.MaxTokens = 1024
 	logger().Infow("completion", "param", &param)
 
-	res, err := s.oc.CreateCompletion(r.Context(), param)
+	var cm CompletionMessage
+	cm.ID = param.cs.GetID()
+
+	if param.Stream {
+		if _, ok := w.(http.Flusher); !ok {
+			http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+			return
+		}
+		ccs, err := s.oc.CreateCompletionStream(r.Context(), param.CompletionRequest)
+		if err != nil {
+			apiFail(w, r, 400, err)
+			return
+		}
+
+		var answer string
+		for {
+			var wrote bool
+			ccsr, err := ccs.Recv()
+			if errors.Is(err, io.EOF) {
+				logger().Debug("ccs recv end")
+				if len(ccsr.Choices) > 0 && ccsr.Choices[0].FinishReason != "stop" {
+					logger().Infow("finish", "reason", ccsr.Choices[0].FinishReason)
+				}
+				wrote = writeEvent(w, ccsr.ID, esDone)
+				break
+			}
+
+			if err != nil {
+				logger().Infow("ccs recv fail", "err", err)
+				break
+			}
+
+			if len(ccsr.Choices) > 0 {
+				cm.Delta = ccsr.Choices[0].Text
+				answer += cm.Delta
+				// logger().Debugw("cm", "delta", cm.Delta)
+				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
+					break
+				}
+			}
+		}
+		logger().Infow("ccs recv done", "answer", len(answer))
+		return
+	}
+
+	res, err := s.oc.CreateCompletion(r.Context(), param.CompletionRequest)
 	if err != nil {
 		logger().Infow("completion fail", "err", err)
 		apiFail(w, r, 400, err)
 		return
 	}
 	logger().Infow("completion done", "res", &res)
-	cm := CompletionMessage{Time: res.Created}
+	cm = CompletionMessage{Time: res.Created}
 	if len(res.Choices) > 0 {
 		logger().Infow("got choices", "finish_reason", res.Choices[0].FinishReason)
 		cm.Text = strings.TrimSpace(res.Choices[0].Text)
