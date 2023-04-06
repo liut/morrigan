@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -121,24 +122,8 @@ type CompletionMessage struct {
 	Time  int64  `json:"ts"`
 }
 
-func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
-	var param ChatRequest
-	if err := binder.BindBody(r, &param); err != nil {
-		apiFail(w, r, 400, err)
-		return
-	}
-	isProcess := strings.HasSuffix(r.URL.Path, "-process")
-	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
-	isStream := param.Stream || isSSE || isProcess
-
-	var cs stores.Conversation
-	if len(param.ConversationID) > 0 {
-		cs = stores.NewConversation(param.ConversationID)
-	} else {
-		// for github.com/Chanzhaoyu/chatgpt-web only
-		cs = stores.NewConversation(param.Options.ConversationId)
-	}
-
+func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *ChatCompletionRequest {
+	cs := stores.NewConversation(csid)
 	var messages []ChatCompletionMessage
 
 	if settings.Current.EmbeddingQA {
@@ -146,12 +131,12 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 		}
 
-		docs, err := stores.Sgt().Qa().MatchDocments(r.Context(), stores.MatchSpec{
-			Question: param.Prompt,
+		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
+			Question: prompt,
 			Limit:    5,
 		})
 		if err == nil {
-			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)
+			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
 			for _, doc := range docs {
 				messages = append(messages,
 					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
@@ -179,7 +164,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 	const historyLimit = 3000
 
-	data, err := cs.ListHistory(r.Context())
+	data, err := cs.ListHistory(ctx)
 	if err == nil {
 		data = data.RecentlyWith(historyLimit)
 		for _, hi := range data {
@@ -197,12 +182,41 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	messages = append(messages, ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
-		Content: param.Prompt,
+		Content: prompt,
 	})
-	logger().Infow("chat", "cid", param.ConversationID, "msgs", len(messages))
+	logger().Infow("chat", "cid", csid, "msgs", len(messages))
 	ccr := new(ChatCompletionRequest)
 	ccr.Model = openai.GPT3Dot5Turbo
 	ccr.Messages = messages
+	ccr.cs = cs
+	ccr.hi = &aigc.HistoryItem{
+		Time: time.Now().Unix(),
+		ChatItem: &aigc.HistoryChatItem{
+			User: prompt,
+		},
+	}
+
+	return ccr
+}
+
+func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
+	var param ChatRequest
+	if err := binder.BindBody(r, &param); err != nil {
+		apiFail(w, r, 400, err)
+		return
+	}
+	isProcess := strings.HasSuffix(r.URL.Path, "-process")
+	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
+	isStream := param.Stream || isSSE || isProcess
+	var csid string
+	if len(param.ConversationID) > 0 {
+		csid = param.ConversationID
+	} else {
+		// for github.com/Chanzhaoyu/chatgpt-web only
+		csid = param.Options.ConversationId
+	}
+	ccr := s.prepareChatRequest(r.Context(), param.Prompt, csid)
+
 	ccr.Stream = isStream
 	if settings.Current.AuthRequired {
 		if user, ok := UserFromContext(r.Context()); ok {
@@ -211,13 +225,6 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ccr.isSSE = isSSE
-	ccr.cs = cs
-	ccr.hi = &aigc.HistoryItem{
-		Time: time.Now().Unix(),
-		ChatItem: &aigc.HistoryChatItem{
-			User: param.Prompt,
-		},
-	}
 
 	logger().Debugw("chat", "req", &ccr)
 
@@ -237,7 +244,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	logger().Infow("chat", "res", &res)
 	var cr ConversationResponse
-	cr.ConversationID = cs.GetID()
+	cr.ConversationID = ccr.cs.GetID()
 	cr.Detail.Created = res.Created
 	cr.Detail.ID = res.ID
 	cr.Detail.Model = res.Model
