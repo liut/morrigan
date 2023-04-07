@@ -160,11 +160,11 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
 			for _, doc := range docs {
 				matched++
+				logger().Infow("hit", "head", doc.Heading)
 				messages = append(messages,
 					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
 					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
 				)
-				logger().Debugw("hit", "head", doc.Heading)
 			}
 		} else {
 			logger().Infow("match fail", "err", err)
@@ -326,8 +326,8 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	}
 	var finishReason string
 	finishFn := func(id string) {
+		logger().Infow("finish", "id", id, "answer", answer, "reason", finishReason)
 		if finishReason != "stop" {
-			logger().Infow("finish", "reason", finishReason)
 			cm.FinishRsason = finishReason
 		}
 		if ccr.isSSE {
@@ -444,8 +444,8 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		var answer string
 		var finishReason string
 		finishFn := func(id string) {
+			logger().Infow("finish", "id", id, "answer", answer, "reason", finishReason)
 			if finishReason != "stop" {
-				logger().Infow("finish", "reason", finishReason)
 				cm.FinishRsason = finishReason
 			}
 			cm.Text = answer // optional for chatgpt-web

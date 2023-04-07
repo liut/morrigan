@@ -48,9 +48,9 @@ func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) e
 		return err
 	}
 	res := s.rc.RPush(ctx, key, b)
-	logger().Infow("add history", "item", item, "res", res)
 	err = res.Err()
 	if err == nil {
+		logger().Debugw("add history ok", "item", item)
 		count, _ := res.Result()
 		if err = s.rc.Expire(ctx, key, historyLifetimeS).Err(); err != nil {
 			return err
@@ -61,7 +61,7 @@ func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) e
 		}
 	}
 	if err != nil {
-		logger().Infow("add history fail", "err", err)
+		logger().Infow("add history fail", "key", key, "err", err)
 	}
 	return err
 }
