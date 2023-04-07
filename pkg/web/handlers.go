@@ -68,7 +68,7 @@ type ChatRequest struct {
 	Stream          bool   `json:"stream"`
 	Full            bool   `json:"full,omitempty"`
 
-	// for github.com/Chanzhaoyu/chatgpt-web only
+	// deprecated: for github.com/Chanzhaoyu/chatgpt-web only
 	Options struct {
 		ConversationId string `json:"conversationId,omitempty"`
 	}
@@ -117,9 +117,9 @@ type ConversationResponse struct {
 }
 
 type ChatMessage struct {
-	ID    string `json:"id"`
+	ID    string `json:"id,omitempty"`
 	Delta string `json:"delta,omitempty"`
-	Text  string `json:"text"`
+	Text  string `json:"text,omitempty"`
 	Role  string `json:"role,omitempty"`
 	Name  string `json:"name,omitempty"`
 
@@ -132,8 +132,10 @@ type ChatMessage struct {
 type CompletionMessage struct {
 	ID    string `json:"id,omitempty"`
 	Delta string `json:"delta,omitempty"`
-	Text  string `json:"text"`
-	Time  int64  `json:"ts"`
+	Text  string `json:"text,omitempty"`
+	Time  int64  `json:"ts,omitempty"`
+
+	FinishRsason string `json:"finishReason,omitempty"`
 }
 
 func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *ChatCompletionRequest {
@@ -298,8 +300,8 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		return
 	}
 
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	// w.Header().Set("Cache-Control", "no-cache")
+	// w.Header().Set("Connection", "keep-alive")
 	if ccr.isSSE {
 		w.Header().Set("Content-Type", "text/event-stream")
 	} else {
@@ -317,20 +319,28 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	var cm ChatMessage
 	cm.ID = ccr.cs.GetID()
 	if !ccr.isSSE {
-		// for github.com/Chanzhaoyu/chatgpt-web only
+		// for github.com/Chanzhaoyu/chatgpt-web chat-process only
 		cm.ConversationId = cm.ID
+	}
+	var finishReason string
+	finishFn := func(id string) {
+		if finishReason != "stop" {
+			logger().Infow("finish", "reason", finishReason)
+			cm.FinishRsason = finishReason
+		}
+		if ccr.isSSE {
+			cm.Text = answer // optional for chatgpt-web
+			_ = writeEvent(w, id, esDone)
+		} else {
+			flusher.Flush()
+		}
 	}
 	for {
 		var wrote bool
 		ccsr, err := ccs.Recv()
-		if errors.Is(err, io.EOF) {
-			logger().Debug("ccs recv end")
-			if len(ccsr.Choices) > 0 && ccsr.Choices[0].FinishReason != "stop" {
-				logger().Infow("finish", "reason", ccsr.Choices[0].FinishReason)
-			}
-			if ccr.isSSE {
-				_ = writeEvent(w, ccsr.ID, esDone)
-			}
+		if errors.Is(err, io.EOF) { // choices is nil at the moment
+			logger().Debugw("ccs recv eof", "reason", finishReason)
+			finishFn(ccsr.ID)
 			break
 		}
 		if err != nil {
@@ -338,9 +348,14 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			break
 		}
 		if len(ccsr.Choices) > 0 {
+			// logger().Debugw("recv", "cohoices", ccsr.Choices)
+			finishReason = ccsr.Choices[0].FinishReason
+			if len(finishReason) > 0 {
+				finishFn(ccsr.ID)
+				break
+			}
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
-			// logger().Debugw("cm", "delta", cm.Delta)
 			if ccr.isSSE {
 				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
 					break
@@ -425,15 +440,21 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var answer string
+		var finishReason string
+		finishFn := func(id string) {
+			if finishReason != "stop" {
+				logger().Infow("finish", "reason", finishReason)
+				cm.FinishRsason = finishReason
+			}
+			cm.Text = answer // optional for chatgpt-web
+			_ = writeEvent(w, id, esDone)
+		}
 		for {
 			var wrote bool
 			ccsr, err := ccs.Recv()
 			if errors.Is(err, io.EOF) {
-				logger().Debug("ccs recv end")
-				if len(ccsr.Choices) > 0 && ccsr.Choices[0].FinishReason != "stop" {
-					logger().Infow("finish", "reason", ccsr.Choices[0].FinishReason)
-				}
-				wrote = writeEvent(w, ccsr.ID, esDone)
+				logger().Debugw("ccs recv eof", "reason", finishReason)
+				finishFn(ccsr.ID)
 				break
 			}
 
@@ -443,6 +464,12 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if len(ccsr.Choices) > 0 {
+				// logger().Debugw("recv", "cohoices", ccsr.Choices)
+				finishReason = ccsr.Choices[0].FinishReason
+				if len(finishReason) > 0 {
+					finishFn(ccsr.ID)
+					break
+				}
 				cm.Delta = ccsr.Choices[0].Text
 				answer += cm.Delta
 				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
