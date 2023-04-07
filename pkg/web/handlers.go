@@ -292,8 +292,8 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string) {
-
-	if _, ok := w.(http.Flusher); !ok {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
@@ -337,10 +337,6 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			logger().Infow("ccs recv fail", "err", err)
 			break
 		}
-		// logger().Debugw("ccs recv", "res", &ccsr)
-		// if wrote>0 {
-		// 	w.Write([]byte("\n"))
-		// }
 		if len(ccsr.Choices) > 0 {
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
@@ -355,6 +351,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 					logger().Infow("json enc fail", "err", err)
 					break
 				}
+				flusher.Flush()
 			}
 		}
 	}
@@ -362,6 +359,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	return
 }
 
+// writeEvent write and auto flush
 func writeEvent(w io.Writer, id string, m any) bool {
 	var b []byte
 	var err error
@@ -447,7 +445,6 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			if len(ccsr.Choices) > 0 {
 				cm.Delta = ccsr.Choices[0].Text
 				answer += cm.Delta
-				// logger().Debugw("cm", "delta", cm.Delta)
 				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
 					break
 				}
