@@ -39,6 +39,11 @@ models:
         type: 'Vector'
         tags: {json: 'embedding,omitempty', pg: ',type:vector(1536)'}
         isset: true
+      - comment: 问答集
+        name: QAs
+        type: Pairs
+        tags: {json: 'qas,omitempty', pg: "qas,notnull,type:jsonb"}
+        isset: true
       - comment: 相似度 仅用于查询结果
         name: Similarity
         type: float32

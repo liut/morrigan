@@ -23,7 +23,7 @@ type Document struct {
 	DocumentBasic
 
 	// 相似度 仅用于查询结果
-	Similarity float32 `bun:",notnull,type:float4" extensions:"x-order=F" json:"similarity,omitempty" pg:",notnull,type:float4"`
+	Similarity float32 `bun:",notnull,type:float4" extensions:"x-order=G" json:"similarity,omitempty" pg:",notnull,type:float4"`
 
 	comm.MetaField
 } // @name qasDocument
@@ -39,6 +39,8 @@ type DocumentBasic struct {
 	Tokens uint `bun:",notnull,type:smallint" extensions:"x-order=D" form:"tokens" json:"tokens,omitempty" pg:",notnull,type:smallint"`
 	// 向量值 长为1536的浮点数集
 	Embedding Vector `bun:",type:vector(1536)" extensions:"x-order=E" json:"embedding,omitempty" pg:",type:vector(1536)"`
+	// 问答集
+	QAs Pairs `bun:"qas,notnull,type:jsonb" extensions:"x-order=F" json:"qas,omitempty" pg:"qas,notnull,type:jsonb"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name qasDocumentBasic
@@ -86,6 +88,8 @@ type DocumentSet struct {
 	Tokens *uint `extensions:"x-order=D" json:"tokens,omitempty"`
 	// 向量值 长为1536的浮点数集
 	Embedding *Vector `extensions:"x-order=E" json:"embedding,omitempty"`
+	// 问答集
+	QAs *Pairs `extensions:"x-order=F" json:"qas,omitempty"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name qasDocumentSet
@@ -110,6 +114,10 @@ func (z *Document) SetWith(o DocumentSet) {
 	if o.Embedding != nil {
 		z.LogChangeValue("embedding", z.Embedding, o.Embedding)
 		z.Embedding = *o.Embedding
+	}
+	if o.QAs != nil {
+		z.LogChangeValue("qas", z.QAs, o.QAs)
+		z.QAs = *o.QAs
 	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")
