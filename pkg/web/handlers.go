@@ -142,11 +142,16 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	cs := stores.NewConversation(csid)
 	var messages []ChatCompletionMessage
 
-	if settings.Current.EmbeddingQA {
-		for _, msg := range s.preset.BeforeQA {
-			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-		}
+	if s.preset.Welcome != nil {
+		messages = append(messages, ChatCompletionMessage{
+			Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
+	}
+	for _, msg := range s.preset.BeforeQA {
+		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+	}
 
+	var matched int
+	if settings.Current.EmbeddingQA {
 		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
 			Question: prompt,
 			Limit:    5,
@@ -154,6 +159,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		if err == nil {
 			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
 			for _, doc := range docs {
+				matched++
 				messages = append(messages,
 					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
 					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
@@ -163,19 +169,15 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		} else {
 			logger().Infow("match fail", "err", err)
 		}
-
-		for _, msg := range s.preset.AfterQA {
-			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-		}
-
-	} else {
-		if s.preset.Welcome != nil {
-			messages = append(messages, ChatCompletionMessage{
-				Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
-		}
+	}
+	if matched == 0 {
 		for _, msg := range s.preset.Messages {
 			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 		}
+	}
+
+	for _, msg := range s.preset.AfterQA {
+		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 	}
 
 	const historyLimit = 3000
