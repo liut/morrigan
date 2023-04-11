@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/urfave/cli/v2"
@@ -42,6 +43,32 @@ func embedding(cc *cli.Context) error {
 	return nil
 }
 
+func fillQAs(cc *cli.Context) error {
+	ctx := context.Background()
+	spec := &stores.DocumentSpec{}
+	if cc.Args().Len() > 0 {
+		spec.IDsStr = strings.Join(cc.Args().Slice(), ",")
+	}
+	spec.Limit = 90
+	spec.Sort = "id"
+	return stores.Sgt().Qa().FillQAs(ctx, spec)
+}
+
+func exportQAs(cc *cli.Context) error {
+	output := cc.Args().First() // csv
+	file, err := os.OpenFile(output, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		logger().Warnw("open fail", "output", output, "err", err)
+		return err
+	}
+	defer file.Close()
+	ctx := context.Background()
+	spec := &stores.DocumentSpec{}
+	spec.Limit = 90
+	spec.Sort = "id"
+	return stores.Sgt().Qa().ExportQAs(ctx, spec, file)
+}
+
 func logger() zlog.Logger {
 	return zlog.Get()
 }
@@ -75,6 +102,18 @@ func main() {
 				Name:   "embedding",
 				Usage:  "input a csv to embedding",
 				Action: embedding,
+			},
+			{
+				Name:    "fill-qa",
+				Usage:   "fill QA in documents",
+				Aliases: []string{"fillQAs"},
+				Action:  fillQAs,
+			},
+			{
+				Name:    "export-qa",
+				Usage:   "export QA from documents",
+				Aliases: []string{"exportQAs"},
+				Action:  exportQAs,
 			},
 			{
 				Name:    "web",

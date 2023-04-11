@@ -11,12 +11,17 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/qas"
+	"github.com/liut/morrigan/pkg/settings"
 )
 
 const (
 	Separator    = "\n* "
 	dftThreshold = 0.52
 	dftLimit     = 4
+
+	qaPrefix    = "Q:"
+	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n" + qaPrefix
+	maxQaTokens = 2048
 )
 
 var (
@@ -51,6 +56,8 @@ func validHead(rec []string) bool {
 
 type qaStoreX interface {
 	ImportFromCSV(ctx context.Context, r io.Reader) error
+	FillQAs(ctx context.Context, spec *DocumentSpec) error
+	ExportQAs(ctx context.Context, spec *DocumentSpec, w io.Writer) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
 	MatchDocmentsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Documents, err error)
@@ -65,13 +72,18 @@ func (s *qaStore) ImportFromCSV(ctx context.Context, r io.Reader) error {
 	if !validHead(rec) {
 		return fmt.Errorf("invalid csv head: %+v", rec)
 	}
+	var idx int
 	for {
 		row, err := rd.Read()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 			return err
 		}
+		idx++
 		if len(row) < 3 || len(row[0]) == 0 || len(row[1]) == 0 {
-			return fmt.Errorf("invalid csv row: %+v", row)
+			return fmt.Errorf("invalid csv row #%d: %+v", idx, row)
 		}
 		err = s.importLine(ctx, row[0], row[1], row[2])
 		if err != nil {
@@ -103,6 +115,9 @@ func (s *qaStore) importLine(ctx context.Context, title, heading, content string
 func dbBeforeSaveDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
 	if len(obj.Content) == 0 {
 		return fmt.Errorf("empty content: %s,%s", obj.Title, obj.Heading)
+	}
+	if !settings.Current.EmbeddingQA {
+		return nil
 	}
 	if !obj.IsUpdate() || obj.HasChange("content") {
 		text := fmt.Sprintf("%s %s: %s", obj.Title, obj.Heading, obj.Content)
@@ -178,4 +193,67 @@ func (s *qaStore) MatchDocmentsWith(ctx context.Context, vec qas.Vector, thresho
 		logger().Infow("query fail", "err", err)
 	}
 	return
+}
+
+func (s *qaStore) FillQAs(ctx context.Context, spec *DocumentSpec) error {
+	data, _, err := s.ListDocument(ctx, spec)
+	if err != nil {
+		return err
+	}
+	oc := NewOpenAIClient()
+
+	for _, doc := range data {
+		if len(doc.QAs) >= 2 {
+			continue
+		}
+		prompt := fmt.Sprintf(tplQaCtx, doc.Heading+"\n"+doc.Content)
+		creq := openai.CompletionRequest{
+			Model:       openai.GPT3TextDavinci003,
+			Prompt:      prompt,
+			Temperature: 0.5,
+			MaxTokens:   maxQaTokens,
+		}
+		logger().Infow("completion request", "heading", doc.Heading, "prompt", prompt)
+		res, err := oc.CreateCompletion(ctx, creq)
+		if err != nil {
+			logger().Infow("call comletion fail", "err", err)
+			return err
+		}
+		logger().Infow("call comletion", "res", &res)
+		if len(res.Choices) > 0 {
+			pairs := qas.ParseText(res.Choices[0].Text)
+			logger().Infow("parsed", "pairs", pairs)
+			pairs = append(doc.QAs, pairs...)
+			doc.SetWith(qas.DocumentSet{QAs: &pairs})
+			if err = s.UpdateDocument(ctx, doc.StringID(), qas.DocumentSet{QAs: &pairs}); err != nil {
+				logger().Infow("update document fail", "err", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *qaStore) ExportQAs(ctx context.Context, spec *DocumentSpec, w io.Writer) error {
+	data, _, err := s.ListDocument(ctx, spec)
+	if err != nil {
+		return err
+	}
+
+	head := []string{"heading", "question", "anwser"}
+	cw := csv.NewWriter(w)
+	if err = cw.Write(head); err != nil {
+		return err
+	}
+
+	for _, doc := range data {
+		for _, p := range doc.QAs {
+			if err = cw.Write([]string{doc.Heading, p.Question, p.Anwser}); err != nil {
+				return err
+			}
+		}
+	}
+	cw.Flush()
+
+	return cw.Error()
 }
