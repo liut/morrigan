@@ -11,6 +11,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
+	"github.com/cupogo/andvari/models/oid"
 	"github.com/cupogo/andvari/utils/zlog"
 
 	"github.com/liut/morrigan/htdocs"
@@ -47,7 +48,7 @@ func fillQAs(cc *cli.Context) error {
 	ctx := context.Background()
 	spec := &stores.DocumentSpec{}
 	if cc.Args().Len() > 0 {
-		spec.IDsStr = strings.Join(cc.Args().Slice(), ",")
+		spec.IDsStr = oid.OIDsStr(strings.Join(cc.Args().Slice(), ","))
 	}
 	spec.Limit = 90
 	spec.Sort = "id"

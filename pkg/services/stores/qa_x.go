@@ -19,9 +19,8 @@ const (
 	dftThreshold = 0.52
 	dftLimit     = 4
 
-	qaPrefix    = "Q:"
-	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n" + qaPrefix
-	maxQaTokens = 2048
+	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n"
+	maxQaTokens = 1024
 )
 
 var (
@@ -203,10 +202,14 @@ func (s *qaStore) FillQAs(ctx context.Context, spec *DocumentSpec) error {
 	oc := NewOpenAIClient()
 
 	for _, doc := range data {
-		if len(doc.QAs) >= 2 {
+		if len(doc.QAs) >= 2 && len(spec.IDsStr) == 0 {
 			continue
 		}
 		prompt := fmt.Sprintf(tplQaCtx, doc.Heading+"\n"+doc.Content)
+		for _, qa := range doc.QAs {
+			prompt += qas.PrefixQ + " " + qa.Question + "\n" + qas.PrefixA + " " + qa.Anwser + "\n"
+		}
+		prompt += qas.PrefixQ
 		creq := openai.CompletionRequest{
 			Model:       openai.GPT3TextDavinci003,
 			Prompt:      prompt,
@@ -240,7 +243,7 @@ func (s *qaStore) ExportQAs(ctx context.Context, spec *DocumentSpec, w io.Writer
 		return err
 	}
 
-	head := []string{"heading", "question", "anwser"}
+	head := []string{"doc_id", "heading", "question", "anwser"}
 	cw := csv.NewWriter(w)
 	if err = cw.Write(head); err != nil {
 		return err
@@ -248,7 +251,7 @@ func (s *qaStore) ExportQAs(ctx context.Context, spec *DocumentSpec, w io.Writer
 
 	for _, doc := range data {
 		for _, p := range doc.QAs {
-			if err = cw.Write([]string{doc.Heading, p.Question, p.Anwser}); err != nil {
+			if err = cw.Write([]string{doc.StringID(), doc.Heading, p.Question, p.Anwser}); err != nil {
 				return err
 			}
 		}
