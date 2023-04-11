@@ -416,13 +416,17 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		header = s.preset.Completion.Header
 	}
 
-	spec := stores.MatchSpec{Question: param.Prompt}
-	prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
-	if err != nil {
-		apiFail(w, r, 503, err)
-		return
+	spec := stores.MatchSpec{}
+	if s, ok := param.Prompt.(string); ok {
+		spec.Question = s
+		prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
+		if err != nil {
+			apiFail(w, r, 503, err)
+			return
+		}
+		param.Prompt = header + "\n\nContext:\n" + prompt
 	}
-	param.Prompt = header + "\n\nContext:\n" + prompt
+
 	param.Model = openai.GPT3TextDavinci003
 	param.MaxTokens = 1024
 	logger().Infow("completion", "param", &param)
