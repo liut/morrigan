@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -22,7 +23,17 @@ import (
 
 const (
 	esDone = "[DONE]"
+
+	tplSystemMsg = "You are a helpful assistant.\nCurrent date: %s"
 )
+
+func today() string {
+	return time.Now().Format("2006-01-02")
+}
+
+func getDefaultSystemMsg() string {
+	return fmt.Sprintf(tplSystemMsg, today())
+}
 
 type ChatCompletionMessage = openai.ChatCompletionMessage
 
@@ -142,11 +153,16 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	cs := stores.NewConversation(csid)
 	var messages []ChatCompletionMessage
 
+	var hasSystem bool
 	if s.preset.Welcome != nil {
 		messages = append(messages, ChatCompletionMessage{
 			Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
 	}
 	for _, msg := range s.preset.BeforeQA {
+		if msg.Role == openai.ChatMessageRoleSystem {
+			hasSystem = true
+			msg.Content += "\nCurrent date: " + today()
+		}
 		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 	}
 
@@ -177,7 +193,16 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	}
 
 	for _, msg := range s.preset.AfterQA {
+		if msg.Role == openai.ChatMessageRoleSystem {
+			hasSystem = true
+		}
 		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+	}
+
+	if !hasSystem {
+		messages = append(messages, ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: getDefaultSystemMsg()})
 	}
 
 	const historyLimit = 3000
