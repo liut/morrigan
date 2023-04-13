@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	openaiTimeout = time.Second * 30
+	openaiTimeout = time.Second * 90
 )
 
 func NewOpenAIClient() *openai.Client {
