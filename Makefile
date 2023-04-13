@@ -47,7 +47,7 @@ clean:
 	rm -f $(NAME) $(NAME)-*
 
 showver:
-	echo "version: $(TAG)"
+	echo "version: $(DATE)-$(TAG)"
 
 dist/linux_amd64/$(NAME): $(SOURCES) showver
 	echo "Building $(NAME) of linux"
@@ -61,8 +61,8 @@ dist: vet dist/linux_amd64/$(NAME) dist/darwin_amd64/$(NAME)
 
 package: dist
 	echo "Packaging $(NAME)"
-	ls dist/linux_amd64 | xargs tar -cvJf $(NAME)-linux-amd64-$(TAG).tar.xz -C dist/linux_amd64
-	ls dist/darwin_amd64 | xargs tar -cvJf $(NAME)-darwin-amd64-$(TAG).tar.xz -C dist/darwin_amd64
+	ls dist/linux_amd64 | xargs tar -cvJf $(NAME)-linux-amd64-$(DATE)-$(TAG).tar.xz -C dist/linux_amd64
+	ls dist/darwin_amd64 | xargs tar -cvJf $(NAME)-darwin-amd64-$(DATE)-$(TAG).tar.xz -C dist/darwin_amd64
 
 docs/swagger.json: $(WEBAPIS)
 	GO111MODULE=on swag init -g ./pkg/web/docs.go -d ./ --ot json,yaml --parseDependency --parseInternal
