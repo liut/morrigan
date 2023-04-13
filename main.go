@@ -132,30 +132,29 @@ func main() {
 				Name:    "web",
 				Aliases: []string{"run"},
 				Usage:   "run a web server",
-				Action: func(cCtx *cli.Context) error {
-					webRun()
-					return nil
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "listen", Aliases: []string{"l"}, Value: settings.Current.HTTPListen, Usage: "http listen address"},
 				},
+				Action: webRun,
 			},
 		},
 	}
-	if len(os.Args) < 2 {
-		webRun()
-		return
-	}
+	// if len(os.Args) < 2 {
+	// 	webRun()
+	// 	return
+	// }
 	if err := app.Run(os.Args); err != nil {
 		logger().Fatalw("app run fail", "err", err)
 	}
 }
 
-func webRun() {
+func webRun(cc *cli.Context) error {
 	srv := web.New(web.Config{
-		Addr:       settings.Current.HTTPListen,
+		Addr:       cc.String("listen"),
 		Debug:      settings.InDevelop(),
 		DocHandler: http.FileServer(http.FS(htdocs.FS())),
 	})
 
-	idleClosed := make(chan struct{})
 	ctx := context.Background()
 	go func() {
 		quit := make(chan os.Signal, 2)
@@ -165,12 +164,7 @@ func webRun() {
 		if err := srv.Stop(ctx); err != nil {
 			logger().Infow("server shutdown:", "err", err)
 		}
-		close(idleClosed)
 	}()
 
-	if err := srv.Serve(ctx); err != nil {
-		logger().Infow("serve fali", "err", err)
-	}
-
-	<-idleClosed
+	return srv.Serve(ctx)
 }
