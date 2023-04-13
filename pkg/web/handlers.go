@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -228,7 +229,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		Role:    openai.ChatMessageRoleUser,
 		Content: prompt,
 	})
-	logger().Infow("chat", "cid", csid, "msgs", len(messages))
+	logger().Infow("chat", "csid", csid, "msgs", len(messages), "prompt", prompt)
 	ccr := new(ChatCompletionRequest)
 	ccr.Model = openai.GPT3Dot5Turbo
 	ccr.Messages = messages
@@ -270,7 +271,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 	ccr.isSSE = isSSE
 
-	logger().Debugw("chat", "req", &ccr)
+	// logger().Infow("chat", "id", csid, "prompt", param.Prompt, "stream", isStream)
 
 	if ccr.Stream {
 		answer := s.chatStreamResponse(ccr, w, r)
@@ -350,20 +351,22 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		// for github.com/Chanzhaoyu/chatgpt-web chat-process only
 		cm.ConversationId = cm.ID
 	}
+	var idx int
 	var finishReason string
 	finishFn := func(id string) {
-		logger().Infow("finish", "id", id, "answer", answer, "reason", finishReason)
+		logger().Infow("stream done", "id", id, "answer", answer, "reason", finishReason)
 		if finishReason != "stop" {
 			cm.FinishRsason = finishReason
 		}
 		if ccr.isSSE {
 			cm.Text = answer // optional for chatgpt-web
-			_ = writeEvent(w, id, esDone)
+			_ = writeEvent(w, strconv.Itoa(idx), esDone)
 		} else {
 			flusher.Flush()
 		}
 	}
 	for {
+		idx++
 		var wrote bool
 		ccsr, err := ccs.Recv()
 		if errors.Is(err, io.EOF) { // choices is nil at the moment
@@ -385,7 +388,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
 			if ccr.isSSE {
-				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
+				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
 					break
 				}
 			} else {
@@ -488,6 +491,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		var idx int
 		var answer string
 		var finishReason string
 		finishFn := func(id string) {
@@ -496,9 +500,10 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 				cm.FinishRsason = finishReason
 			}
 			cm.Text = answer // optional for chatgpt-web
-			_ = writeEvent(w, id, esDone)
+			_ = writeEvent(w, strconv.Itoa(idx), esDone)
 		}
 		for {
+			idx++
 			var wrote bool
 			ccsr, err := ccs.Recv()
 			if errors.Is(err, io.EOF) {
@@ -521,7 +526,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 				}
 				cm.Delta = ccsr.Choices[0].Text
 				answer += cm.Delta
-				if wrote = writeEvent(w, ccsr.ID, &cm); !wrote {
+				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
 					break
 				}
 			}
