@@ -28,7 +28,7 @@ func initdb(cc *cli.Context) error {
 	return stores.InitDB()
 }
 
-func embedding(cc *cli.Context) error {
+func importDocs(cc *cli.Context) error {
 	input := cc.Args().First()
 	file, err := os.Open(input)
 	if err != nil {
@@ -67,7 +67,12 @@ func exportQAs(cc *cli.Context) error {
 	spec := &stores.DocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
-	return stores.Sgt().Qa().ExportQAs(ctx, spec, file)
+	ea := stores.ExportArg{
+		Spec:   spec,
+		Out:    file,
+		Format: cc.String("format"),
+	}
+	return stores.Sgt().Qa().ExportQAs(ctx, ea)
 }
 
 func logger() zlog.Logger {
@@ -86,7 +91,8 @@ func main() {
 	zlog.Set(sugar)
 
 	app := &cli.App{
-		Usage: "A Backend for OpenAI/ChatGPT",
+		Usage:                  "A Backend for OpenAI/ChatGPT",
+		UseShortOptionHandling: true,
 		Commands: []*cli.Command{
 			{
 				Name:    "usage",
@@ -100,9 +106,12 @@ func main() {
 				Action: initdb,
 			},
 			{
-				Name:   "embedding",
-				Usage:  "input a csv to embedding",
-				Action: embedding,
+				Name:   "import",
+				Usage:  "import documents from a csv",
+				Action: importDocs,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "embedding"},
+				},
 			},
 			{
 				Name:    "fill-qa",
@@ -114,7 +123,10 @@ func main() {
 				Name:    "export-qa",
 				Usage:   "export QA from documents",
 				Aliases: []string{"exportQAs"},
-				Action:  exportQAs,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "format", Aliases: []string{"t"}, Value: "csv", Usage: "csv|jsonl"},
+				},
+				Action: exportQAs,
 			},
 			{
 				Name:    "web",

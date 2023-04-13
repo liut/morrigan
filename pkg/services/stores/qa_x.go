@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,11 +12,11 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/qas"
-	"github.com/liut/morrigan/pkg/settings"
 )
 
 const (
 	Separator    = "\n* "
+	AnswerStop   = " END"
 	dftThreshold = 0.52
 	dftLimit     = 4
 
@@ -49,6 +50,12 @@ func (ms *MatchSpec) setDefaults() {
 	}
 }
 
+type ExportArg struct {
+	Spec   *DocumentSpec
+	Out    io.Writer
+	Format string // csv,jsonl
+}
+
 func validHead(rec []string) bool {
 	return len(rec) >= len(qaHeads) && rec[0] == qaHeads[0] && rec[1] == qaHeads[1] && rec[2] == qaHeads[2]
 }
@@ -56,7 +63,7 @@ func validHead(rec []string) bool {
 type qaStoreX interface {
 	ImportFromCSV(ctx context.Context, r io.Reader) error
 	FillQAs(ctx context.Context, spec *DocumentSpec) error
-	ExportQAs(ctx context.Context, spec *DocumentSpec, w io.Writer) error
+	ExportQAs(ctx context.Context, ea ExportArg) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
 	MatchDocmentsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Documents, err error)
@@ -114,9 +121,6 @@ func (s *qaStore) importLine(ctx context.Context, title, heading, content string
 func dbBeforeSaveDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
 	if len(obj.Content) == 0 {
 		return fmt.Errorf("empty content: %s,%s", obj.Title, obj.Heading)
-	}
-	if !settings.Current.EmbeddingQA {
-		return nil
 	}
 	if !obj.IsUpdate() || obj.HasChange("content") {
 		text := fmt.Sprintf("%s %s: %s", obj.Title, obj.Heading, obj.Content)
@@ -237,21 +241,49 @@ func (s *qaStore) FillQAs(ctx context.Context, spec *DocumentSpec) error {
 	return nil
 }
 
-func (s *qaStore) ExportQAs(ctx context.Context, spec *DocumentSpec, w io.Writer) error {
-	data, _, err := s.ListDocument(ctx, spec)
+type tranLine struct {
+	Prompt     string `json:"prompt"`
+	Completion string `json:"completion"`
+}
+
+func (s *qaStore) ExportQAs(ctx context.Context, ea ExportArg) error {
+	data, _, err := s.ListDocument(ctx, ea.Spec)
 	if err != nil {
 		return err
 	}
 
+	if ea.Format == "csv" {
+		return documentsToCSV(data, ea.Out)
+	}
+
+	enc := json.NewEncoder(ea.Out)
+
+	for _, doc := range data {
+		for _, p := range doc.QAs {
+			line := tranLine{
+				Prompt:     fmt.Sprintf("%s\n%s\n\nQ: %s\nA:", doc.Heading, doc.Content, p.Question),
+				Completion: " " + p.Anwser + AnswerStop,
+			}
+			if err = enc.Encode(&line); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func documentsToCSV(data qas.Documents, w io.Writer) error {
+
 	head := []string{"doc_id", "heading", "question", "anwser"}
 	cw := csv.NewWriter(w)
-	if err = cw.Write(head); err != nil {
+	if err := cw.Write(head); err != nil {
 		return err
 	}
 
 	for _, doc := range data {
 		for _, p := range doc.QAs {
-			if err = cw.Write([]string{doc.StringID(), doc.Heading, p.Question, p.Anwser}); err != nil {
+			if err := cw.Write([]string{doc.StringID(), doc.Heading, p.Question, p.Anwser}); err != nil {
 				return err
 			}
 		}

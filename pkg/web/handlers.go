@@ -17,6 +17,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
+	"github.com/liut/morrigan/pkg/models/qas"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 )
@@ -437,22 +438,39 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 
 	header := "Answer the question as truthfully as possible using the provided context."
 
+	var useFineTune bool
 	if s.preset.Completion != nil {
 		header = s.preset.Completion.Header
+		if len(s.preset.Completion.Model) > 0 {
+			param.Model = s.preset.Completion.Model
+			useFineTune = true
+		}
 	}
-
-	spec := stores.MatchSpec{}
+	var prompt string
 	if s, ok := param.Prompt.(string); ok {
-		spec.Question = s
+		prompt = s
+	} else {
+		apiFail(w, r, 400, "invalid prompt")
+		return
+	}
+	if useFineTune {
+		param.Prompt = prompt + "\n" + qas.PrefixA
+	} else {
+		spec := stores.MatchSpec{}
+		spec.Question = prompt
 		prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
 		if err != nil {
 			apiFail(w, r, 503, err)
 			return
 		}
-		param.Prompt = header + "\n\nContext:\n" + prompt
+		param.Prompt = header + "\n\nContext:\n" + prompt + "\n" + qas.PrefixA
+
 	}
 
-	param.Model = openai.GPT3TextDavinci003
+	if len(param.Model) == 0 {
+		param.Model = openai.GPT3TextDavinci003
+	}
+
 	param.MaxTokens = 1024
 	logger().Infow("completion", "param", &param)
 
