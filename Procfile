@@ -1,1 +1,1 @@
-web: rerun -build -rundir dist .
+web: rerun -build -rundir dist . web
