@@ -353,13 +353,9 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	}
 	var idx int
 	var finishReason string
-	finishFn := func(id string) {
-		logger().Infow("stream done", "id", id, "answer", answer, "reason", finishReason)
-		if finishReason != "stop" {
-			cm.FinishRsason = finishReason
-		}
+	finishFn := func(reason string) {
+		logger().Infow("stream done", "reason", reason, "answer", answer)
 		if ccr.isSSE {
-			cm.Text = answer // optional for chatgpt-web
 			_ = writeEvent(w, strconv.Itoa(idx), esDone)
 		} else {
 			flusher.Flush()
@@ -371,7 +367,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		ccsr, err := ccs.Recv()
 		if errors.Is(err, io.EOF) { // choices is nil at the moment
 			logger().Debugw("ccs recv eof", "reason", finishReason)
-			finishFn(ccsr.ID)
+			finishFn("EOF")
 			break
 		}
 		if err != nil {
@@ -381,13 +377,13 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		if len(ccsr.Choices) > 0 {
 			// logger().Debugw("recv", "cohoices", ccsr.Choices)
 			finishReason = ccsr.Choices[0].FinishReason
-			if len(finishReason) > 0 {
-				finishFn(ccsr.ID)
-				break
-			}
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
+			cm.FinishRsason = finishReason
 			if ccr.isSSE {
+				// if len(finishReason) > 0 {
+				// cm.Text = answer // optional for chatgpt-web
+				// }
 				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
 					break
 				}
@@ -398,6 +394,10 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 					break
 				}
 				flusher.Flush()
+			}
+			if len(finishReason) > 0 {
+				finishFn(finishReason)
+				break
 			}
 		}
 	}
@@ -494,11 +494,8 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		var idx int
 		var answer string
 		var finishReason string
-		finishFn := func(id string) {
-			logger().Infow("finish", "id", id, "answer", answer, "reason", finishReason)
-			if finishReason != "stop" {
-				cm.FinishRsason = finishReason
-			}
+		finishFn := func(reason string) {
+			logger().Infow("finish", "reason", reason, "answer", answer)
 			cm.Text = answer // optional for chatgpt-web
 			_ = writeEvent(w, strconv.Itoa(idx), esDone)
 		}
@@ -508,7 +505,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			ccsr, err := ccs.Recv()
 			if errors.Is(err, io.EOF) {
 				logger().Debugw("ccs recv eof", "reason", finishReason)
-				finishFn(ccsr.ID)
+				finishFn("EOF")
 				break
 			}
 
@@ -520,13 +517,14 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			if len(ccsr.Choices) > 0 {
 				// logger().Debugw("recv", "cohoices", ccsr.Choices)
 				finishReason = ccsr.Choices[0].FinishReason
-				if len(finishReason) > 0 {
-					finishFn(ccsr.ID)
-					break
-				}
 				cm.Delta = ccsr.Choices[0].Text
 				answer += cm.Delta
+				cm.FinishRsason = finishReason
 				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
+					break
+				}
+				if len(finishReason) > 0 {
+					finishFn(finishReason)
 					break
 				}
 			}
