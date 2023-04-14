@@ -277,7 +277,18 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		answer := s.chatStreamResponse(ccr, w, r)
 		if len(answer) > 0 {
 			ccr.hi.ChatItem.Assistant = answer
-			ccr.cs.AddHistory(r.Context(), ccr.hi)
+			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
+
+			if settings.Current.ChatLogOpen {
+				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), qas.ChatLogBasic{
+					ChatID:   ccr.cs.GetOID(),
+					Question: param.Prompt,
+					Answer:   answer,
+				})
+				if err != nil {
+					logger().Infow("save chat log fail", "err", err)
+				}
+			}
 		}
 
 		return
@@ -336,6 +347,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	} else {
 		w.Header().Add("Content-type", "application/octet-stream")
 	}
+	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
 	ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
@@ -346,11 +358,11 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	defer ccs.Close()
 
 	var cm ChatMessage
-	cm.ID = ccr.cs.GetID()
 	if !ccr.isSSE {
 		// for github.com/Chanzhaoyu/chatgpt-web chat-process only
 		cm.ConversationId = cm.ID
 	}
+
 	var idx int
 	var finishReason string
 	finishFn := func(reason string) {

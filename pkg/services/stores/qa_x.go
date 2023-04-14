@@ -37,8 +37,6 @@ type MatchSpec struct {
 	Question  string
 	Threshold float32
 	Limit     int
-
-	vec qas.Vector
 }
 
 func (ms *MatchSpec) setDefaults() {
@@ -114,6 +112,7 @@ func (s *qaStore) importLine(ctx context.Context, title, heading, content string
 		})
 	}
 	if err != nil {
+		logger().Infow("save document fail", "id", doc.ID, "err", err)
 		return err
 	}
 	return nil

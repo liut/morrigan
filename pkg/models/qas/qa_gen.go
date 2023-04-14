@@ -10,13 +10,13 @@ import (
 // consts of Document 文档
 const (
 	DocumentTable = "qa_corpus_document"
-	DocumentAlias = "c"
+	DocumentAlias = "cd"
 	DocumentLabel = "document"
 )
 
 // Document 文档 语料库
 type Document struct {
-	comm.BaseModel `bun:"table:qa_corpus_document,alias:c" json:"-"`
+	comm.BaseModel `bun:"table:qa_corpus_document,alias:cd" json:"-"`
 
 	comm.DefaultModel
 
@@ -128,6 +128,106 @@ func (in *DocumentBasic) MetaAddKVs(args ...any) *DocumentBasic {
 	return in
 }
 func (in *DocumentSet) MetaAddKVs(args ...any) *DocumentSet {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+
+// consts of ChatLog 聊天日志
+const (
+	ChatLogTable = "qa_chat_log"
+	ChatLogAlias = "cl"
+	ChatLogLabel = "chatLog"
+)
+
+// ChatLog 聊天日志
+type ChatLog struct {
+	comm.BaseModel `bun:"table:qa_chat_log,alias:cl" json:"-"`
+
+	comm.DefaultModel
+
+	ChatLogBasic
+
+	comm.MetaField
+} // @name qasChatLog
+
+type ChatLogBasic struct {
+	// 会话ID
+	ChatID oid.OID `bun:"csid,notnull" extensions:"x-order=A" json:"csid" pg:"csid,notnull"`
+	// 提问
+	Question string `bun:",notnull,type:text" extensions:"x-order=B" form:"prompt" json:"prompt" pg:",notnull,type:text"`
+	// 回答
+	Answer string `bun:",notnull,type:text" extensions:"x-order=C" form:"response" json:"response" pg:",notnull,type:text"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
+} // @name qasChatLogBasic
+
+type ChatLogs []ChatLog
+
+// Creating function call to it's inner fields defined hooks
+func (z *ChatLog) Creating() error {
+	if z.IsZeroID() {
+		z.SetID(oid.NewID(oid.OtEvent))
+	}
+
+	return z.DefaultModel.Creating()
+}
+func NewChatLogWithBasic(in ChatLogBasic) *ChatLog {
+	obj := &ChatLog{
+		ChatLogBasic: in,
+	}
+	_ = obj.MetaUp(in.MetaDiff)
+	return obj
+}
+func NewChatLogWithID(id any) *ChatLog {
+	obj := new(ChatLog)
+	_ = obj.SetID(id)
+	return obj
+}
+func (_ *ChatLog) IdentityLabel() string {
+	return ChatLogLabel
+}
+func (_ *ChatLog) IdentityTable() string {
+	return ChatLogTable
+}
+func (_ *ChatLog) IdentityAlias() string {
+	return ChatLogAlias
+}
+
+type ChatLogSet struct {
+	// 会话ID
+	ChatID *string `extensions:"x-order=A" json:"csid"`
+	// 提问
+	Question *string `extensions:"x-order=B" json:"prompt"`
+	// 回答
+	Answer *string `extensions:"x-order=C" json:"response"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
+} // @name qasChatLogSet
+
+func (z *ChatLog) SetWith(o ChatLogSet) {
+	if o.ChatID != nil {
+		if id := oid.Cast(*o.ChatID); z.ChatID != id {
+			z.LogChangeValue("csid", z.ChatID, id)
+			z.ChatID = id
+		}
+	}
+	if o.Question != nil && z.Question != *o.Question {
+		z.LogChangeValue("question", z.Question, o.Question)
+		z.Question = *o.Question
+	}
+	if o.Answer != nil && z.Answer != *o.Answer {
+		z.LogChangeValue("answer", z.Answer, o.Answer)
+		z.Answer = *o.Answer
+	}
+	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
+		z.SetChange("meta")
+	}
+}
+func (in *ChatLogBasic) MetaAddKVs(args ...any) *ChatLogBasic {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+func (in *ChatLogSet) MetaAddKVs(args ...any) *ChatLogSet {
 	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
 	return in
 }

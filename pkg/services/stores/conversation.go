@@ -19,6 +19,7 @@ const (
 
 type Conversation interface {
 	GetID() string
+	GetOID() oid.OID
 	AddHistory(ctx context.Context, item *aigc.HistoryItem) error
 	ListHistory(ctx context.Context) (aigc.HistoryItems, error)
 	ClearHistory(ctx context.Context) error
@@ -39,6 +40,10 @@ type conversation struct {
 
 func (s *conversation) GetID() string {
 	return s.id.String()
+}
+
+func (s *conversation) GetOID() oid.OID {
+	return s.id
 }
 
 func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) error {

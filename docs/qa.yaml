@@ -7,7 +7,7 @@ modelpkg: qas
 models:
   - name: Document
     comment: '文档 语料库'
-    tableTag: 'qa_corpus_document,alias:c'
+    tableTag: 'qa_corpus_document,alias:cd'
     fields:
       - name: comm.DefaultModel
       - comment: 主标题
@@ -54,9 +54,35 @@ models:
     hooks:
       beforeSaving: yes
 
+  - name: ChatLog
+    comment: '聊天日志'
+    tableTag: 'qa_chat_log,alias:cl'
+    fields:
+      - name: comm.DefaultModel
+      - comment: 会话ID
+        name: ChatID
+        type: oid.OID
+        tags: {json: 'csid', pg: 'csid,notnull'}
+        isset: true
+        query: 'equal'
+      - comment: 提问
+        name: Question
+        type: string
+        tags: {json: 'prompt', pg: ',notnull,type:text'}
+        isset: true
+      - comment: 回答
+        name: Answer
+        type: string
+        tags: {json: 'response', pg: ',notnull,type:text'}
+        isset: true
+      - type: comm.MetaField
+    oidcat: event
 
 stores:
   - name: qaStore
     embed: qaStoreX
     hodBread: [ Document ]
+    hods:
+      - name: ChatLog
+        type: CGL
 

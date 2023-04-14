@@ -22,5 +22,5 @@ type Preset struct {
 	Model       string      `json:"model,omitempty" yaml:"model,omitempty"`
 	MaxTokens   int         `json:"maxTokens,omitempty" yaml:"maxTokens,omitempty"`
 	Temperature float32     `json:"temperature,omitempty" yaml:"temperature,omitempty"`
-	Stop        []string    `json:"stop,omitempty,omitempty" yaml:"stop,omitempty"`
+	Stop        []string    `json:"stop,omitempty" yaml:"stop,omitempty"`
 }

@@ -8,13 +8,17 @@ import (
 	"github.com/liut/morrigan/pkg/models/qas"
 )
 
+// type ChatLog = qas.ChatLog
+// type ChatLogBasic = qas.ChatLogBasic
+// type ChatLogSet = qas.ChatLogSet
+// type ChatLogs = qas.ChatLogs
 // type Document = qas.Document
 // type DocumentBasic = qas.DocumentBasic
 // type DocumentSet = qas.DocumentSet
 // type Documents = qas.Documents
 
 func init() {
-	RegisterModel((*qas.Document)(nil))
+	RegisterModel((*qas.Document)(nil), (*qas.ChatLog)(nil))
 }
 
 type QaStore interface {
@@ -25,6 +29,10 @@ type QaStore interface {
 	CreateDocument(ctx context.Context, in qas.DocumentBasic) (obj *qas.Document, err error)
 	UpdateDocument(ctx context.Context, id string, in qas.DocumentSet) error
 	DeleteDocument(ctx context.Context, id string) error
+
+	CreateChatLog(ctx context.Context, in qas.ChatLogBasic) (obj *qas.ChatLog, err error)
+	GetChatLog(ctx context.Context, id string) (obj *qas.ChatLog, err error)
+	ListChatLog(ctx context.Context, spec *ChatLogSpec) (data qas.ChatLogs, total int, err error)
 }
 
 type DocumentSpec struct {
@@ -54,6 +62,21 @@ func (spec *DocumentSpec) CanSort(k string) bool {
 	default:
 		return spec.ModelSpec.CanSort(k)
 	}
+}
+
+type ChatLogSpec struct {
+	PageSpec
+	ModelSpec
+
+	// 会话ID
+	ChatID string `extensions:"x-order=A" form:"csid" json:"csid"`
+}
+
+func (spec *ChatLogSpec) Sift(q *ormQuery) *ormQuery {
+	q = spec.ModelSpec.Sift(q)
+	q, _ = siftOID(q, "csid", spec.ChatID, false)
+
+	return q
 }
 
 type qaStore struct {
@@ -100,4 +123,21 @@ func (s *qaStore) UpdateDocument(ctx context.Context, id string, in qas.Document
 func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 	obj := new(qas.Document)
 	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
+func (s *qaStore) CreateChatLog(ctx context.Context, in qas.ChatLogBasic) (obj *qas.ChatLog, err error) {
+	obj = qas.NewChatLogWithBasic(in)
+	dbOpModelMeta(ctx, s.w.db, obj)
+	err = dbInsert(ctx, s.w.db, obj)
+	return
+}
+func (s *qaStore) GetChatLog(ctx context.Context, id string) (obj *qas.ChatLog, err error) {
+	obj = new(qas.ChatLog)
+	err = s.w.db.GetModel(ctx, obj, id)
+
+	return
+}
+func (s *qaStore) ListChatLog(ctx context.Context, spec *ChatLogSpec) (data qas.ChatLogs, total int, err error) {
+	total, err = s.w.db.ListModel(ctx, spec, &data)
+	return
 }

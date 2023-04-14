@@ -33,6 +33,7 @@ type Config struct {
 	OpenAIAPIKey string `envconfig:"openAi_Api_Key" required:"true"`
 	PresetFile   string `envconfig:"preset_file" desc:"custom welcome and messages"`
 	EmbeddingQA  bool   `envconfig:"Embedding_QA" desc:"enable embed QA into prompt"`
+	ChatLogOpen  bool   `envconfig:"chat_log_open"`
 }
 
 var (
