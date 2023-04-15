@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/cupogo/andvari/models/oid"
 	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/qas"
@@ -62,9 +63,10 @@ type qaStoreX interface {
 	ImportFromCSV(ctx context.Context, r io.Reader) error
 	FillQAs(ctx context.Context, spec *DocumentSpec) error
 	ExportQAs(ctx context.Context, ea ExportArg) error
+	EmbeddingPrompt(ctx context.Context, spec *DocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
-	MatchDocmentsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Documents, err error)
+	MatchPromptsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Prompts, err error)
 }
 
 func (s *qaStore) ImportFromCSV(ctx context.Context, r io.Reader) error {
@@ -121,14 +123,19 @@ func dbBeforeSaveDocument(ctx context.Context, db ormDB, obj *qas.Document) erro
 	if len(obj.Content) == 0 {
 		return fmt.Errorf("empty content: %s,%s", obj.Title, obj.Heading)
 	}
-	if !obj.IsUpdate() || obj.HasChange("content") {
-		text := fmt.Sprintf("%s %s: %s", obj.Title, obj.Heading, obj.Content)
-		vec, err := GetEmbedding(ctx, text)
+	return nil
+}
+func dbBeforeSavePrompt(ctx context.Context, db ormDB, obj *qas.Prompt) error {
+	if len(obj.Text) == 0 {
+		return ErrEmptyParam
+	}
+	if !obj.IsUpdate() || obj.HasChange("prompt") {
+		vec, err := GetEmbedding(ctx, obj.Text)
 		if err != nil {
 			return err
 		}
 		if len(vec) > 0 {
-			obj.Embedding = vec
+			obj.Vector = vec
 			if obj.IsUpdate() {
 				obj.SetChange("embedding")
 			}
@@ -166,12 +173,12 @@ func (s *qaStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt str
 	}
 	var sections []string
 	for _, doc := range docs {
-		logger().Infow("hit", "id", doc.ID, "title", doc.Title, "heading", doc.Heading, "sim", doc.Similarity)
 		text := fmt.Sprintf("%s%s: %s", Separator, doc.Heading, replPrompt.Replace(doc.Content))
 		sections = append(sections, text)
 	}
 
-	prompt = strings.Join(sections, "") + "\n\n Q: " + ms.Question + "\n A:"
+	prompt = fmt.Sprintf("%s\n\n%s %s\n%s",
+		strings.Join(sections, ""), qas.PrefixQ, ms.Question, qas.PrefixA)
 
 	return
 }
@@ -182,15 +189,28 @@ func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Doc
 	if err != nil {
 		return
 	}
-	data, err = s.MatchDocmentsWith(ctx, vec, ms.Threshold, ms.Limit)
+	var ps qas.Prompts
+	ps, err = s.MatchPromptsWith(ctx, vec, ms.Threshold, ms.Limit)
+	if err != nil {
+		return
+	}
+	logger().Infow("hit", "q", ms.Question, "ps", ps)
+	spec := &DocumentSpec{}
+	spec.IDs = ps.DocumentIDs()
+	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
+	if err != nil {
+		logger().Infow("list docs fail", "spec", spec, "err", err)
+	} else {
+		logger().Infow("list docs", "matches", len(data))
+	}
 	return
 }
-func (s *qaStore) MatchDocmentsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Documents, err error) {
+func (s *qaStore) MatchPromptsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Prompts, err error) {
 	if len(vec) != qas.VectorLen {
 		return
 	}
 	logger().Debugw("embedding", "vec", vec[0:5])
-	err = s.w.db.NewRaw("SELECT * FROM qa_match_documents(?, ?, ?)", vec, threshold, limit).Scan(ctx, &data)
+	err = s.w.db.NewRaw("SELECT * FROM qa_match_prompts(?, ?, ?)", vec, threshold, limit).Scan(ctx, &data)
 	if err != nil {
 		logger().Infow("query fail", "err", err)
 	}
@@ -290,4 +310,44 @@ func documentsToCSV(data qas.Documents, w io.Writer) error {
 	cw.Flush()
 
 	return cw.Error()
+}
+
+func (s *qaStore) EmbeddingPrompt(ctx context.Context, spec *DocumentSpec) error {
+	data, _, err := s.ListDocument(ctx, spec)
+	if err != nil {
+		return err
+	}
+
+	for _, doc := range data {
+		if err = s.savePrompt(ctx, doc.ID, doc.Title+doc.Heading); err != nil {
+			return err
+		}
+		for _, p := range doc.QAs {
+			if err = s.savePrompt(ctx, doc.ID, p.Question); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *qaStore) savePrompt(ctx context.Context, docID oid.OID, question string) error {
+	pv := new(qas.Prompt)
+	err := dbGet(ctx, s.w.db, pv, "prompt = ? ", question)
+	if err != nil {
+		_, err = s.CreatePrompt(ctx, qas.PromptBasic{
+			DocID: docID,
+			Text:  question,
+		})
+	} else {
+		id := docID.String()
+		err = s.UpdatePrompt(ctx, pv.StringID(), qas.PromptSet{
+			DocID: &id,
+		})
+	}
+	if err != nil {
+		logger().Infow("save prompt fail", "doc", docID, "text", question, "err", err)
+		return err
+	}
+	return nil
 }

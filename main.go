@@ -75,6 +75,14 @@ func exportQAs(cc *cli.Context) error {
 	return stores.Sgt().Qa().ExportQAs(ctx, ea)
 }
 
+func embeddingPrompt(cc *cli.Context) error {
+	ctx := context.Background()
+	spec := &stores.DocumentSpec{}
+	spec.Limit = 90
+	spec.Sort = "id"
+	return stores.Sgt().Qa().EmbeddingPrompt(ctx, spec)
+}
+
 func logger() zlog.Logger {
 	return zlog.Get()
 }
@@ -109,9 +117,6 @@ func main() {
 				Name:   "import",
 				Usage:  "import documents from a csv",
 				Action: importDocs,
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "embedding"},
-				},
 			},
 			{
 				Name:    "fill-qa",
@@ -127,6 +132,12 @@ func main() {
 					&cli.StringFlag{Name: "format", Aliases: []string{"t"}, Value: "csv", Usage: "csv|jsonl"},
 				},
 				Action: exportQAs,
+			},
+			{
+				Name:    "embedding",
+				Usage:   "read prompt documents and embedding",
+				Aliases: []string{"embedding-pormpt"},
+				Action:  embeddingPrompt,
 			},
 			{
 				Name:    "web",

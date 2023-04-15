@@ -16,9 +16,13 @@ import (
 // type DocumentBasic = qas.DocumentBasic
 // type DocumentSet = qas.DocumentSet
 // type Documents = qas.Documents
+// type Prompt = qas.Prompt
+// type PromptBasic = qas.PromptBasic
+// type PromptSet = qas.PromptSet
+// type Prompts = qas.Prompts
 
 func init() {
-	RegisterModel((*qas.Document)(nil), (*qas.ChatLog)(nil))
+	RegisterModel((*qas.Document)(nil), (*qas.Prompt)(nil), (*qas.ChatLog)(nil))
 }
 
 type QaStore interface {
@@ -30,9 +34,14 @@ type QaStore interface {
 	UpdateDocument(ctx context.Context, id string, in qas.DocumentSet) error
 	DeleteDocument(ctx context.Context, id string) error
 
+	CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error)
+	UpdatePrompt(ctx context.Context, id string, in qas.PromptSet) error
+	DeletePrompt(ctx context.Context, id string) error
+
 	CreateChatLog(ctx context.Context, in qas.ChatLogBasic) (obj *qas.ChatLog, err error)
 	GetChatLog(ctx context.Context, id string) (obj *qas.ChatLog, err error)
 	ListChatLog(ctx context.Context, spec *ChatLogSpec) (data qas.ChatLogs, total int, err error)
+	DeleteChatLog(ctx context.Context, id string) error
 }
 
 type DocumentSpec struct {
@@ -125,6 +134,42 @@ func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 
+func (s *qaStore) CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error) {
+	obj = qas.NewPromptWithBasic(in)
+	if obj.Text == "" {
+		err = ErrEmptyKey
+		return
+	}
+	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		if err = dbBeforeSavePrompt(ctx, tx, obj); err != nil {
+			return err
+		}
+		dbOpModelMeta(ctx, tx, obj)
+		err = dbInsert(ctx, tx, obj, "prompt")
+		return err
+	})
+	return
+}
+func (s *qaStore) UpdatePrompt(ctx context.Context, id string, in qas.PromptSet) error {
+	exist := new(qas.Prompt)
+	if err := getModelWithPKID(ctx, s.w.db, exist, id); err != nil {
+		return err
+	}
+	exist.SetWith(in)
+	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		exist.SetIsUpdate(true)
+		if err = dbBeforeSavePrompt(ctx, tx, exist); err != nil {
+			return
+		}
+		dbOpModelMeta(ctx, tx, exist)
+		return dbUpdate(ctx, tx, exist)
+	})
+}
+func (s *qaStore) DeletePrompt(ctx context.Context, id string) error {
+	obj := new(qas.Prompt)
+	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
 func (s *qaStore) CreateChatLog(ctx context.Context, in qas.ChatLogBasic) (obj *qas.ChatLog, err error) {
 	obj = qas.NewChatLogWithBasic(in)
 	dbOpModelMeta(ctx, s.w.db, obj)
@@ -140,4 +185,8 @@ func (s *qaStore) GetChatLog(ctx context.Context, id string) (obj *qas.ChatLog, 
 func (s *qaStore) ListChatLog(ctx context.Context, spec *ChatLogSpec) (data qas.ChatLogs, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
+}
+func (s *qaStore) DeleteChatLog(ctx context.Context, id string) error {
+	obj := new(qas.ChatLog)
+	return s.w.db.DeleteModel(ctx, obj, id)
 }

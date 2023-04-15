@@ -178,7 +178,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
 			for _, doc := range docs {
 				matched++
-				logger().Infow("hit", "head", doc.Heading)
+				logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
 				messages = append(messages,
 					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
 					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
@@ -340,6 +340,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		return
 	}
 
+	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 	// w.Header().Set("Cache-Control", "no-cache")
 	// w.Header().Set("Connection", "keep-alive")
 	if ccr.isSSE {
@@ -347,7 +348,6 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	} else {
 		w.Header().Add("Content-type", "application/octet-stream")
 	}
-	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
 	ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
@@ -387,15 +387,11 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			break
 		}
 		if len(ccsr.Choices) > 0 {
-			// logger().Debugw("recv", "cohoices", ccsr.Choices)
 			finishReason = ccsr.Choices[0].FinishReason
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
 			cm.FinishRsason = finishReason
 			if ccr.isSSE {
-				// if len(finishReason) > 0 {
-				// cm.Text = answer // optional for chatgpt-web
-				// }
 				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
 					break
 				}
@@ -453,13 +449,14 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 
 	header := "Answer the question as truthfully as possible using the provided context."
 
-	var useFineTune bool
 	if s.preset.Completion != nil {
 		header = s.preset.Completion.Header
-		if len(s.preset.Completion.Model) > 0 {
+		if !settings.Current.EmbeddingQA && len(s.preset.Completion.Model) > 0 {
 			param.Model = s.preset.Completion.Model
-			useFineTune = true
 		}
+	}
+	if len(s.preset.Stop) > 0 {
+		param.Stop = s.preset.Stop
 	}
 	var prompt string
 	if s, ok := param.Prompt.(string); ok {
@@ -468,26 +465,23 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		apiFail(w, r, 400, "invalid prompt")
 		return
 	}
-	if useFineTune {
-		param.Prompt = prompt + "\n" + qas.PrefixA
-	} else {
-		spec := stores.MatchSpec{}
-		spec.Question = prompt
-		prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
-		if err != nil {
-			apiFail(w, r, 503, err)
-			return
-		}
-		param.Prompt = header + "\n\nContext:\n" + prompt + "\n" + qas.PrefixA
 
+	spec := stores.MatchSpec{}
+	spec.Question = prompt
+	prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
+	if err != nil {
+		apiFail(w, r, 503, err)
+		return
 	}
+	param.Prompt = header + "\n\nContext:\n" + prompt
 
 	if len(param.Model) == 0 {
 		param.Model = openai.GPT3TextDavinci003
 	}
 
 	param.MaxTokens = 1024
-	logger().Infow("completion", "param", &param)
+	logger().Infow("completion", "param", &param, "csid", param.cs.GetID())
+	w.Header().Add("Conversation-ID", param.cs.GetID())
 
 	var cm CompletionMessage
 	cm.ID = param.cs.GetID()
@@ -502,6 +496,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			apiFail(w, r, 400, err)
 			return
 		}
+		w.Header().Set("Content-Type", "text/event-stream")
 
 		var idx int
 		var answer string

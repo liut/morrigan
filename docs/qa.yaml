@@ -29,26 +29,48 @@ models:
         tags: {json: 'content', pg: ',notnull,type:text'}
         isset: true
         query: 'match'
+      - comment: 问答集
+        name: QAs
+        type: Pairs
+        tags: {json: 'qas,omitempty', pg: "qas,notnull,type:jsonb"}
+        isset: true
+      - type: comm.MetaField
+    oidcat: article
+    hooks:
+      beforeSaving: yes
+
+  - name: Prompt
+    comment: '提示向量'
+    tableTag: 'qa_corpus_prompt,alias:cl'
+    fields:
+      - name: comm.DefaultModel
+      - comment: 文档编号
+        name: DocID
+        type: oid.OID
+        tags: {json: 'docID', pg: 'doc_id,notnull'}
+        isset: true
+        query: 'equal'
+      - comment: 提示
+        name: Text
+        type: string
+        tags: {json: 'prompt', pg: 'prompt,notnull,type:text,unique'}
+        isset: true
+        query: 'match'
+        sortable: true
       - comment: 'Tokens'
         name: Tokens
         type: uint
         tags: {json: 'tokens,omitempty', pg: ",notnull,type:smallint"}
         isset: true
       - comment: 向量值 长为1536的浮点数集
-        name: Embedding
+        name: Vector
         type: 'Vector'
-        tags: {json: 'embedding,omitempty', pg: ',type:vector(1536)'}
-        isset: true
-      - comment: 问答集
-        name: QAs
-        type: Pairs
-        tags: {json: 'qas,omitempty', pg: "qas,notnull,type:jsonb"}
+        tags: {json: 'vector,omitempty', pg: 'embedding,type:vector(1536)'}
         isset: true
       - comment: 相似度 仅用于查询结果
         name: Similarity
         type: float32
         tags: {json: 'similarity,omitempty', pg: ',notnull,type:float4'}
-
       - type: comm.MetaField
     oidcat: article
     hooks:
@@ -83,6 +105,8 @@ stores:
     embed: qaStoreX
     hodBread: [ Document ]
     hods:
+      - name: Prompt
+        type: CUD
       - name: ChatLog
-        type: CGL
+        type: CGLD
 
