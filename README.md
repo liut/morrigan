@@ -10,7 +10,7 @@ OpenAI/ChatGPT Backend with conversation and API
  - Welcome message and preset messages
  - Chat History for Conversation (based on redis)
  - RESTful API
- - Support text/event-steam
+ - Support text/event-stream
  - Login with OAuth2 client for general Security Provider
 
 ## Supported Frontend
