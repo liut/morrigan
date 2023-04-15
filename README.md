@@ -199,6 +199,13 @@ GLOBAL OPTIONS:
 
 ```
 
+#### CSV template of documents
+
+| title      | heading     | content                                   |
+|------------|-------------|-------------------------------------------|
+| my company | introducion | A great company stems from a genius idea. |
+|            |             |                                           |
+
 
 ### Embedding frontend resources
 
