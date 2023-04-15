@@ -177,6 +177,29 @@ OAUTH_PREFIX=https://portal.my-company.xyz
 HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 ```
 
+### Command line usage
+
+```plan
+
+USAGE:
+   morrigan [global options] command [command options] [arguments...]
+
+COMMANDS:
+   usage, env                   show usage
+   initdb                       init database schema
+   import                       import documents from a csv
+   fill-qa, fillQAs             fill QA in documents
+   export-qa, exportQAs         export QA from documents
+   embedding, embedding-pormpt  read prompt documents and embedding
+   web, run                     run a web server
+   help, h                      Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --help, -h  show help
+
+```
+
+
 ### Embedding frontend resources
 
 1. Go to frontend project directory

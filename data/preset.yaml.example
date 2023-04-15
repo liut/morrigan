@@ -3,6 +3,7 @@ welcome:
   content: Hello, I am your virtual assistant. How can I help you?
   role: assistant
 
+# fallback
 messages:
   - content: You are a helpful assistant.
     role: system
