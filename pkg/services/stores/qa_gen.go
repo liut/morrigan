@@ -18,6 +18,8 @@ import (
 // type Documents = qas.Documents
 // type Prompt = qas.Prompt
 // type PromptBasic = qas.PromptBasic
+// type PromptMatch = qas.PromptMatch
+// type PromptMatches = qas.PromptMatches
 // type PromptSet = qas.PromptSet
 // type Prompts = qas.Prompts
 

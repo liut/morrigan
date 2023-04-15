@@ -229,6 +229,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		Role:    openai.ChatMessageRoleUser,
 		Content: prompt,
 	})
+	logger().Debugw("chat", "msgs", messages)
 	logger().Infow("chat", "csid", csid, "msgs", len(messages), "prompt", prompt)
 	ccr := new(ChatCompletionRequest)
 	ccr.Model = openai.GPT3Dot5Turbo

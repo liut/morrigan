@@ -66,7 +66,7 @@ type qaStoreX interface {
 	EmbeddingPrompt(ctx context.Context, spec *DocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
-	MatchPromptsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Prompts, err error)
+	MatchPromptsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.PromptMatches, err error)
 }
 
 func (s *qaStore) ImportFromCSV(ctx context.Context, r io.Reader) error {
@@ -189,7 +189,7 @@ func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Doc
 	if err != nil {
 		return
 	}
-	var ps qas.Prompts
+	var ps qas.PromptMatches
 	ps, err = s.MatchPromptsWith(ctx, vec, ms.Threshold, ms.Limit)
 	if err != nil {
 		return
@@ -205,7 +205,7 @@ func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Doc
 	}
 	return
 }
-func (s *qaStore) MatchPromptsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.Prompts, err error) {
+func (s *qaStore) MatchPromptsWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.PromptMatches, err error) {
 	if len(vec) != qas.VectorLen {
 		return
 	}

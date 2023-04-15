@@ -113,16 +113,28 @@ func (in *DocumentSet) MetaAddKVs(args ...any) *DocumentSet {
 	return in
 }
 
-// consts of Prompt 提示向量
+// PromptMatch 提示匹配结果
+type PromptMatch struct {
+	// 文档编号
+	DocID oid.OID `extensions:"x-order=A" json:"docID"`
+	// 提示
+	Prompt string `extensions:"x-order=B" form:"prompt" json:"prompt"`
+	// 相似度
+	Similarity float32 `extensions:"x-order=C" json:"similarity,omitempty"`
+} // @name qasPromptMatch
+
+type PromptMatches []PromptMatch
+
+// consts of Prompt 提示及向量
 const (
 	PromptTable = "qa_corpus_prompt"
-	PromptAlias = "cl"
+	PromptAlias = "cp"
 	PromptLabel = "prompt"
 )
 
-// Prompt 提示向量
+// Prompt 提示及向量
 type Prompt struct {
-	comm.BaseModel `bun:"table:qa_corpus_prompt,alias:cl" json:"-"`
+	comm.BaseModel `bun:"table:qa_corpus_prompt,alias:cp" json:"-"`
 
 	comm.DefaultModel
 

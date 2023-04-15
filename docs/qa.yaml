@@ -39,9 +39,25 @@ models:
     hooks:
       beforeSaving: yes
 
+  - name: PromptMatch
+    comment: '提示匹配结果'
+    fields:
+      - comment: 文档编号
+        name: DocID
+        type: oid.OID
+        tags: {json: 'docID'}
+      - comment: 提示
+        name: Prompt
+        type: string
+        tags: {json: 'prompt'}
+      - comment: 相似度
+        name: Similarity
+        type: float32
+        tags: {json: 'similarity,omitempty'}
+
   - name: Prompt
-    comment: '提示向量'
-    tableTag: 'qa_corpus_prompt,alias:cl'
+    comment: '提示及向量'
+    tableTag: 'qa_corpus_prompt,alias:cp'
     fields:
       - name: comm.DefaultModel
       - comment: 文档编号
