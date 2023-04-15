@@ -3,15 +3,15 @@
 OpenAI/ChatGPT Backend with conversation and API
 
 ## Features
- - Support text/event-steam
- - Chat History for Conversation (based on redis)
- - RESTful API
- - Welcome message and preset messages
- - Login with OAuth2 client for general Security Provider
  - Import documents of knowledge base from a table (CSV), save them into PostgreSQL
  - Based on the title and content of the document, generate and fill in QA items in the document using some APIs
  - Summarize the questions and generate corresponding vectors
  - Implement high-quality Q&A using vector search
+ - Welcome message and preset messages
+ - Chat History for Conversation (based on redis)
+ - RESTful API
+ - Support text/event-steam
+ - Login with OAuth2 client for general Security Provider
 
 ## Supported Frontend
 
