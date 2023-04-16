@@ -3,7 +3,7 @@ module github.com/liut/morrigan
 go 1.20
 
 require (
-	github.com/cupogo/andvari v0.0.0-20230307100420-027d74f141b1
+	github.com/cupogo/andvari v0.0.0-20230411025154-0a0b5a28ca46
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-chi/render v1.0.2
 	github.com/jpillora/eventsource v1.1.0
