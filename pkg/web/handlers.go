@@ -45,7 +45,6 @@ type CompletionRequest struct {
 	ConversationID string `json:"csid"`
 
 	cs stores.Conversation
-	hi *aigc.HistoryItem
 }
 
 type ChatCompletionRequest struct {
