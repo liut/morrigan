@@ -157,6 +157,21 @@ messages:
 
 ```
 
+### Prepare database
+
+```sql
+CREATE USER morrigan WITH LOGIN PASSWORD 'mydbusersecret';
+CREATE DATABASE morrigan WITH OWNER = morrigan ENCODING = 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE morrigan to morrigan;
+
+
+\c morrigan
+
+-- optional: install extension from https://github.com/pgvector/pgvector
+CREATE EXTENSION vector;
+
+```
+
 ### Command line usage
 
 ```plan
