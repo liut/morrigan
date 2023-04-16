@@ -38,6 +38,7 @@ models:
     oidcat: article
     hooks:
       beforeSaving: yes
+      afterDeleting: yes
 
   - name: PromptMatch
     comment: '提示匹配结果'

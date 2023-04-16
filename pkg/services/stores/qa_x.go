@@ -125,6 +125,16 @@ func dbBeforeSaveDocument(ctx context.Context, db ormDB, obj *qas.Document) erro
 	}
 	return nil
 }
+
+func dbAfterDeleteDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
+	_, err := db.NewDelete().Model((*qas.Prompt)(nil)).Where("doc_id = ?", obj.ID).Exec(ctx)
+	if err != nil {
+		logger().Infow("delete prompt fail", "docID", obj.ID, "err", err)
+		return err
+	}
+	return nil
+}
+
 func dbBeforeSavePrompt(ctx context.Context, db ormDB, obj *qas.Prompt) error {
 	if len(obj.Text) == 0 {
 		return ErrEmptyParam

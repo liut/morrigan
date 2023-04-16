@@ -133,7 +133,16 @@ func (s *qaStore) UpdateDocument(ctx context.Context, id string, in qas.Document
 }
 func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 	obj := new(qas.Document)
-	return s.w.db.DeleteModel(ctx, obj, id)
+	if err := getModelWithPKID(ctx, s.w.db, obj, id); err != nil {
+		return err
+	}
+	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		err = dbDeleteT(ctx, tx, s.w.db.Schema(), s.w.db.SchemaCrap(), qas.DocumentTable, obj.ID)
+		if err != nil {
+			return
+		}
+		return dbAfterDeleteDocument(ctx, tx, obj)
+	})
 }
 
 func (s *qaStore) CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error) {
