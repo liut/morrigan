@@ -157,30 +157,6 @@ messages:
 
 ```
 
-### Change settings with environment
-
-#### Show all local settings
-```bash
-go run . -usage
-```
-
-Example:
-
-```plan
-MORRIGAN_OPENAI_API_KEY=oo-xx
-MORRIGAN_HTTP_LISTEN=:3002
-
-# optional preset data
-MORRIGAN_PRESET_FILE=./data/preset.yaml
-
-# optional OAuth2 login
-MORRIGAN_AUTH_REQUIRED=true
-OAUTH_PREFIX=https://portal.my-company.xyz
-
-# optional proxy
-HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
-```
-
 ### Command line usage
 
 ```plan
@@ -210,6 +186,30 @@ GLOBAL OPTIONS:
 | my company | introducion | A great company stems from a genius idea. |
 |            |             |                                           |
 
+
+### Change settings with environment
+
+#### Show all local settings
+```bash
+go run . usage
+```
+
+Example:
+
+```plan
+MORRIGAN_OPENAI_API_KEY=oo-xx
+MORRIGAN_HTTP_LISTEN=:3002
+
+# optional preset data
+MORRIGAN_PRESET_FILE=./data/preset.yaml
+
+# optional OAuth2 login
+MORRIGAN_AUTH_REQUIRED=true
+OAUTH_PREFIX=https://portal.my-company.xyz
+
+# optional proxy
+HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
+```
 
 ### Embedding frontend resources
 
