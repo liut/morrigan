@@ -1,0 +1,31 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Sanity check
+
+on:
+  - push
+  - pull_request
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+
+    - name: vet
+      run: go vet -v ./...
+
+    - name: lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+
+    - name: test models
+      run: go test -v ./pkg/models/...
