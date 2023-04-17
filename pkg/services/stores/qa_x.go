@@ -18,7 +18,7 @@ import (
 const (
 	Separator    = "\n* "
 	AnswerStop   = " END"
-	dftThreshold = 0.19
+	dftThreshold = 0.16
 	dftLimit     = 4
 
 	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n"
