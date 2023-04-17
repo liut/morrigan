@@ -18,7 +18,7 @@ import (
 const (
 	Separator    = "\n* "
 	AnswerStop   = " END"
-	dftThreshold = 0.16
+	dftThreshold = 0.18
 	dftLimit     = 4
 
 	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n"
@@ -223,7 +223,7 @@ func (s *qaStore) MatchPromptsWith(ctx context.Context, vec qas.Vector, threshol
 	if err != nil {
 		logger().Infow("match prompt fail", "threshold", threshold, "limit", limit, "err", err)
 	} else {
-		logger().Infow("match prompt ok", "threshold", threshold, "limit", limit, "data", len(data))
+		logger().Infow("match prompt ok", "threshold", threshold, "limit", limit, "data", data)
 	}
 	return
 }

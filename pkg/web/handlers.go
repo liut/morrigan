@@ -190,7 +190,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	const historyLimit = 3000
 
 	data, err := cs.ListHistory(ctx)
-	if err == nil {
+	if err == nil && len(data) > 0 {
 		logger().Infow("found history", "size", len(data))
 		data = data.RecentlyWith(historyLimit)
 		for _, hi := range data {
