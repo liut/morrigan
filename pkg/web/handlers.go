@@ -86,25 +86,6 @@ type ChatRequest struct {
 	}
 }
 
-/*
-// chatgpt-web:
-
-	interface ConversationResponse {
-		conversationId: string
-		detail: {
-			choices: { finish_reason: string; index: number; logprobs: any; text: string }[]
-			created: number
-			id: string
-			model: string
-			object: string
-			usage: { completion_tokens: number; prompt_tokens: number; total_tokens: number }
-		}
-		id: string
-		parentMessageId: string
-		role: string
-		text: string
-	}
-*/
 type ChatCompletionChoice struct {
 	FinishRsason string `json:"finishReason,omitempty"`
 	Index        int    `json:"index"`
@@ -168,7 +149,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	}
 
 	var matched int
-	if settings.Current.EmbeddingQA {
+	if settings.Current.QAEmbedding {
 		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
 			Question: prompt,
 			Limit:    5,
@@ -187,7 +168,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 			logger().Infow("match fail", "err", err)
 		}
 	}
-	if matched == 0 {
+	if matched == 0 && settings.Current.QAFallback {
 		for _, msg := range s.preset.Messages {
 			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 		}
@@ -210,6 +191,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 
 	data, err := cs.ListHistory(ctx)
 	if err == nil {
+		logger().Infow("found history", "size", len(data))
 		data = data.RecentlyWith(historyLimit)
 		for _, hi := range data {
 			if hi.ChatItem != nil {
@@ -279,7 +261,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			ccr.hi.ChatItem.Assistant = answer
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
 
-			if settings.Current.ChatLogOpen {
+			if settings.Current.QAChatLog {
 				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), qas.ChatLogBasic{
 					ChatID:   ccr.cs.GetOID(),
 					Question: param.Prompt,
@@ -451,7 +433,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 
 	if s.preset.Completion != nil {
 		header = s.preset.Completion.Header
-		if !settings.Current.EmbeddingQA && len(s.preset.Completion.Model) > 0 {
+		if !settings.Current.QAEmbedding && len(s.preset.Completion.Model) > 0 {
 			param.Model = s.preset.Completion.Model
 		}
 	}

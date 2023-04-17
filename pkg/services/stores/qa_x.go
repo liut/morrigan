@@ -18,7 +18,7 @@ import (
 const (
 	Separator    = "\n* "
 	AnswerStop   = " END"
-	dftThreshold = 0.52
+	dftThreshold = 0.19
 	dftLimit     = 4
 
 	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n"
@@ -201,10 +201,9 @@ func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Doc
 	}
 	var ps qas.PromptMatches
 	ps, err = s.MatchPromptsWith(ctx, vec, ms.Threshold, ms.Limit)
-	if err != nil {
+	if err != nil || len(ps) == 0 {
 		return
 	}
-	logger().Infow("hit", "q", ms.Question, "ps", ps)
 	spec := &DocumentSpec{}
 	spec.IDs = ps.DocumentIDs()
 	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
@@ -219,10 +218,12 @@ func (s *qaStore) MatchPromptsWith(ctx context.Context, vec qas.Vector, threshol
 	if len(vec) != qas.VectorLen {
 		return
 	}
-	logger().Debugw("embedding", "vec", vec[0:5])
+	logger().Debugw("match with", "vec", vec[0:5])
 	err = s.w.db.NewRaw("SELECT * FROM qa_match_prompts(?, ?, ?)", vec, threshold, limit).Scan(ctx, &data)
 	if err != nil {
-		logger().Infow("query fail", "err", err)
+		logger().Infow("match prompt fail", "threshold", threshold, "limit", limit, "err", err)
+	} else {
+		logger().Infow("match prompt ok", "threshold", threshold, "limit", limit, "data", len(data))
 	}
 	return
 }
