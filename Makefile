@@ -59,9 +59,12 @@ dist/darwin_amd64/$(NAME): $(SOURCES) showver
 
 dist: vet dist/linux_amd64/$(NAME) dist/darwin_amd64/$(NAME)
 
-package: dist
+package-linux: dist/linux_amd64/$(NAME)
 	echo "Packaging $(NAME)"
 	ls dist/linux_amd64 | xargs tar -cvJf $(NAME)-linux-amd64-$(DATE)-$(TAG).tar.xz -C dist/linux_amd64
+
+package-darwin: dist/darwin_amd64/$(NAME)
+	echo "Packaging $(NAME)"
 	ls dist/darwin_amd64 | xargs tar -cvJf $(NAME)-darwin-amd64-$(DATE)-$(TAG).tar.xz -C dist/darwin_amd64
 
 docs/swagger.json: $(WEBAPIS)
