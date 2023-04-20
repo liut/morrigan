@@ -30,7 +30,7 @@ const (
 )
 
 func today() string {
-	return time.Now().Format("2006-01-02")
+	return time.Now().Format("2006-01-02 15:04")
 }
 
 func getDefaultSystemMsg() string {
@@ -210,8 +210,6 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		Role:    openai.ChatMessageRoleUser,
 		Content: prompt,
 	})
-	logger().Debugw("chat", "msgs", messages)
-	logger().Infow("chat", "csid", csid, "msgs", len(messages), "prompt", prompt)
 	ccr := new(ChatCompletionRequest)
 	ccr.Model = openai.GPT3Dot5Turbo
 	ccr.Messages = messages
@@ -243,6 +241,8 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		csid = param.Options.ConversationId
 	}
 	ccr := s.prepareChatRequest(r.Context(), param.Prompt, csid)
+	logger().Debugw("chat", "msgs", ccr.Messages)
+	logger().Infow("chat", "csid", csid, "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	ccr.Stream = isStream
 	if settings.Current.AuthRequired {
@@ -262,11 +262,13 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
 
 			if settings.Current.QAChatLog {
-				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), qas.ChatLogBasic{
+				in := qas.ChatLogBasic{
 					ChatID:   ccr.cs.GetOID(),
 					Question: param.Prompt,
 					Answer:   answer,
-				})
+				}
+				in.MetaAddKVs("ip", r.RemoteAddr)
+				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), in)
 				if err != nil {
 					logger().Infow("save chat log fail", "err", err)
 				}

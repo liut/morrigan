@@ -47,7 +47,7 @@ func New(cfg Config) Service {
 	if cfg.Debug {
 		ar.Use(middleware.Logger)
 	}
-	ar.Use(middleware.Recoverer)
+	ar.Use(middleware.Recoverer, middleware.RealIP)
 
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
