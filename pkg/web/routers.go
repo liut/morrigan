@@ -110,18 +110,27 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 type respSession struct {
 	Status string `json:"status"`
 	Data   struct {
-		Auth bool `json:"auth"` // need auth
+		Auth bool   `json:"auth"`           // need auth
+		User *User  `json:"user,omitempty"` // logined user
+		URI  string `json:"uri,omitempty"`  // uri of auth
 	} `json:"data"`
 }
 
 // for github.com/Chanzhaoyu/chatgpt-web
 func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
+	user, err := staffio.UserFromRequest(r)
 	var res respSession
 	res.Status = "Success"
-	if !settings.Current.AuthRequired {
+
+	if settings.Current.AuthRequired {
+		if err == nil {
+			res.Data.User = user
+		} else {
+			res.Data.Auth = true
+			res.Data.URI = "/auth/login"
+		}
+	} else {
 		res.Data.Auth = len(settings.Current.AuthSecret) > 0
-	} else if _, ok := UserFromContext(r.Context()); !ok {
-		res.Data.Auth = true
 	}
 	render.JSON(w, r, &res)
 }
