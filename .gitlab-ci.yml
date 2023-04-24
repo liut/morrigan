@@ -1,0 +1,107 @@
+image: fhyx/golang:edge
+
+stages:
+  - lint
+  - test
+  - deploy
+
+services:
+  - name: redis:5-alpine
+    alias: redis
+  - name: fhyx/postgresql:13
+    alias: auroradb
+variables:
+  DEVELOP_HOST: moon
+  DEPLOY_HOST: earth
+  DEPLOY_USER: sa
+  DEPLOY_ROOT: /opt/morrigan
+  CGO_ENABLED: '0'
+  GO111MODULE: 'on'
+  GOPATH: /cache/go
+  GOPRIVATE: daxv.cn,hyyl.xyz
+  GOPROXY: https://goproxy.io,direct
+  NAME: morrigan
+  ROOF: github/liut/morrigan
+  DB_NAME: morrigantest
+  DB_USER: morrigan
+  DB_PASS: develop
+  PG_EXTENSIONS: 'btree_gin btree_gist pg_trgm'
+  AURORA_PG_STORE_DSN: postgres://morrigan:develop@morrigandb:5432/morrigantest?sslmode=disable
+  AURORA_REDIS_URI: 'redis://redis:6379/0'
+
+before_script:
+  # SSH
+  - mkdir -p ~/.ssh
+  - test -f /secret/sa_id_ecdsa && cp /secret/sa_id_ecdsa ~/.ssh/id_ecdsa || (echo "$SSH_PRIVATE_KEY") > ~/.ssh/id_ecdsa
+  - chmod 0600 ~/.ssh/id_ecdsa
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  # - ls -al ~/.ssh/
+  - eval $(ssh-agent -s)
+
+  # Go Environments
+  - go env
+
+  - export DATE=$(date '+%Y%m%d')
+  - export TAG="${DATE}-${CI_COMMIT_SHORT_SHA}-${CI_JOB_ID}"
+  - echo "${TAG}"
+  - echo -e "Host ${DEVELOP_HOST:-moon}\n\tPort ${DEVELOP_PORT:-22}\n\tUser ${DEVELOP_USER:-sa}\n\n" >> ~/.ssh/config
+  - echo -e "Host ${DEPLOY_HOST:-earth}\n\tPort ${DEPLOY_PORT:-22}\n\tUser ${DEPLOY_USER:-sa}\n\n" >> ~/.ssh/config
+
+
+test-lint:
+  stage: lint
+  services: []
+  script:
+    - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+    - go vet ./... && ${GOPATH}/bin/golangci-lint --disable structcheck run ./...
+
+test-stores:
+  stage: test
+  script:
+    - go test -v -cover ./pkg/services/stores
+
+test-initdb:
+  stage: test
+  script:
+    - go run . initdb
+  only:
+    changes:
+      - data/schemas/*.sql
+
+
+deploy-to-testing:
+  stage: deploy
+  services: []
+  script:
+   - export LDFLAGS="-X ${ROOF}/pkg/settings.name=${NAME} -X ${ROOF}/pkg/settings.version=${TAG}"
+   - mkdir -p dist/linux_amd64
+   - GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS} -s -w" -o dist/linux_amd64/${NAME} ${CI_PROJECT_DIR}
+   - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d dist || mkdir dist"
+   - scp dist/linux_amd64/${NAME} ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon}:dist/
+   # - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+
+  only:
+    - main
+  when: on_success
+
+deploy-to-staging:
+  stage: deploy
+  services: []
+  script:
+   - export LDFLAGS="-X ${ROOF}/pkg/settings.name=${NAME} -X ${ROOF}/pkg/settings.version=${TAG}"
+   - mkdir -p dist/linux_amd64
+   - GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS} -s -w" -o dist/linux_amd64/${NAME} ${CI_PROJECT_DIR}
+   - ls dist/linux_amd64 | xargs tar -cvJf ${NAME}-linux-amd64-${TAG}.tar.xz -C dist/linux_amd64
+   - scp *-linux-amd64-*.tar.?z "${DEPLOY_HOST:-earth}:gopkg/cupola/"
+   - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d dist && tar -xvJf gopkg/cupola/${NAME}-linux-amd64-${TAG}.tar.xz -C dist"
+   # - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+
+  artifacts:
+    name: "${CI_PROJECT_PATH_SLUG}_${CI_JOB_ID}"
+    paths:
+     - dist/
+  only:
+    - main
+    - /^release-.+$/
+  when: manual
+
