@@ -324,14 +324,14 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		return
 	}
 
-	w.Header().Add("Conversation-ID", ccr.cs.GetID())
-	// w.Header().Set("Cache-Control", "no-cache")
-	// w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
 	if ccr.isSSE {
 		w.Header().Set("Content-Type", "text/event-stream")
 	} else {
 		w.Header().Add("Content-type", "application/octet-stream")
 	}
+	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
 	ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
