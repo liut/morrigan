@@ -194,13 +194,6 @@ GLOBAL OPTIONS:
 
 ```
 
-#### CSV template of documents
-
-| title      | heading     | content                                   |
-|------------|-------------|-------------------------------------------|
-| my company | introducion | A great company stems from a genius idea. |
-|            |             |                                           |
-
 
 ### Change settings with environment
 
@@ -226,7 +219,29 @@ OAUTH_PREFIX=https://portal.my-company.xyz
 HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 ```
 
-### Embedding frontend resources
+## The operation steps for generating data.
+
+1. Prepare a CSV file for the corpus document.
+2. Import documents.
+3. Generate Questions and Anwsers from documents with Completion.
+4. Generate Prompts and vector from QAs with Embedding
+5. Done and go to chat
+
+### CSV template of documents
+
+| title      | heading     | content                                   |
+|------------|-------------|-------------------------------------------|
+| my company | introducion | A great company stems from a genius idea. |
+|            |             |                                           |
+
+```bash
+go run . import mycompany.csv
+go run . fill-qa
+go run . embedding
+```
+
+
+## Embedding frontend resources
 
 1. Go to frontend project directory
 2. Build frontend pages and accompanying static resources.
