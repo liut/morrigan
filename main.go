@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/urfave/cli/v2"
@@ -48,7 +47,7 @@ func fillQAs(cc *cli.Context) error {
 	ctx := context.Background()
 	spec := &stores.DocumentSpec{}
 	if cc.Args().Len() > 0 {
-		spec.IDsStr = oid.OIDsStr(strings.Join(cc.Args().Slice(), ","))
+		spec.IDsStr = oid.OIDsStr(cc.String("ids"))
 	}
 	spec.Limit = 90
 	spec.Sort = "id"
@@ -123,6 +122,9 @@ func main() {
 				Usage:   "fill QA in documents",
 				Aliases: []string{"fillQAs"},
 				Action:  fillQAs,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "ids", Usage: "special document `IDs` (space with comma)"},
+				},
 			},
 			{
 				Name:    "export-qa",
