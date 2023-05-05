@@ -241,7 +241,7 @@ go run . embedding
 ```
 
 
-## Embedding frontend resources
+## Attach frontend resources
 
 1. Go to frontend project directory
 2. Build frontend pages and accompanying static resources.
