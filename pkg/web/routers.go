@@ -7,9 +7,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/marcsv/go-binder/binder"
+	"github.com/ulule/limiter/v3"
+	"github.com/ulule/limiter/v3/drivers/middleware/stdlib"
+	limitRedis "github.com/ulule/limiter/v3/drivers/store/redis"
 
 	staffio "github.com/liut/staffio-client"
 
+	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -53,6 +57,22 @@ func (s *server) strapRouter() {
 		r.Method(http.MethodGet, "/callback", staffio.AuthCodeCallback())
 	})
 
+	rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)
+	if err != nil {
+		logger().Fatalw("settings failed", "err", err)
+	}
+	store, err := limitRedis.NewStoreWithOptions(stores.SgtRC(), limiter.StoreOptions{
+		Prefix: "chat-lr-",
+	})
+	if err != nil {
+		logger().Fatalw("limiter with redis option failed", "err", err)
+	}
+	instance := limiter.New(store, rate)
+	middleware := stdlib.NewMiddleware(instance,
+		stdlib.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
+			logger().Warnw("failed on", "uri", r.RequestURI, "err", err)
+		}))
+
 	s.ar.Route("/api", func(r chi.Router) {
 		r.Use(s.authMw(false))
 		r.Get("/me", handleMe)
@@ -60,9 +80,12 @@ func (s *server) strapRouter() {
 		r.Get("/models", s.getModels)
 		r.Get("/welcome", s.getWelcome)
 		r.Get("/history/{cid}", s.getHistory)
-		r.Post("/chat", s.postChat)
-		r.Post("/chat-{suffix}", s.postChat)
-		r.Post("/completions", s.postCompletions)
+		r.Group(func(gr chi.Router) {
+			gr.Use(middleware.Handler)
+			gr.Post("/chat", s.postChat)
+			gr.Post("/chat-{suffix}", s.postChat)
+			gr.Post("/completions", s.postCompletions)
+		})
 
 	})
 

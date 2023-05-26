@@ -8,7 +8,7 @@ stages:
 services:
   - name: redis:5-alpine
     alias: redis
-  - name: fhyx/postgresql:13
+  - name: fhyx/postgresql:15e
     alias: auroradb
 variables:
   DEVELOP_HOST: moon
@@ -26,8 +26,8 @@ variables:
   DB_USER: morrigan
   DB_PASS: develop
   PG_EXTENSIONS: 'btree_gin btree_gist pg_trgm'
-  AURORA_PG_STORE_DSN: postgres://morrigan:develop@morrigandb:5432/morrigantest?sslmode=disable
-  AURORA_REDIS_URI: 'redis://redis:6379/0'
+  MORRIGAN_PG_STORE_DSN: postgres://morrigan:develop@morrigandb:5432/morrigantest?sslmode=disable
+  MORRIGAN_REDIS_URI: 'redis://redis:6379/0'
 
 before_script:
   # SSH

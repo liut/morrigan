@@ -35,6 +35,8 @@ type Config struct {
 	QAEmbedding  bool   `envconfig:"QA_Embedding" desc:"enable embed QA into prompt"`
 	QAChatLog    bool   `envconfig:"QA_chat_log"`
 	QAFallback   bool   `envconfig:"QA_Fallback"`
+
+	AskRateLimit string `envconfig:"Ask_Rate_Limit" default:"30-H"`
 }
 
 var (
