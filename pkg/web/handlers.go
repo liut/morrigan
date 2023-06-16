@@ -293,7 +293,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		cr.Detail.Object = res.Object
 		if len(res.Choices) > 0 {
 			cr.Detail.Choices = []ChatCompletionChoice{{
-				FinishRsason: res.Choices[0].FinishReason,
+				FinishRsason: string(res.Choices[0].FinishReason),
 				Index:        res.Choices[0].Index,
 				Text:         res.Choices[0].Message.Content,
 			}}
@@ -311,7 +311,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	if len(res.Choices) > 0 {
 		cm.Text = res.Choices[0].Message.Content
 		if res.Choices[0].FinishReason != "stop" {
-			cm.FinishRsason = res.Choices[0].FinishReason
+			cm.FinishRsason = string(res.Choices[0].FinishReason)
 		}
 	}
 	render.JSON(w, r, &cm)
@@ -371,7 +371,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			break
 		}
 		if len(ccsr.Choices) > 0 {
-			finishReason = ccsr.Choices[0].FinishReason
+			finishReason = string(ccsr.Choices[0].FinishReason)
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
 			cm.FinishRsason = finishReason
