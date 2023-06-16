@@ -36,6 +36,7 @@ type server struct {
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
 
+	cmodel string // openAI chat model
 	authzr staffio.Authorizer
 	oc     *openai.Client
 	preset aigc.Preset
@@ -51,8 +52,9 @@ func New(cfg Config) Service {
 
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
-		cfg: cfg,
-		oc:  stores.NewOpenAIClient(),
+		cfg:    cfg,
+		oc:     stores.NewOpenAIClient(),
+		cmodel: settings.Current.ChatModel,
 	}
 
 	s.authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(

@@ -211,7 +211,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		Content: prompt,
 	})
 	ccr := new(ChatCompletionRequest)
-	ccr.Model = openai.GPT3Dot5Turbo
+	ccr.Model = s.cmodel
 	ccr.Messages = messages
 	ccr.cs = cs
 	ccr.hi = &aigc.HistoryItem{
@@ -241,7 +241,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		csid = param.Options.ConversationId
 	}
 	ccr := s.prepareChatRequest(r.Context(), param.Prompt, csid)
-	logger().Debugw("chat", "msgs", ccr.Messages)
+	logger().Debugw("chat", "ccr", ccr)
 	logger().Infow("chat", "csid", csid, "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	ccr.Stream = isStream
