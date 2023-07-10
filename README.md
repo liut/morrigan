@@ -76,7 +76,7 @@ OpenAI/ChatGPT Backend with conversation and API
 ### Post chat prompt and return Streaming messages
 
 <details>
- <summary><code>POST</code> <code><b>/api/chat-sse</b></code> or <code><b>/api/chat</b></code> with <code>{steam: true}</code></summary>
+ <summary><code>POST</code> <code><b>/api/chat-sse</b></code> or <code><b>/api/chat</b></code> with <code>{stream: true}</code></summary>
 
 ##### Parameters
 
@@ -84,7 +84,7 @@ OpenAI/ChatGPT Backend with conversation and API
 > |------------|-----------|----------------|-------------------------------------|
 > | `csid`     |  optional | string       | conversation ID        |
 > | `prompt`   |  required | string       | message for ask        |
-> | `stream`   |  optional |  bool        | enable event-steam, force on <code><b>/api/chat-sse</b></code>       |
+> | `stream`   |  optional |  bool        | enable event-stream, force on <code><b>/api/chat-sse</b></code>       |
 
 
 ##### Responses
