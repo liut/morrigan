@@ -3,7 +3,7 @@ module github.com/liut/morrigan
 go 1.20
 
 require (
-	github.com/cupogo/andvari v0.0.0-20230608052941-ec1d078ac67b
+	github.com/cupogo/andvari v0.0.0-20230707091059-5a48e17bfc29
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-chi/render v1.0.2
 	github.com/jpillora/eventsource v1.1.0
@@ -11,7 +11,7 @@ require (
 	github.com/liut/staffio-client v0.1.15
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/redis/go-redis/v9 v9.0.2
-	github.com/sashabaranov/go-openai v1.11.1
+	github.com/sashabaranov/go-openai v1.13.0
 	github.com/stretchr/testify v1.8.3
 	github.com/ulule/limiter/v3 v3.11.1
 	github.com/uptrace/bun/dialect/pgdialect v1.1.14
