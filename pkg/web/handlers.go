@@ -460,7 +460,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	param.Prompt = header + "\n\nContext:\n" + prompt
 
 	if len(param.Model) == 0 {
-		param.Model = openai.GPT3TextDavinci003
+		param.Model = openai.GPT3Dot5TurboInstruct
 	}
 
 	param.MaxTokens = 1024

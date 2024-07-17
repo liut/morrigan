@@ -55,6 +55,9 @@ models:
         name: Similarity
         type: float32
         tags: {json: 'similarity,omitempty'}
+    withPlural: true
+    # export1: true
+    # export2: true
 
   - name: Prompt
     comment: '提示及向量'

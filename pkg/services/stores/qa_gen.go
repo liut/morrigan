@@ -9,19 +9,10 @@ import (
 )
 
 // type ChatLog = qas.ChatLog
-// type ChatLogBasic = qas.ChatLogBasic
-// type ChatLogSet = qas.ChatLogSet
-// type ChatLogs = qas.ChatLogs
 // type Document = qas.Document
-// type DocumentBasic = qas.DocumentBasic
-// type DocumentSet = qas.DocumentSet
-// type Documents = qas.Documents
 // type Prompt = qas.Prompt
-// type PromptBasic = qas.PromptBasic
 // type PromptMatch = qas.PromptMatch
 // type PromptMatches = qas.PromptMatches
-// type PromptSet = qas.PromptSet
-// type Prompts = qas.Prompts
 
 func init() {
 	RegisterModel((*qas.Document)(nil), (*qas.Prompt)(nil), (*qas.ChatLog)(nil))
@@ -100,44 +91,44 @@ func (s *qaStore) ListDocument(ctx context.Context, spec *DocumentSpec) (data qa
 }
 func (s *qaStore) GetDocument(ctx context.Context, id string) (obj *qas.Document, err error) {
 	obj = new(qas.Document)
-	err = s.w.db.GetModel(ctx, obj, id)
+	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
 func (s *qaStore) CreateDocument(ctx context.Context, in qas.DocumentBasic) (obj *qas.Document, err error) {
-	obj = qas.NewDocumentWithBasic(in)
 	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		obj = qas.NewDocumentWithBasic(in)
 		if err = dbBeforeSaveDocument(ctx, tx, obj); err != nil {
-			return err
+			return
 		}
-		dbOpModelMeta(ctx, tx, obj)
+		dbMetaUp(ctx, tx, obj)
 		err = dbInsert(ctx, tx, obj)
 		return err
 	})
 	return
 }
 func (s *qaStore) UpdateDocument(ctx context.Context, id string, in qas.DocumentSet) error {
-	exist := new(qas.Document)
-	if err := getModelWithPKID(ctx, s.w.db, exist, id); err != nil {
-		return err
-	}
-	exist.SetWith(in)
 	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		exist.SetIsUpdate(true)
-		if err = dbBeforeSaveDocument(ctx, tx, exist); err != nil {
-			return
+		exist := new(qas.Document)
+		if err = dbGetWithPKID(ctx, tx, exist, id); err != nil {
+			return err
 		}
-		dbOpModelMeta(ctx, tx, exist)
+		exist.SetIsUpdate(true)
+		exist.SetWith(in)
+		if err = dbBeforeSaveDocument(ctx, tx, exist); err != nil {
+			return err
+		}
+		dbMetaUp(ctx, tx, exist)
 		return dbUpdate(ctx, tx, exist)
 	})
 }
 func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 	obj := new(qas.Document)
-	if err := getModelWithPKID(ctx, s.w.db, obj, id); err != nil {
+	if err := dbGetWithPKID(ctx, s.w.db, obj, id); err != nil {
 		return err
 	}
 	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		err = dbDeleteT(ctx, tx, s.w.db.Schema(), s.w.db.SchemaCrap(), qas.DocumentTable, obj.ID)
+		err = dbDeleteM(ctx, tx, s.w.db.Schema(), s.w.db.SchemaCrap(), obj)
 		if err != nil {
 			return
 		}
@@ -146,33 +137,33 @@ func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 }
 
 func (s *qaStore) CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error) {
-	obj = qas.NewPromptWithBasic(in)
-	if obj.Text == "" {
-		err = ErrEmptyKey
-		return
-	}
 	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		obj = qas.NewPromptWithBasic(in)
 		if err = dbBeforeSavePrompt(ctx, tx, obj); err != nil {
-			return err
+			return
 		}
-		dbOpModelMeta(ctx, tx, obj)
+		if obj.Text == "" {
+			err = ErrEmptyKey
+			return
+		}
+		dbMetaUp(ctx, tx, obj)
 		err = dbInsert(ctx, tx, obj, "prompt")
 		return err
 	})
 	return
 }
 func (s *qaStore) UpdatePrompt(ctx context.Context, id string, in qas.PromptSet) error {
-	exist := new(qas.Prompt)
-	if err := getModelWithPKID(ctx, s.w.db, exist, id); err != nil {
-		return err
-	}
-	exist.SetWith(in)
 	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		exist.SetIsUpdate(true)
-		if err = dbBeforeSavePrompt(ctx, tx, exist); err != nil {
-			return
+		exist := new(qas.Prompt)
+		if err = dbGetWithPKID(ctx, tx, exist, id); err != nil {
+			return err
 		}
-		dbOpModelMeta(ctx, tx, exist)
+		exist.SetIsUpdate(true)
+		exist.SetWith(in)
+		if err = dbBeforeSavePrompt(ctx, tx, exist); err != nil {
+			return err
+		}
+		dbMetaUp(ctx, tx, exist)
 		return dbUpdate(ctx, tx, exist)
 	})
 }
@@ -183,13 +174,13 @@ func (s *qaStore) DeletePrompt(ctx context.Context, id string) error {
 
 func (s *qaStore) CreateChatLog(ctx context.Context, in qas.ChatLogBasic) (obj *qas.ChatLog, err error) {
 	obj = qas.NewChatLogWithBasic(in)
-	dbOpModelMeta(ctx, s.w.db, obj)
+	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
 func (s *qaStore) GetChatLog(ctx context.Context, id string) (obj *qas.ChatLog, err error) {
 	obj = new(qas.ChatLog)
-	err = s.w.db.GetModel(ctx, obj, id)
+	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }

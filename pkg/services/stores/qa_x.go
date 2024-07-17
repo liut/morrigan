@@ -245,7 +245,7 @@ func (s *qaStore) FillQAs(ctx context.Context, spec *DocumentSpec) error {
 		}
 		prompt += qas.PrefixQ
 		creq := openai.CompletionRequest{
-			Model:       openai.GPT3TextDavinci003,
+			Model:       openai.GPT3Dot5TurboInstruct,
 			Prompt:      prompt,
 			Temperature: 0.5,
 			MaxTokens:   maxQaTokens,

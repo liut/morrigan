@@ -12,6 +12,7 @@ const (
 	DocumentTable = "qa_corpus_document"
 	DocumentAlias = "cd"
 	DocumentLabel = "document"
+	DocumentModel = "qasDocument"
 )
 
 // Document 文档 语料库
@@ -60,15 +61,10 @@ func NewDocumentWithID(id any) *Document {
 	_ = obj.SetID(id)
 	return obj
 }
-func (_ *Document) IdentityLabel() string {
-	return DocumentLabel
-}
-func (_ *Document) IdentityTable() string {
-	return DocumentTable
-}
-func (_ *Document) IdentityAlias() string {
-	return DocumentAlias
-}
+func (_ *Document) IdentityLabel() string { return DocumentLabel }
+func (_ *Document) IdentityModel() string { return DocumentModel }
+func (_ *Document) IdentityTable() string { return DocumentTable }
+func (_ *Document) IdentityAlias() string { return DocumentAlias }
 
 type DocumentSet struct {
 	// 主标题
@@ -113,10 +109,16 @@ func (in *DocumentSet) MetaAddKVs(args ...any) *DocumentSet {
 	return in
 }
 
+// consts of PromptMatch 提示匹配结果
+const (
+	PromptMatchLabel = "promptMatch"
+	PromptMatchModel = "qasPromptMatch"
+)
+
 // PromptMatch 提示匹配结果
 type PromptMatch struct {
 	// 文档编号
-	DocID oid.OID `extensions:"x-order=A" json:"docID"`
+	DocID oid.OID `extensions:"x-order=A" json:"docID" swaggertype:"string"`
 	// 提示
 	Prompt string `extensions:"x-order=B" form:"prompt" json:"prompt"`
 	// 相似度
@@ -130,6 +132,7 @@ const (
 	PromptTable = "qa_corpus_prompt"
 	PromptAlias = "cp"
 	PromptLabel = "prompt"
+	PromptModel = "qasPrompt"
 )
 
 // Prompt 提示及向量
@@ -148,7 +151,7 @@ type Prompt struct {
 
 type PromptBasic struct {
 	// 文档编号
-	DocID oid.OID `bun:"doc_id,notnull" extensions:"x-order=A" json:"docID" pg:"doc_id,notnull"`
+	DocID oid.OID `bun:"doc_id,notnull" extensions:"x-order=A" json:"docID" pg:"doc_id,notnull" swaggertype:"string"`
 	// 提示
 	Text string `bun:"prompt,notnull,type:text,unique" extensions:"x-order=B" form:"prompt" json:"prompt" pg:"prompt,notnull,type:text,unique"`
 	// Tokens
@@ -181,15 +184,10 @@ func NewPromptWithID(id any) *Prompt {
 	_ = obj.SetID(id)
 	return obj
 }
-func (_ *Prompt) IdentityLabel() string {
-	return PromptLabel
-}
-func (_ *Prompt) IdentityTable() string {
-	return PromptTable
-}
-func (_ *Prompt) IdentityAlias() string {
-	return PromptAlias
-}
+func (_ *Prompt) IdentityLabel() string { return PromptLabel }
+func (_ *Prompt) IdentityModel() string { return PromptModel }
+func (_ *Prompt) IdentityTable() string { return PromptTable }
+func (_ *Prompt) IdentityAlias() string { return PromptAlias }
 
 type PromptSet struct {
 	// 文档编号
@@ -197,7 +195,7 @@ type PromptSet struct {
 	// 提示
 	Text *string `extensions:"x-order=B" json:"prompt"`
 	// Tokens
-	Tokens *uint `extensions:"x-order=C" json:"tokens,omitempty"`
+	Tokens *uint `extensions:"x-order=C" form:"tokens" json:"tokens,omitempty"`
 	// 向量值 长为1536的浮点数集
 	Vector *Vector `extensions:"x-order=D" json:"vector,omitempty"`
 	// for meta update
@@ -241,6 +239,7 @@ const (
 	ChatLogTable = "qa_chat_log"
 	ChatLogAlias = "cl"
 	ChatLogLabel = "chatLog"
+	ChatLogModel = "qasChatLog"
 )
 
 // ChatLog 聊天日志
@@ -256,7 +255,7 @@ type ChatLog struct {
 
 type ChatLogBasic struct {
 	// 会话ID
-	ChatID oid.OID `bun:"csid,notnull" extensions:"x-order=A" json:"csid" pg:"csid,notnull"`
+	ChatID oid.OID `bun:"csid,notnull" extensions:"x-order=A" json:"csid" pg:"csid,notnull" swaggertype:"string"`
 	// 提问
 	Question string `bun:",notnull,type:text" extensions:"x-order=B" form:"prompt" json:"prompt" pg:",notnull,type:text"`
 	// 回答
@@ -287,15 +286,10 @@ func NewChatLogWithID(id any) *ChatLog {
 	_ = obj.SetID(id)
 	return obj
 }
-func (_ *ChatLog) IdentityLabel() string {
-	return ChatLogLabel
-}
-func (_ *ChatLog) IdentityTable() string {
-	return ChatLogTable
-}
-func (_ *ChatLog) IdentityAlias() string {
-	return ChatLogAlias
-}
+func (_ *ChatLog) IdentityLabel() string { return ChatLogLabel }
+func (_ *ChatLog) IdentityModel() string { return ChatLogModel }
+func (_ *ChatLog) IdentityTable() string { return ChatLogTable }
+func (_ *ChatLog) IdentityAlias() string { return ChatLogAlias }
 
 type ChatLogSet struct {
 	// 会话ID

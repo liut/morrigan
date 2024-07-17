@@ -38,24 +38,25 @@ var (
 	ErrNotFound = pgx.ErrNotFound
 	ErrEmptyKey = pgx.ErrEmptyKey
 
-	dbGet              = pgx.Get
-	dbFirst            = pgx.First
-	dbLast             = pgx.Last
-	queryOne           = pgx.QueryOne
-	queryList          = pgx.QueryList
-	queryPager         = pgx.QueryPager
-	getModelWherePK    = pgx.ModelWithPK
-	getModelWithPKID   = pgx.ModelWithPKID
-	getModelWithPKOID  = pgx.ModelWithPKID
-	getModelWithUnique = pgx.ModelWithUnique
-	dbInsert           = pgx.DoInsert
-	dbUpdate           = pgx.DoUpdate
-	dbDeleteT          = pgx.DoDeleteT
-	dbStoreSimple      = pgx.StoreSimple
-	dbStoreWithCall    = pgx.StoreWithCall
+	dbGet           = pgx.Get
+	dbFirst         = pgx.First
+	dbLast          = pgx.Last
+	queryOne        = pgx.QueryOne
+	queryList       = pgx.QueryList
+	queryPager      = pgx.QueryPager
+	dbGetWithPK     = pgx.ModelWithPK
+	dbGetWithPKID   = pgx.ModelWithPKID
+	dbGetWithUnique = pgx.ModelWithUnique
+	dbGetWith       = pgx.ModelWith
+	dbInsert        = pgx.DoInsert
+	dbUpdate        = pgx.DoUpdate
+	dbDeleteM       = pgx.DoDeleteM
+	dbDeleteT       = pgx.DoDeleteT
+	dbStoreSimple   = pgx.StoreSimple
+	dbMetaUp        = pgx.DoMetaUp
 
 	sift      = pgx.Sift
-	siftEquel = pgx.SiftEquel
+	siftEqual = pgx.SiftEqual
 	siftICE   = pgx.SiftICE
 	siftMatch = pgx.SiftMatch
 	siftOID   = pgx.SiftOID
@@ -154,10 +155,4 @@ func InitDB() error {
 	return nil
 }
 
-// dbOpModelMeta prepare meta from Context
-func dbOpModelMeta(ctx context.Context, db ormDB, obj comm.ModelMeta, ups ...*comm.MetaDiff) {
-	if len(ups) > 0 {
-		_ = obj.MetaUp(ups[0])
-	}
-}
 func (w *Wrap) Qa() QaStore { return w.qaStore } // Qa gened
