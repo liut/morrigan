@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/urfave/cli/v2"
@@ -149,6 +150,14 @@ func main() {
 					&cli.StringFlag{Name: "listen", Aliases: []string{"l"}, Value: settings.Current.HTTPListen, Usage: "http listen address"},
 				},
 				Action: webRun,
+			},
+			{
+				Name: "version", Aliases: []string{"ver"},
+				Usage: "show build version",
+				Action: func(ctx *cli.Context) error {
+					sugar.Infow("", "version", settings.Version(), "runtime", runtime.Version())
+					return nil
+				},
 			},
 		},
 	}
