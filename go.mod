@@ -11,7 +11,7 @@ require (
 	github.com/liut/staffio-client v0.1.15
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/redis/go-redis/v9 v9.0.2
-	github.com/sashabaranov/go-openai v1.13.0
+	github.com/sashabaranov/go-openai v1.19.4
 	github.com/stretchr/testify v1.9.0
 	github.com/ulule/limiter/v3 v3.11.1
 	github.com/uptrace/bun/dialect/pgdialect v1.1.17
