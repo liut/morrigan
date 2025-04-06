@@ -11,7 +11,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
-	"github.com/cupogo/andvari/models/oid"
 	"github.com/cupogo/andvari/utils/zlog"
 
 	"github.com/liut/morrigan/htdocs"
@@ -45,14 +44,15 @@ func importDocs(cc *cli.Context) error {
 }
 
 func fillQAs(cc *cli.Context) error {
-	ctx := context.Background()
-	spec := &stores.DocumentSpec{}
-	if cc.Args().Len() > 0 {
-		spec.IDsStr = oid.OIDsStr(cc.String("ids"))
-	}
-	spec.Limit = 90
-	spec.Sort = "id"
-	return stores.Sgt().Qa().FillQAs(ctx, spec)
+	// ctx := context.Background()
+	// spec := &stores.DocumentSpec{}
+	// if cc.Args().Len() > 0 {
+	// 	spec.IDsStr = oid.OIDsStr(cc.String("ids"))
+	// }
+	// spec.Limit = 90
+	// spec.Sort = "id"
+	// return stores.Sgt().Qa().FillQAs(ctx, spec)
+	return nil
 }
 
 func exportQAs(cc *cli.Context) error {
@@ -64,7 +64,7 @@ func exportQAs(cc *cli.Context) error {
 	}
 	defer file.Close()
 	ctx := context.Background()
-	spec := &stores.DocumentSpec{}
+	spec := &stores.QaDocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
 	ea := stores.ExportArg{
@@ -75,12 +75,13 @@ func exportQAs(cc *cli.Context) error {
 	return stores.Sgt().Qa().ExportQAs(ctx, ea)
 }
 
-func embeddingPrompt(cc *cli.Context) error {
+func embeddingDocVector(cc *cli.Context) error {
 	ctx := context.Background()
-	spec := &stores.DocumentSpec{}
+	spec := &stores.QaDocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
-	return stores.Sgt().Qa().EmbeddingPrompt(ctx, spec)
+	return stores.Sgt().Qa().EmbeddingDocVector(ctx, spec)
+	// return nil
 }
 
 func logger() zlog.Logger {
@@ -139,8 +140,8 @@ func main() {
 			{
 				Name:    "embedding",
 				Usage:   "read prompt documents and embedding",
-				Aliases: []string{"embedding-pormpt"},
-				Action:  embeddingPrompt,
+				Aliases: []string{"embedding-doc-vec"},
+				Action:  embeddingDocVector,
 			},
 			{
 				Name:    "web",

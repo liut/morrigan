@@ -38,6 +38,16 @@ type Config struct {
 	QAFallback   bool   `envconfig:"QA_Fallback"`
 
 	AskRateLimit string `envconfig:"Ask_Rate_Limit" default:"30-H"`
+
+	Embedding Provider
+	Interact  Provider
+	Summarize Provider
+}
+
+type Provider struct {
+	APIKey string `envconfig:"Api_Key" required:"true"`
+	URL    string `envconfig:"url"`
+	Model  string `envconfig:"MODEL" required:"true"`
 }
 
 var (

@@ -3,7 +3,7 @@ package qas
 import "strings"
 
 const (
-	VectorLen = 1536
+	VectorLen = 1024
 
 	PrefixQ = "Q:"
 	PrefixA = "A:"

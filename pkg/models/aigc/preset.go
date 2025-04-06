@@ -23,4 +23,10 @@ type Preset struct {
 	MaxTokens   int         `json:"maxTokens,omitempty" yaml:"maxTokens,omitempty"`
 	Temperature float32     `json:"temperature,omitempty" yaml:"temperature,omitempty"`
 	Stop        []string    `json:"stop,omitempty" yaml:"stop,omitempty"`
+	MCPServers  []MCPServer `json:"mcps,omitempty" yaml:"mcps,omitempty"`
+}
+
+type MCPServer struct {
+	Name string `json:"name" yaml:"name"`
+	URL  string `json:"url" yaml:"url"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -33,6 +34,8 @@ type server struct {
 	Addr string
 	cfg  Config
 
+	sto stores.Storage
+
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
 
@@ -53,7 +56,8 @@ func New(cfg Config) Service {
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
 		cfg:    cfg,
-		oc:     stores.NewOpenAIClient(),
+		sto:    stores.Sgt(),
+		oc:     stores.GetInteractAIClient(),
 		cmodel: settings.Current.ChatModel,
 	}
 
@@ -76,9 +80,10 @@ func New(cfg Config) Service {
 	}
 
 	if cfg.Debug {
+		logger().Infow("routes:")
 		walkFunc := func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 			route = strings.Replace(route, "/*/", "/", -1)
-			fmt.Printf("DEBUG: %-6s %-24s --> %s (%d mw)\n", method, route, nameOfFunction(handler), len(middlewares))
+			fmt.Fprintf(os.Stderr, "DEBUG: %-6s %-24s --> %s (%d mw)\n", method, route, nameOfFunction(handler), len(middlewares))
 			return nil
 		}
 

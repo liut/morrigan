@@ -12,7 +12,7 @@ const (
 	DocumentTable = "qa_corpus_document"
 	DocumentAlias = "cd"
 	DocumentLabel = "document"
-	DocumentModel = "qasDocument"
+	DocumentTypID = "qasDocument"
 )
 
 // Document 文档 语料库
@@ -27,14 +27,12 @@ type Document struct {
 } // @name qasDocument
 
 type DocumentBasic struct {
-	// 主标题
+	// 主标题 名称
 	Title string `bun:",notnull,type:text,unique:corpus_title_heading_key" extensions:"x-order=A" form:"title" json:"title" pg:",notnull,type:text,unique:corpus_title_heading_key"`
-	// 小节标题
+	// 小节标题 属性 类别
 	Heading string `bun:",notnull,type:text,unique:corpus_title_heading_key" extensions:"x-order=B" form:"heading" json:"heading" pg:",notnull,type:text,unique:corpus_title_heading_key"`
-	// 内容
+	// 内容 值
 	Content string `bun:",notnull,type:text" extensions:"x-order=C" form:"content" json:"content" pg:",notnull,type:text"`
-	// 问答集
-	QAs Pairs `bun:"qas,notnull,type:jsonb" extensions:"x-order=D" json:"qas,omitempty" pg:"qas,notnull,type:jsonb"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name qasDocumentBasic
@@ -62,19 +60,17 @@ func NewDocumentWithID(id any) *Document {
 	return obj
 }
 func (_ *Document) IdentityLabel() string { return DocumentLabel }
-func (_ *Document) IdentityModel() string { return DocumentModel }
+func (_ *Document) IdentityModel() string { return DocumentTypID }
 func (_ *Document) IdentityTable() string { return DocumentTable }
 func (_ *Document) IdentityAlias() string { return DocumentAlias }
 
 type DocumentSet struct {
-	// 主标题
+	// 主标题 名称
 	Title *string `extensions:"x-order=A" json:"title"`
-	// 小节标题
+	// 小节标题 属性 类别
 	Heading *string `extensions:"x-order=B" json:"heading"`
-	// 内容
+	// 内容 值
 	Content *string `extensions:"x-order=C" json:"content"`
-	// 问答集
-	QAs *Pairs `extensions:"x-order=D" json:"qas,omitempty"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name qasDocumentSet
@@ -92,10 +88,6 @@ func (z *Document) SetWith(o DocumentSet) {
 		z.LogChangeValue("content", z.Content, o.Content)
 		z.Content = *o.Content
 	}
-	if o.QAs != nil {
-		z.LogChangeValue("qas", z.QAs, o.QAs)
-		z.QAs = *o.QAs
-	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")
 	}
@@ -109,33 +101,124 @@ func (in *DocumentSet) MetaAddKVs(args ...any) *DocumentSet {
 	return in
 }
 
-// consts of PromptMatch 提示匹配结果
+// consts of DocVector 文档向量
 const (
-	PromptMatchLabel = "promptMatch"
-	PromptMatchModel = "qasPromptMatch"
+	DocVectorTable = "qa_corpus_vector_400"
+	DocVectorAlias = "cv"
+	DocVectorLabel = "docVector"
+	DocVectorTypID = "qasDocVector"
 )
 
-// PromptMatch 提示匹配结果
-type PromptMatch struct {
-	// 文档编号
-	DocID oid.OID `extensions:"x-order=A" json:"docID" swaggertype:"string"`
-	// 提示
-	Prompt string `extensions:"x-order=B" form:"prompt" json:"prompt"`
-	// 相似度
-	Similarity float32 `extensions:"x-order=C" json:"similarity,omitempty"`
-} // @name qasPromptMatch
+// DocVector 文档向量 400=1024, 600=1536
+type DocVector struct {
+	comm.BaseModel `bun:"table:qa_corpus_vector_400,alias:cv" json:"-"`
 
-type PromptMatches []PromptMatch
+	comm.DefaultModel
+
+	DocVectorBasic
+
+	// 相似度 仅用于查询结果
+	Similarity float32 `bun:"-" extensions:"x-order=D" json:"similarity,omitempty" pg:"-"`
+
+	comm.MetaField
+} // @name qasDocVector
+
+type DocVectorBasic struct {
+	// 文档编号
+	DocID oid.OID `bun:"doc_id,notnull" extensions:"x-order=A" json:"docID" pg:"doc_id,notnull" swaggertype:"string"`
+	// 主题 由名称+属性组成
+	Subject string `bun:"subject,notnull,type:text" extensions:"x-order=B" form:"subject" json:"subject" pg:"subject,notnull,type:text"`
+	// 向量值 长为1024的浮点数集
+	Vector Vector `bun:"embedding,type:vector(1024)" extensions:"x-order=C" json:"vector,omitempty" pg:"embedding,type:vector(1024)"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
+} // @name qasDocVectorBasic
+
+type DocVectors []DocVector
+
+// Creating function call to it's inner fields defined hooks
+func (z *DocVector) Creating() error {
+	if z.IsZeroID() {
+		z.SetID(oid.NewID(oid.OtEvent))
+	}
+
+	return z.DefaultModel.Creating()
+}
+func NewDocVectorWithBasic(in DocVectorBasic) *DocVector {
+	obj := &DocVector{
+		DocVectorBasic: in,
+	}
+	_ = obj.MetaUp(in.MetaDiff)
+	return obj
+}
+func NewDocVectorWithID(id any) *DocVector {
+	obj := new(DocVector)
+	_ = obj.SetID(id)
+	return obj
+}
+func (_ *DocVector) IdentityLabel() string { return DocVectorLabel }
+func (_ *DocVector) IdentityModel() string { return DocVectorTypID }
+func (_ *DocVector) IdentityTable() string { return DocVectorTable }
+func (_ *DocVector) IdentityAlias() string { return DocVectorAlias }
+
+type DocVectorSet struct {
+	// 主题 由名称+属性组成
+	Subject *string `extensions:"x-order=A" json:"subject"`
+	// 向量值 长为1024的浮点数集
+	Vector *Vector `extensions:"x-order=B" json:"vector,omitempty"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
+} // @name qasDocVectorSet
+
+func (z *DocVector) SetWith(o DocVectorSet) {
+	if o.Subject != nil && z.Subject != *o.Subject {
+		z.LogChangeValue("subject", z.Subject, o.Subject)
+		z.Subject = *o.Subject
+	}
+	if o.Vector != nil {
+		z.LogChangeValue("embedding", z.Vector, o.Vector)
+		z.Vector = *o.Vector
+	}
+	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
+		z.SetChange("meta")
+	}
+}
+func (in *DocVectorBasic) MetaAddKVs(args ...any) *DocVectorBasic {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+func (in *DocVectorSet) MetaAddKVs(args ...any) *DocVectorSet {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+
+// consts of DocMatch 提示匹配结果
+const (
+	DocMatchLabel = "docMatch"
+	DocMatchTypID = "qasDocMatch"
+)
+
+// DocMatch 提示匹配结果
+type DocMatch struct {
+	// 文档编号
+	DocID oid.OID `bun:"doc_id" extensions:"x-order=A" json:"docID" swaggertype:"string"`
+	// 提示
+	Subject string `bun:"subject" extensions:"x-order=B" form:"subject" json:"subject"`
+	// 相似度
+	Similarity float32 `bun:"similarity" extensions:"x-order=C" json:"similarity,omitempty"`
+} // @name qasDocMatch
+
+type DocMatches []DocMatch
 
 // consts of Prompt 提示及向量
 const (
 	PromptTable = "qa_corpus_prompt"
 	PromptAlias = "cp"
 	PromptLabel = "prompt"
-	PromptModel = "qasPrompt"
+	PromptTypID = "qasPrompt"
 )
 
-// Prompt 提示及向量
+// Prompt 提示及向量 Obsoleted
 type Prompt struct {
 	comm.BaseModel `bun:"table:qa_corpus_prompt,alias:cp" json:"-"`
 
@@ -185,7 +268,7 @@ func NewPromptWithID(id any) *Prompt {
 	return obj
 }
 func (_ *Prompt) IdentityLabel() string { return PromptLabel }
-func (_ *Prompt) IdentityModel() string { return PromptModel }
+func (_ *Prompt) IdentityModel() string { return PromptTypID }
 func (_ *Prompt) IdentityTable() string { return PromptTable }
 func (_ *Prompt) IdentityAlias() string { return PromptAlias }
 
@@ -239,7 +322,7 @@ const (
 	ChatLogTable = "qa_chat_log"
 	ChatLogAlias = "cl"
 	ChatLogLabel = "chatLog"
-	ChatLogModel = "qasChatLog"
+	ChatLogTypID = "qasChatLog"
 )
 
 // ChatLog 聊天日志
@@ -287,28 +370,20 @@ func NewChatLogWithID(id any) *ChatLog {
 	return obj
 }
 func (_ *ChatLog) IdentityLabel() string { return ChatLogLabel }
-func (_ *ChatLog) IdentityModel() string { return ChatLogModel }
+func (_ *ChatLog) IdentityModel() string { return ChatLogTypID }
 func (_ *ChatLog) IdentityTable() string { return ChatLogTable }
 func (_ *ChatLog) IdentityAlias() string { return ChatLogAlias }
 
 type ChatLogSet struct {
-	// 会话ID
-	ChatID *string `extensions:"x-order=A" json:"csid"`
 	// 提问
-	Question *string `extensions:"x-order=B" json:"prompt"`
+	Question *string `extensions:"x-order=A" json:"prompt"`
 	// 回答
-	Answer *string `extensions:"x-order=C" json:"response"`
+	Answer *string `extensions:"x-order=B" json:"response"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name qasChatLogSet
 
 func (z *ChatLog) SetWith(o ChatLogSet) {
-	if o.ChatID != nil {
-		if id := oid.Cast(*o.ChatID); z.ChatID != id {
-			z.LogChangeValue("csid", z.ChatID, id)
-			z.ChatID = id
-		}
-	}
 	if o.Question != nil && z.Question != *o.Question {
 		z.LogChangeValue("question", z.Question, o.Question)
 		z.Question = *o.Question

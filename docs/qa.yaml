@@ -10,57 +10,89 @@ models:
     tableTag: 'qa_corpus_document,alias:cd'
     fields:
       - name: comm.DefaultModel
-      - comment: 主标题
+      - comment: 主标题 名称
         name: Title
         type: string
         tags: {json: 'title', pg: ',notnull,type:text,unique:corpus_title_heading_key'}
         isset: true
         query: 'match'
-      - comment: 小节标题
+      - comment: 小节标题 属性 类别
         name: Heading
         type: string
         tags: {json: 'heading', pg: ',notnull,type:text,unique:corpus_title_heading_key'}
         isset: true
         query: 'match'
         sortable: true
-      - comment: 内容
+      - comment: 内容 值
         name: Content
         type: string
         tags: {json: 'content', pg: ',notnull,type:text'}
         isset: true
         query: 'match'
-      - comment: 问答集
-        name: QAs
-        type: Pairs
-        tags: {json: 'qas,omitempty', pg: "qas,notnull,type:jsonb"}
-        isset: true
       - type: comm.MetaField
     oidcat: article
     hooks:
       beforeSaving: yes
+      afterCreated: yes
       afterDeleting: yes
+    hookNs: qa
+    specNs: qa
 
-  - name: PromptMatch
+  - name: DocVector
+    comment: '文档向量 400=1024, 600=1536'
+    tableTag: 'qa_corpus_vector_400,alias:cv'
+    fields:
+      - name: comm.DefaultModel
+      - comment: 文档编号
+        name: DocID
+        type: oid.OID
+        tags: {json: 'docID', pg: 'doc_id,notnull'}
+        basic: true
+        query: 'equal'
+      - comment: 主题 由名称+属性组成
+        name: Subject
+        type: string
+        tags: {json: 'subject', pg: 'subject,notnull,type:text'}
+        isset: true
+        query: 'match'
+        sortable: true
+      - comment: 向量值 长为1024的浮点数集
+        name: Vector
+        type: 'Vector'
+        tags: {json: 'vector,omitempty', pg: 'embedding,type:vector(1024)'}
+        isset: true
+      - comment: 相似度 仅用于查询结果
+        name: Similarity
+        type: float32
+        tags: {json: 'similarity,omitempty', pg: '-'}
+      - type: comm.MetaField
+    oidcat: event
+    # hooks:
+    #   beforeSaving: yes
+    hookNs: qa
+    specNs: qa
+
+  - name: DocMatch
     comment: '提示匹配结果'
     fields:
       - comment: 文档编号
         name: DocID
         type: oid.OID
-        tags: {json: 'docID'}
+        tags: { bun: 'doc_id', json: 'docID'}
       - comment: 提示
-        name: Prompt
+        name: Subject
         type: string
-        tags: {json: 'prompt'}
+        tags: { bun: 'subject', json: 'subject'}
       - comment: 相似度
         name: Similarity
         type: float32
-        tags: {json: 'similarity,omitempty'}
+        tags: { bun: 'similarity', json: 'similarity,omitempty'}
     withPlural: true
     # export1: true
     # export2: true
 
   - name: Prompt
-    comment: '提示及向量'
+    comment: '提示及向量 Obsoleted'
     tableTag: 'qa_corpus_prompt,alias:cp'
     fields:
       - name: comm.DefaultModel
@@ -105,7 +137,7 @@ models:
         name: ChatID
         type: oid.OID
         tags: {json: 'csid', pg: 'csid,notnull'}
-        isset: true
+        basic: true
         query: 'equal'
       - comment: 提问
         name: Question
@@ -123,8 +155,9 @@ models:
 stores:
   - name: qaStore
     embed: qaStoreX
-    hodBread: [ Document ]
     hods:
+      - { name: Document, type: LGCUD }
+      - { name: DocVector, type: GCD }
       - name: Prompt
         type: CUD
       - name: ChatLog

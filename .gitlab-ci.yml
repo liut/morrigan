@@ -9,7 +9,7 @@ services:
   - name: redis:5-alpine
     alias: redis
   - name: fhyx/postgresql:15e
-    alias: auroradb
+    alias: morrigandb
 variables:
   DEVELOP_HOST: moon
   DEPLOY_HOST: earth
@@ -53,7 +53,7 @@ test-lint:
   services: []
   script:
     - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-    - go vet ./... && ${GOPATH}/bin/golangci-lint --disable structcheck run ./...
+    - go vet ./... && ${GOPATH}/bin/golangci-lint -v run ./...
 
 test-stores:
   stage: test
