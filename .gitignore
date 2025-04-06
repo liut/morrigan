@@ -1,23 +1,10 @@
-# Created by https://www.toptal.com/developers/gitignore/api/linux,macos,windows,go,cmake
-# Edit at https://www.toptal.com/developers/gitignore?templates=linux,macos,windows,go,cmake
-
-### CMake ###
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
-
-### CMake Patch ###
-# External projects
-*-prefix/
+# Created by https://www.toptal.com/developers/gitignore/api/go,linux,macos,windows
+# Edit at https://www.toptal.com/developers/gitignore?templates=go,linux,macos,windows
 
 ### Go ###
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -34,9 +21,8 @@ _deps
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-### Go Patch ###
-/vendor/
-/Godeps/
+# Go workspace file
+go.work
 
 ### Linux ###
 *~
@@ -82,6 +68,10 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+### macOS Patch ###
+# iCloud generated files
+*.icloud
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
@@ -108,9 +98,11 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/linux,macos,windows,go,cmake
+# End of https://www.toptal.com/developers/gitignore/api/go,linux,macos,windows
 
 dist/
+
+htdocs/
 
 *.tar.*
 .env
