@@ -35,7 +35,7 @@ func importDocs(cc *cli.Context) error {
 		return err
 	}
 	defer file.Close()
-	err = stores.Sgt().Qa().ImportFromCSV(context.Background(), file)
+	err = stores.Sgt().Qa().ImportDocs(context.Background(), file)
 	if err != nil {
 		logger().Warnw("import fail", "input", input, "err", err)
 		return err
@@ -43,19 +43,7 @@ func importDocs(cc *cli.Context) error {
 	return nil
 }
 
-func fillQAs(cc *cli.Context) error {
-	// ctx := context.Background()
-	// spec := &stores.DocumentSpec{}
-	// if cc.Args().Len() > 0 {
-	// 	spec.IDsStr = oid.OIDsStr(cc.String("ids"))
-	// }
-	// spec.Limit = 90
-	// spec.Sort = "id"
-	// return stores.Sgt().Qa().FillQAs(ctx, spec)
-	return nil
-}
-
-func exportQAs(cc *cli.Context) error {
+func exportDocs(cc *cli.Context) error {
 	output := cc.Args().First() // csv
 	file, err := os.OpenFile(output, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
@@ -72,7 +60,7 @@ func exportQAs(cc *cli.Context) error {
 		Out:    file,
 		Format: cc.String("format"),
 	}
-	return stores.Sgt().Qa().ExportQAs(ctx, ea)
+	return stores.Sgt().Qa().ExportDocs(ctx, ea)
 }
 
 func embeddingDocVector(cc *cli.Context) error {
@@ -120,22 +108,13 @@ func main() {
 				Action: importDocs,
 			},
 			{
-				Name:    "fill-qa",
-				Usage:   "fill QA in documents",
-				Aliases: []string{"fillQAs"},
-				Action:  fillQAs,
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "ids", Usage: "special document `IDs` (space with comma)"},
-				},
-			},
-			{
-				Name:    "export-qa",
-				Usage:   "export QA from documents",
-				Aliases: []string{"exportQAs"},
+				Name:    "export",
+				Usage:   "export documents to a csv",
+				Aliases: []string{"exportDocs"},
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "format", Aliases: []string{"t"}, Value: "csv", Usage: "csv|jsonl"},
 				},
-				Action: exportQAs,
+				Action: exportDocs,
 			},
 			{
 				Name:    "embedding",

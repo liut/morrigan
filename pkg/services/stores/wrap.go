@@ -50,10 +50,13 @@ var (
 	dbGetWith       = pgx.ModelWith
 	dbInsert        = pgx.DoInsert
 	dbUpdate        = pgx.DoUpdate
+	dbDelete        = pgx.DoDelete
 	dbDeleteM       = pgx.DoDeleteM
 	dbDeleteT       = pgx.DoDeleteT
 	dbStoreSimple   = pgx.StoreSimple
 	dbMetaUp        = pgx.DoMetaUp
+
+	dbBatchDeleteWithKeyID = pgx.BatchDeleteWithKey
 
 	sift      = pgx.Sift
 	siftEqual = pgx.SiftEqual

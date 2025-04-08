@@ -60,16 +60,15 @@ func validHead(rec []string) bool {
 }
 
 type qaStoreX interface {
-	ImportFromCSV(ctx context.Context, r io.Reader) error
-	// FillQAs(ctx context.Context, spec *QaDocumentSpec) error
-	ExportQAs(ctx context.Context, ea ExportArg) error
+	ImportDocs(ctx context.Context, r io.Reader) error
+	ExportDocs(ctx context.Context, ea ExportArg) error
 	EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
 	MatchVectorWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.DocMatches, err error)
 }
 
-func (s *qaStore) ImportFromCSV(ctx context.Context, r io.Reader) error {
+func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader) error {
 	rd := csv.NewReader(r)
 	rec, err := rd.Read()
 	if err != nil {
@@ -119,12 +118,6 @@ func (s *qaStore) importLine(ctx context.Context, title, heading, content string
 	}
 	return nil
 }
-func dbBeforeSaveQaDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
-	if len(obj.Content) == 0 {
-		return fmt.Errorf("empty content: %s,%s", obj.Title, obj.Heading)
-	}
-	return nil
-}
 
 func (s *qaStore) afterCreatedQaDocument(ctx context.Context, obj *qas.Document) error {
 	dvb := qas.DocVectorBasic{
@@ -143,33 +136,6 @@ func (s *qaStore) afterCreatedQaDocument(ctx context.Context, obj *qas.Document)
 	if err != nil {
 		logger().Infow("create doc vector fail", "dvb", &dvb, "err", err)
 		return err
-	}
-	return nil
-}
-func dbAfterDeleteQaDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
-	_, err := db.NewDelete().Model((*qas.Prompt)(nil)).Where("doc_id = ?", obj.ID).Exec(ctx)
-	if err != nil {
-		logger().Infow("delete prompt fail", "docID", obj.ID, "err", err)
-		return err
-	}
-	return nil
-}
-
-func dbBeforeSavePrompt(ctx context.Context, db ormDB, obj *qas.Prompt) error {
-	if len(obj.Text) == 0 {
-		return ErrEmptyParam
-	}
-	if !obj.IsUpdate() || obj.HasChange("prompt") {
-		vec, err := GetEmbedding(ctx, obj.Text)
-		if err != nil {
-			return err
-		}
-		if len(vec) > 0 {
-			obj.Vector = vec
-			if obj.IsUpdate() {
-				obj.SetChange("embedding")
-			}
-		}
 	}
 	return nil
 }
@@ -294,100 +260,39 @@ func (s *qaStore) MatchVectorWith(ctx context.Context, vec qas.Vector, threshold
 	return
 }
 
-func (s *qaStore) FillQAs(ctx context.Context, spec *QaDocumentSpec) error {
-	// data, _, err := s.ListDocument(ctx, spec)
-	// if err != nil {
-	// 	return err
-	// }
-	// oc := NewOpenAIClient()
+func (s *qaStore) ExportDocs(ctx context.Context, ea ExportArg) error {
+	data, _, err := s.ListDocument(ctx, ea.Spec)
+	if err != nil {
+		return err
+	}
 
-	// for _, doc := range data {
-	// 	if len(doc.QAs) >= 2 && len(spec.IDsStr) == 0 {
-	// 		continue
-	// 	}
-	// 	prompt := fmt.Sprintf(tplQaCtx, doc.Heading+"\n"+doc.Content)
-	// 	for _, qa := range doc.QAs {
-	// 		prompt += qas.PrefixQ + " " + qa.Question + "\n" + qas.PrefixA + " " + qa.Anwser + "\n"
-	// 	}
-	// 	prompt += qas.PrefixQ
-	// 	creq := openai.CompletionRequest{
-	// 		Model:       openai.GPT3Dot5TurboInstruct,
-	// 		Prompt:      prompt,
-	// 		Temperature: 0.5,
-	// 		MaxTokens:   maxQaTokens,
-	// 	}
-	// 	logger().Infow("completion request", "heading", doc.Heading, "prompt", prompt)
-	// 	res, err := oc.CreateCompletion(ctx, creq)
-	// 	if err != nil {
-	// 		logger().Infow("call comletion fail", "err", err)
-	// 		return err
-	// 	}
-	// 	logger().Infow("call comletion", "res", &res)
-	// 	if len(res.Choices) > 0 {
-	// 		pairs := qas.ParseText(res.Choices[0].Text)
-	// 		logger().Infow("parsed", "pairs", pairs)
-	// 		pairs = append(doc.QAs, pairs...)
-	// 		doc.SetWith(qas.DocumentSet{QAs: &pairs})
-	// 		if err = s.UpdateDocument(ctx, doc.StringID(), qas.DocumentSet{QAs: &pairs}); err != nil {
-	// 			logger().Infow("update document fail", "err", err)
-	// 		}
-	// 	}
-	// }
+	if ea.Format == "csv" {
+		return documentsToCSV(data, ea.Out)
+	}
 
-	return nil
+	// TODO: jsonl?
+	return errors.New("invalid format: " + ea.Format)
 }
 
-// type tranLine struct {
-// 	Prompt     string `json:"prompt"`
-// 	Completion string `json:"completion"`
-// }
+func documentsToCSV(data qas.Documents, w io.Writer) error {
 
-func (s *qaStore) ExportQAs(ctx context.Context, ea ExportArg) error {
-	// data, _, err := s.ListDocument(ctx, ea.Spec)
-	// if err != nil {
-	// 	return err
-	// }
+	head := []string{"doc_id", "title", "heading", "content"}
+	cw := csv.NewWriter(w)
+	if err := cw.Write(head); err != nil {
+		return err
+	}
 
-	// if ea.Format == "csv" {
-	// 	return documentsToCSV(data, ea.Out)
-	// }
+	for _, doc := range data {
+		if err := cw.Write([]string{
+			doc.StringID(), doc.Title, doc.Heading, doc.Content,
+		}); err != nil {
+			return err
+		}
+	}
+	cw.Flush()
 
-	// enc := json.NewEncoder(ea.Out)
-
-	// for _, doc := range data {
-	// 	for _, p := range doc.QAs {
-	// 		line := tranLine{
-	// 			Prompt:     fmt.Sprintf("%s\n%s\n\nQ: %s\nA:", doc.Heading, doc.Content, p.Question),
-	// 			Completion: " " + p.Anwser + AnswerStop,
-	// 		}
-	// 		if err = enc.Encode(&line); err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
-
-	return nil
+	return cw.Error()
 }
-
-// func documentsToCSV(data qas.Documents, w io.Writer) error {
-
-// 	head := []string{"doc_id", "heading", "question", "anwser"}
-// 	cw := csv.NewWriter(w)
-// 	if err := cw.Write(head); err != nil {
-// 		return err
-// 	}
-
-// 	for _, doc := range data {
-// 		for _, p := range doc.QAs {
-// 			if err := cw.Write([]string{doc.StringID(), doc.Heading, p.Question, p.Anwser}); err != nil {
-// 				return err
-// 			}
-// 		}
-// 	}
-// 	cw.Flush()
-
-// 	return cw.Error()
-// }
 
 func (s *qaStore) EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) error {
 	data, _, err := s.ListDocument(ctx, spec)
@@ -425,23 +330,7 @@ func (s *qaStore) EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) 
 	return nil
 }
 
-//	func (s *qaStore) savePrompt(ctx context.Context, docID oid.OID, question string) error {
-//		pv := new(qas.Prompt)
-//		err := dbGet(ctx, s.w.db, pv, "prompt = ? ", question)
-//		if err != nil {
-//			_, err = s.CreatePrompt(ctx, qas.PromptBasic{
-//				DocID: docID,
-//				Text:  question,
-//			})
-//		} else {
-//			id := docID.String()
-//			err = s.UpdatePrompt(ctx, pv.StringID(), qas.PromptSet{
-//				DocID: &id,
-//			})
-//		}
-//		if err != nil {
-//			logger().Infow("save prompt fail", "doc", docID, "text", question, "err", err)
-//			return err
-//		}
-//		return nil
-//	}
+func dbAfterDeleteQaDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
+	_, err := dbBatchDeleteWithKeyID(ctx, db, qas.DocVectorTable, "doc_id", obj.ID)
+	return err
+}

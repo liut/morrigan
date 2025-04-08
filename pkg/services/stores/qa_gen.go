@@ -13,10 +13,9 @@ import (
 // type DocMatches = qas.DocMatches
 // type QaDocVector = qas.DocVector
 // type QaDocument = qas.Document
-// type Prompt = qas.Prompt
 
 func init() {
-	RegisterModel((*qas.Document)(nil), (*qas.DocVector)(nil), (*qas.Prompt)(nil), (*qas.ChatLog)(nil))
+	RegisterModel((*qas.Document)(nil), (*qas.DocVector)(nil), (*qas.ChatLog)(nil))
 }
 
 type QaStore interface {
@@ -31,10 +30,6 @@ type QaStore interface {
 	GetDocVector(ctx context.Context, id string) (obj *qas.DocVector, err error)
 	CreateDocVector(ctx context.Context, in qas.DocVectorBasic) (obj *qas.DocVector, err error)
 	DeleteDocVector(ctx context.Context, id string) error
-
-	CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error)
-	UpdatePrompt(ctx context.Context, id string, in qas.PromptSet) error
-	DeletePrompt(ctx context.Context, id string) error
 
 	CreateChatLog(ctx context.Context, in qas.ChatLogBasic) (obj *qas.ChatLog, err error)
 	GetChatLog(ctx context.Context, id string) (obj *qas.ChatLog, err error)
@@ -101,34 +96,23 @@ func (s *qaStore) GetDocument(ctx context.Context, id string) (obj *qas.Document
 	return
 }
 func (s *qaStore) CreateDocument(ctx context.Context, in qas.DocumentBasic) (obj *qas.Document, err error) {
-	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		obj = qas.NewDocumentWithBasic(in)
-		if err = dbBeforeSaveQaDocument(ctx, tx, obj); err != nil {
-			return
-		}
-		dbMetaUp(ctx, tx, obj)
-		err = dbInsert(ctx, tx, obj)
-		return err
-	})
+	obj = qas.NewDocumentWithBasic(in)
+	dbMetaUp(ctx, s.w.db, obj)
+	err = dbInsert(ctx, s.w.db, obj)
 	if err == nil {
 		err = s.afterCreatedQaDocument(ctx, obj)
 	}
 	return
 }
 func (s *qaStore) UpdateDocument(ctx context.Context, id string, in qas.DocumentSet) error {
-	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		exist := new(qas.Document)
-		if err = dbGetWithPKID(ctx, tx, exist, id); err != nil {
-			return err
-		}
-		exist.SetIsUpdate(true)
-		exist.SetWith(in)
-		if err = dbBeforeSaveQaDocument(ctx, tx, exist); err != nil {
-			return err
-		}
-		dbMetaUp(ctx, tx, exist)
-		return dbUpdate(ctx, tx, exist)
-	})
+	exist := new(qas.Document)
+	if err := dbGetWithPKID(ctx, s.w.db, exist, id); err != nil {
+		return err
+	}
+	exist.SetIsUpdate(true)
+	exist.SetWith(in)
+	dbMetaUp(ctx, s.w.db, exist)
+	return dbUpdate(ctx, s.w.db, exist)
 }
 func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 	obj := new(qas.Document)
@@ -158,42 +142,6 @@ func (s *qaStore) CreateDocVector(ctx context.Context, in qas.DocVectorBasic) (o
 }
 func (s *qaStore) DeleteDocVector(ctx context.Context, id string) error {
 	obj := new(qas.DocVector)
-	return s.w.db.DeleteModel(ctx, obj, id)
-}
-
-func (s *qaStore) CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error) {
-	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		obj = qas.NewPromptWithBasic(in)
-		if err = dbBeforeSavePrompt(ctx, tx, obj); err != nil {
-			return
-		}
-		if obj.Text == "" {
-			err = ErrEmptyKey
-			return
-		}
-		dbMetaUp(ctx, tx, obj)
-		err = dbInsert(ctx, tx, obj, "prompt")
-		return err
-	})
-	return
-}
-func (s *qaStore) UpdatePrompt(ctx context.Context, id string, in qas.PromptSet) error {
-	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
-		exist := new(qas.Prompt)
-		if err = dbGetWithPKID(ctx, tx, exist, id); err != nil {
-			return err
-		}
-		exist.SetIsUpdate(true)
-		exist.SetWith(in)
-		if err = dbBeforeSavePrompt(ctx, tx, exist); err != nil {
-			return err
-		}
-		dbMetaUp(ctx, tx, exist)
-		return dbUpdate(ctx, tx, exist)
-	})
-}
-func (s *qaStore) DeletePrompt(ctx context.Context, id string) error {
-	obj := new(qas.Prompt)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 

@@ -183,8 +183,6 @@ COMMANDS:
    usage, env                   show usage
    initdb                       init database schema
    import                       import documents from a csv
-   fill-qa, fillQAs             fill QA in documents
-   export-qa, exportQAs         export QA from documents
    embedding, embedding-pormpt  read prompt documents and embedding
    web, run                     run a web server
    help, h                      Shows a list of commands or help for one command
