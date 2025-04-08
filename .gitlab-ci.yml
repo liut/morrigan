@@ -8,7 +8,7 @@ stages:
 services:
   - name: redis:5-alpine
     alias: redis
-  - name: fhyx/postgresql:15e
+  - name: fhyx/postgresql:16
     alias: morrigandb
 variables:
   DEVELOP_HOST: moon
@@ -25,7 +25,7 @@ variables:
   DB_NAME: morrigantest
   DB_USER: morrigan
   DB_PASS: develop
-  PG_EXTENSIONS: 'btree_gin btree_gist pg_trgm'
+  PG_EXTENSIONS: 'btree_gin btree_gist pg_trgm vector'
   MORRIGAN_PG_STORE_DSN: postgres://morrigan:develop@morrigandb:5432/morrigantest?sslmode=disable
   MORRIGAN_REDIS_URI: 'redis://redis:6379/0'
 
