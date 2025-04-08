@@ -235,7 +235,6 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 ```bash
 go run . initdb
 go run . import mycompany.csv
-go run . fill-qa
 go run . embedding
 ```
 
