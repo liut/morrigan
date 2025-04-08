@@ -97,7 +97,9 @@ type Wrap struct {
 
 // NewWithDB return new instance of Wrap
 func NewWithDB(db *pgx.DB) *Wrap {
-	w := &Wrap{db: db}
+	w := &Wrap{
+		db: db,
+	}
 
 	w.qaStore = &qaStore{w: w} // gened
 

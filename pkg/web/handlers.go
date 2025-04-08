@@ -149,25 +149,25 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	}
 
 	var matched int
-	if settings.Current.QAEmbedding {
-		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
-			Question: prompt,
-			Limit:    5,
-		})
-		if err == nil {
-			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
-			for _, doc := range docs {
-				matched++
-				logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
-				messages = append(messages,
-					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
-					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
-				)
-			}
-		} else {
-			logger().Infow("match fail", "err", err)
+
+	docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
+		Question: prompt,
+		Limit:    5,
+	})
+	if err == nil {
+		logger().Infow("matches", "docs", len(docs), "prompt", prompt)
+		for _, doc := range docs {
+			matched++
+			logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
+			messages = append(messages,
+				ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
+				ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
+			)
 		}
+	} else {
+		logger().Infow("match fail", "err", err)
 	}
+
 	if matched == 0 && settings.Current.QAFallback {
 		for _, msg := range s.preset.Messages {
 			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
@@ -267,7 +267,8 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 					Question: param.Prompt,
 					Answer:   answer,
 				}
-				in.MetaAddKVs("ip", r.RemoteAddr)
+				ip, _, _ := strings.Cut(r.RemoteAddr, ":")
+				in.MetaAddKVs("ip", ip)
 				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), in)
 				if err != nil {
 					logger().Infow("save chat log fail", "err", err)

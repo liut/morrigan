@@ -9,23 +9,28 @@ import (
 )
 
 // type ChatLog = qas.ChatLog
-// type Document = qas.Document
+// type DocMatch = qas.DocMatch
+// type DocMatches = qas.DocMatches
+// type QaDocVector = qas.DocVector
+// type QaDocument = qas.Document
 // type Prompt = qas.Prompt
-// type PromptMatch = qas.PromptMatch
-// type PromptMatches = qas.PromptMatches
 
 func init() {
-	RegisterModel((*qas.Document)(nil), (*qas.Prompt)(nil), (*qas.ChatLog)(nil))
+	RegisterModel((*qas.Document)(nil), (*qas.DocVector)(nil), (*qas.Prompt)(nil), (*qas.ChatLog)(nil))
 }
 
 type QaStore interface {
 	qaStoreX
 
-	ListDocument(ctx context.Context, spec *DocumentSpec) (data qas.Documents, total int, err error)
+	ListDocument(ctx context.Context, spec *QaDocumentSpec) (data qas.Documents, total int, err error)
 	GetDocument(ctx context.Context, id string) (obj *qas.Document, err error)
 	CreateDocument(ctx context.Context, in qas.DocumentBasic) (obj *qas.Document, err error)
 	UpdateDocument(ctx context.Context, id string, in qas.DocumentSet) error
 	DeleteDocument(ctx context.Context, id string) error
+
+	GetDocVector(ctx context.Context, id string) (obj *qas.DocVector, err error)
+	CreateDocVector(ctx context.Context, in qas.DocVectorBasic) (obj *qas.DocVector, err error)
+	DeleteDocVector(ctx context.Context, id string) error
 
 	CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error)
 	UpdatePrompt(ctx context.Context, id string, in qas.PromptSet) error
@@ -37,19 +42,19 @@ type QaStore interface {
 	DeleteChatLog(ctx context.Context, id string) error
 }
 
-type DocumentSpec struct {
+type QaDocumentSpec struct {
 	PageSpec
 	ModelSpec
 
-	// 主标题
+	// 主标题 名称
 	Title string `extensions:"x-order=A" form:"title" json:"title"`
-	// 小节标题
+	// 小节标题 属性 类别
 	Heading string `extensions:"x-order=B" form:"heading" json:"heading"`
-	// 内容
+	// 内容 值
 	Content string `extensions:"x-order=C" form:"content" json:"content"`
 }
 
-func (spec *DocumentSpec) Sift(q *ormQuery) *ormQuery {
+func (spec *QaDocumentSpec) Sift(q *ormQuery) *ormQuery {
 	q = spec.ModelSpec.Sift(q)
 	q, _ = siftMatch(q, "title", spec.Title, false)
 	q, _ = siftMatch(q, "heading", spec.Heading, false)
@@ -57,7 +62,7 @@ func (spec *DocumentSpec) Sift(q *ormQuery) *ormQuery {
 
 	return q
 }
-func (spec *DocumentSpec) CanSort(k string) bool {
+func (spec *QaDocumentSpec) CanSort(k string) bool {
 	switch k {
 	case "heading":
 		return true
@@ -85,7 +90,7 @@ type qaStore struct {
 	w *Wrap
 }
 
-func (s *qaStore) ListDocument(ctx context.Context, spec *DocumentSpec) (data qas.Documents, total int, err error) {
+func (s *qaStore) ListDocument(ctx context.Context, spec *QaDocumentSpec) (data qas.Documents, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
 }
@@ -98,13 +103,16 @@ func (s *qaStore) GetDocument(ctx context.Context, id string) (obj *qas.Document
 func (s *qaStore) CreateDocument(ctx context.Context, in qas.DocumentBasic) (obj *qas.Document, err error) {
 	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
 		obj = qas.NewDocumentWithBasic(in)
-		if err = dbBeforeSaveDocument(ctx, tx, obj); err != nil {
+		if err = dbBeforeSaveQaDocument(ctx, tx, obj); err != nil {
 			return
 		}
 		dbMetaUp(ctx, tx, obj)
 		err = dbInsert(ctx, tx, obj)
 		return err
 	})
+	if err == nil {
+		err = s.afterCreatedQaDocument(ctx, obj)
+	}
 	return
 }
 func (s *qaStore) UpdateDocument(ctx context.Context, id string, in qas.DocumentSet) error {
@@ -115,7 +123,7 @@ func (s *qaStore) UpdateDocument(ctx context.Context, id string, in qas.Document
 		}
 		exist.SetIsUpdate(true)
 		exist.SetWith(in)
-		if err = dbBeforeSaveDocument(ctx, tx, exist); err != nil {
+		if err = dbBeforeSaveQaDocument(ctx, tx, exist); err != nil {
 			return err
 		}
 		dbMetaUp(ctx, tx, exist)
@@ -132,8 +140,25 @@ func (s *qaStore) DeleteDocument(ctx context.Context, id string) error {
 		if err != nil {
 			return
 		}
-		return dbAfterDeleteDocument(ctx, tx, obj)
+		return dbAfterDeleteQaDocument(ctx, tx, obj)
 	})
+}
+
+func (s *qaStore) GetDocVector(ctx context.Context, id string) (obj *qas.DocVector, err error) {
+	obj = new(qas.DocVector)
+	err = dbGetWithPKID(ctx, s.w.db, obj, id)
+
+	return
+}
+func (s *qaStore) CreateDocVector(ctx context.Context, in qas.DocVectorBasic) (obj *qas.DocVector, err error) {
+	obj = qas.NewDocVectorWithBasic(in)
+	dbMetaUp(ctx, s.w.db, obj)
+	err = dbInsert(ctx, s.w.db, obj)
+	return
+}
+func (s *qaStore) DeleteDocVector(ctx context.Context, id string) error {
+	obj := new(qas.DocVector)
+	return s.w.db.DeleteModel(ctx, obj, id)
 }
 
 func (s *qaStore) CreatePrompt(ctx context.Context, in qas.PromptBasic) (obj *qas.Prompt, err error) {

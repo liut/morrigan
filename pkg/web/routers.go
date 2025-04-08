@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -54,7 +55,10 @@ func (s *server) strapRouter() {
 	s.ar.Route("/auth", func(r chi.Router) {
 		r.Get("/login", staffio.LoginHandler)
 		r.Get("/logout", staffio.LogoutHandler)
-		r.Method(http.MethodGet, "/callback", staffio.AuthCodeCallback())
+		cc := &staffio.CodeCallback{
+			OnTokenGot: s.handleTokenGot,
+		}
+		r.Method(http.MethodGet, "/callback", cc.Handler())
 	})
 
 	rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)
@@ -89,6 +93,7 @@ func (s *server) strapRouter() {
 
 	})
 
+	s.ar.Get("/api/session", s.handleSession)
 	s.ar.Post("/api/session", s.handleSession)
 	s.ar.Post("/api/verify", s.handleVerify)
 
@@ -102,6 +107,22 @@ func (s *server) strapRouter() {
 	if s.cfg.DocHandler != nil {
 		s.ar.NotFound(s.cfg.DocHandler.ServeHTTP)
 	}
+}
+
+const (
+	tokenCN = "token"
+)
+
+func (s *server) buildTokenCookie(value string) *http.Cookie {
+	return &http.Cookie{
+		Name:     tokenCN,
+		Value:    value,
+		HttpOnly: true,
+	}
+}
+
+func (s *server) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
+	http.SetCookie(w, s.buildTokenCookie(it.AccessToken))
 }
 
 // nolint
