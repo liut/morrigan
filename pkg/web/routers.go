@@ -39,7 +39,10 @@ func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
 				tok, err := s.authzr.TokenFromRequest(r)
 				if err != nil || tok != settings.Current.AuthSecret {
 					w.WriteHeader(401)
-					render.JSON(w, r, M{"status": "Unauthorized", "message": "Please authenticate."})
+					render.JSON(w, r, M{
+						"status":  "Unauthorized",
+						"message": "Please authenticate.",
+					})
 					return
 				}
 			}
@@ -50,15 +53,17 @@ func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
 
 func (s *server) strapRouter() {
 
+	s.ar.Get("/", handleNoContent)
 	s.ar.Get("/ping", handlerPing)
+
+	cch := (&staffio.CodeCallback{
+		OnTokenGot: s.handleTokenGot,
+	}).Handler()
 
 	s.ar.Route("/auth", func(r chi.Router) {
 		r.Get("/login", staffio.LoginHandler)
 		r.Get("/logout", staffio.LogoutHandler)
-		cc := &staffio.CodeCallback{
-			OnTokenGot: s.handleTokenGot,
-		}
-		r.Method(http.MethodGet, "/callback", cc.Handler())
+		r.Method(http.MethodGet, "/callback", cch)
 	})
 
 	rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)

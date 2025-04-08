@@ -61,11 +61,11 @@ func New(cfg Config) Service {
 		cmodel: settings.Current.ChatModel,
 	}
 
-	s.authzr = staffio.NewAuth(staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath), staffio.WithCookie(
+	s.authzr = staffio.NewAuth(staffio.WithCookie(
 		settings.Current.CookieName,
 		settings.Current.CookiePath,
 		settings.Current.CookieDomain,
-	))
+	), staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath))
 
 	var err error
 	s.preset, err = stores.LoadPreset()
