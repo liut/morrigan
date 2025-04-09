@@ -95,6 +95,8 @@ deploy-to-staging:
    - scp *-linux-amd64-*.tar.?z "${DEPLOY_HOST:-earth}:gopkg/cupola/"
    - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d dist && tar -xvJf gopkg/cupola/${NAME}-linux-amd64-${TAG}.tar.xz -C dist"
    # - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+   - test -x ${GOPATH}/bin/wxworkbot || CGO_ENABLED=0 go install daxv.cn/gopak/tencent-api-go/apps/wxworkbot@latest
+   - test -z "${WXWORK_OPS_BOT_KEY}" || WXWORK_BOT_KEY=${WXWORK_OPS_BOT_KEY} ${GOPATH}/bin/wxworkbot -text "packaged ${NAME} ${TAG}"
 
   artifacts:
     name: "${CI_PROJECT_PATH_SLUG}_${CI_JOB_ID}"
