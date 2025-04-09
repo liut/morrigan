@@ -21,7 +21,7 @@ variables:
   GOPRIVATE: daxv.cn,hyyl.xyz
   GOPROXY: https://goproxy.io,direct
   NAME: morrigan
-  ROOF: github/liut/morrigan
+  ROOF: github.com/liut/morrigan
   DB_NAME: morrigantest
   DB_USER: morrigan
   DB_PASS: develop
