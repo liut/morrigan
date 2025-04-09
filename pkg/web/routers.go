@@ -54,13 +54,15 @@ func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
 func (s *server) strapRouter() {
 
 	s.ar.Get("/", handleNoContent)
-	s.ar.Get("/ping", handlerPing)
+	s.ar.Get("/api/ping", handlerPing)
+
+	staffio.SetAdminPath("/")
 
 	cch := (&staffio.CodeCallback{
 		OnTokenGot: s.handleTokenGot,
 	}).Handler()
 
-	s.ar.Route("/auth", func(r chi.Router) {
+	s.ar.Route("/api/auth", func(r chi.Router) {
 		r.Get("/login", staffio.LoginHandler)
 		r.Get("/logout", staffio.LogoutHandler)
 		r.Method(http.MethodGet, "/callback", cch)
@@ -102,7 +104,6 @@ func (s *server) strapRouter() {
 	s.ar.Post("/api/session", s.handleSession)
 	s.ar.Post("/api/verify", s.handleVerify)
 
-	staffio.SetAdminPath("/")
 	s.ar.Group(func(r chi.Router) {
 		r.Use(s.authMw(true))
 		if s.cfg.DocHandler != nil {
@@ -176,7 +177,7 @@ func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
 			res.Data.User = user
 		} else {
 			res.Data.Auth = true
-			res.Data.URI = "/auth/login"
+			res.Data.URI = "/api/auth/login"
 		}
 	} else {
 		res.Data.Auth = len(settings.Current.AuthSecret) > 0
