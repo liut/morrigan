@@ -11,6 +11,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	staffio "github.com/liut/staffio-client"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
@@ -43,6 +45,8 @@ type server struct {
 	authzr staffio.Authorizer
 	oc     *openai.Client
 	preset aigc.Preset
+	mcpcs  map[string]client.MCPClient // with token key, like session
+	tools  []mcp.Tool                  // preset tools
 }
 
 // New return new web server
@@ -59,7 +63,9 @@ func New(cfg Config) Service {
 		sto:    stores.Sgt(),
 		oc:     stores.GetInteractAIClient(),
 		cmodel: settings.Current.ChatModel,
+		mcpcs:  make(map[string]client.MCPClient),
 	}
+	s.initTools()
 
 	s.authzr = staffio.NewAuth(staffio.WithCookie(
 		settings.Current.CookieName,
@@ -128,4 +134,14 @@ func (s *server) Stop(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (s *server) initTools() {
+	s.tools = append(s.tools,
+		mcp.NewTool(ToolNameKBSearch,
+			mcp.WithDescription("Search knowledge base with text of keywords or subject"),
+			mcp.WithString("subject", mcp.Required(), mcp.Description("text of keywords or subject")),
+		),
+	)
+	logger().Debugw("init tools", "tools", s.tools)
 }

@@ -2,7 +2,6 @@ package aigc
 
 import (
 	"encoding/json"
-	"sort"
 )
 
 type HistoryChatItem struct {
@@ -70,16 +69,16 @@ func (a HiAscend) Len() int           { return len(a) }
 func (a HiAscend) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a HiAscend) Less(i, j int) bool { return a[i].Time < a[j].Time }
 
-func (z HistoryItems) RecentlyWith(size int) (ohi HistoryItems) {
+func (z HistoryItems) RecentlyWithTokens(size int) (ohi HistoryItems) {
 	var count int
-	sort.Sort(sort.Reverse(HiAscend(z)))
-	for _, hi := range z {
-		count += hi.calcTokens()
+	// 从后向前遍历，直接获取最新的记录
+	for i := len(z) - 1; i >= 0; i-- {
+		count += z[i].calcTokens()
 		if count > size {
 			break
 		}
-		ohi = append(ohi, hi)
+		// 在开头插入元素，保持时间顺序
+		ohi = append(HistoryItems{z[i]}, ohi...)
 	}
-	sort.Sort(HiAscend(ohi))
 	return
 }

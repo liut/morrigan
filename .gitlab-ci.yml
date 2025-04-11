@@ -58,7 +58,7 @@ test-lint:
 test-stores:
   stage: test
   script:
-    - go test -v -cover ./pkg/services/stores
+    - go test -v -cover ./pkg/services/...
 
 test-initdb:
   stage: test
@@ -78,7 +78,7 @@ deploy-to-testing:
    - GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS} -s -w" -o dist/linux_amd64/${NAME} ${CI_PROJECT_DIR}
    - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d dist || mkdir dist"
    - scp dist/linux_amd64/${NAME} ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon}:dist/
-   # - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+   - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
 
   only:
     - main
@@ -94,7 +94,7 @@ deploy-to-staging:
    - ls dist/linux_amd64 | xargs tar -cvJf ${NAME}-linux-amd64-${TAG}.tar.xz -C dist/linux_amd64
    - scp *-linux-amd64-*.tar.?z "${DEPLOY_HOST:-earth}:gopkg/cupola/"
    - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d dist && tar -xvJf gopkg/cupola/${NAME}-linux-amd64-${TAG}.tar.xz -C dist"
-   # - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+   - ssh ${DEPLOY_USER:-sa}@${DEPLOY_HOST:-earth} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
    - test -x ${GOPATH}/bin/wxworkbot || CGO_ENABLED=0 go install daxv.cn/gopak/tencent-api-go/apps/wxworkbot@latest
    - test -z "${WXWORK_OPS_BOT_KEY}" || WXWORK_BOT_KEY=${WXWORK_OPS_BOT_KEY} ${GOPATH}/bin/wxworkbot -text "packaged ${NAME} ${TAG}"
 
