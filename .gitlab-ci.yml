@@ -78,7 +78,7 @@ deploy-to-testing:
    - GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS} -s -w" -o dist/linux_amd64/${NAME} ${CI_PROJECT_DIR}
    - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d dist || mkdir dist"
    - scp dist/linux_amd64/${NAME} ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon}:dist/
-   - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+   - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'" || true
 
   only:
     - main
