@@ -9,9 +9,13 @@ import (
 )
 
 const (
+	// tokens bytes
+	historyLimitToken = 50 * 1024
+
 	esDone = "[DONE]"
 
 	dftSystemMsg = "You are a helpful assistant."
+	dftToolsMsg  = "你将根据用户的问题，选择合适的工具，并调用工具来解决问题. 如果工具需要参数，一定要从用户的问题中提取出参数. "
 	welcomeText  = "Hello, I am your virtual assistant. How can I help you?"
 )
 

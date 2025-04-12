@@ -30,8 +30,8 @@ type Config struct {
 	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
 	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"for oauth client"`
 
-	OpenAIAPIKey string `envconfig:"openAi_Api_Key" required:"true"`
-	ChatModel    string `envconfig:"CHAT_MODEL"  required:"true" default:"gpt-3.5-turbo"`
+	OpenAIAPIKey string `envconfig:"openAi_Api_Key"`
+	ChatModel    string `envconfig:"CHAT_MODEL" default:"gpt-4o-mini"`
 	PresetFile   string `envconfig:"preset_file" desc:"custom welcome and messages"`
 	QAEmbedding  bool   `envconfig:"QA_Embedding" desc:"enable embed QA into prompt"`
 	QAChatLog    bool   `envconfig:"QA_chat_log"`

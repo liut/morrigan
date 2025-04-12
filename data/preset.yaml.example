@@ -1,10 +1,11 @@
 
+systemPrompt: You are a helpful assistant.
+
 welcome:
   content: Hello, I am your virtual assistant. How can I help you?
   role: assistant
 
-# fallback
-messages:
+beforeQA:
   - content: You are a helpful assistant.
     role: system
   - content: When is my birthday?

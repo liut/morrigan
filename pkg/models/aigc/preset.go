@@ -14,16 +14,14 @@ type Message struct {
 type Messages []Message
 
 type Preset struct {
-	Completion  *Completion `json:"completion,omitempty" yaml:"completion,omitempty"`
-	Welcome     *Message    `json:"welcome,omitempty" yaml:"welcome,omitempty"`
-	Messages    Messages    `json:"messages,omitempty" yaml:"messages,omitempty"`
-	BeforeQA    Messages    `json:"beforeQA,omitempty" yaml:"beforeQA,omitempty"`
-	AfterQA     Messages    `json:"afterQA,omitempty" yaml:"afterQA,omitempty"`
-	Model       string      `json:"model,omitempty" yaml:"model,omitempty"`
-	MaxTokens   int         `json:"maxTokens,omitempty" yaml:"maxTokens,omitempty"`
-	Temperature float32     `json:"temperature,omitempty" yaml:"temperature,omitempty"`
-	Stop        []string    `json:"stop,omitempty" yaml:"stop,omitempty"`
-	MCPServers  []MCPServer `json:"mcps,omitempty" yaml:"mcps,omitempty"`
+	Completion   *Completion `json:"completion,omitempty" yaml:"completion,omitempty"`
+	Welcome      *Message    `json:"welcome,omitempty" yaml:"welcome,omitempty"`
+	MaxTokens    int         `json:"maxTokens,omitempty" yaml:"maxTokens,omitempty"`
+	Temperature  float32     `json:"temperature,omitempty" yaml:"temperature,omitempty"`
+	Stop         []string    `json:"stop,omitempty" yaml:"stop,omitempty"`
+	SystemPrompt string      `json:"systemPrompt,omitempty" yaml:"systemPrompt,omitempty"`
+	ToolsPrompt  string      `json:"toolsPrompt,omitempty" yaml:"toolsPrompt,omitempty"`
+	MCPServers   []MCPServer `json:"mcps,omitempty" yaml:"mcps,omitempty"`
 }
 
 type MCPType string // 'sse' | 'stdio' | 'inmemory' | 'http'

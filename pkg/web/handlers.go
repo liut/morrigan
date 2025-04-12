@@ -46,25 +46,20 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	cs := stores.NewConversation(csid)
 	var messages []ChatCompletionMessage
 
-	var hasSystem bool
-	if s.preset.Welcome != nil {
-		messages = append(messages, ChatCompletionMessage{
-			Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
-	} else {
-		for _, msg := range s.preset.BeforeQA {
-			if msg.Role == openai.ChatMessageRoleSystem {
-				hasSystem = true
-			}
-			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-		}
+	systemPrompt := dftSystemMsg
+	if len(s.preset.SystemPrompt) > 0 {
+		systemPrompt = s.preset.SystemPrompt
 	}
+	if settings.Current.DateInContext {
+		systemPrompt = systemPrompt + "\n" + thisMoment()
+	}
+	messages = append(messages, ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleSystem,
+		Content: systemPrompt,
+	})
 
 	var matched int
 	if len(s.tools) == 0 { // 没有工具，使用问答
-		messages = append(messages, ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: dftSystemMsg,
-		})
 		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
 			Question: prompt,
 			Limit:    5,
@@ -83,34 +78,6 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 			logger().Infow("match fail", "err", err)
 		}
 	}
-
-	if matched == 0 && settings.Current.QAFallback {
-		for _, msg := range s.preset.Messages {
-			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-		}
-	}
-
-	// for _, msg := range s.preset.AfterQA {
-	// 	if msg.Role == openai.ChatMessageRoleSystem {
-	// 		hasSystem = true
-	// 	}
-	// 	messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-	// }
-
-	if !hasSystem {
-		messages = append(messages, ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: dftSystemMsg})
-	}
-	if settings.Current.DateInContext {
-		messages = append(messages, ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: thisMoment(),
-		})
-	}
-
-	// tokens bytes
-	const historyLimitToken = 50 * 1024
 
 	data, err := cs.ListHistory(ctx)
 	if err == nil && len(data) > 0 {
@@ -133,14 +100,19 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	ccr.Model = s.cmodel
 	ccr.cs = cs
 
-	if len(s.tools) > 0 { // 转换工具结构
+	if len(s.tools) > 0 {
+		// 为LLM转换工具结构
 		if tools, err := mcputils.MCPToolsToOpenAITools(s.tools); err == nil {
 			ccr.Tools = tools
+			toolsPrompt := dftToolsMsg
+			if len(s.preset.ToolsPrompt) > 0 {
+				toolsPrompt = s.preset.ToolsPrompt
+			}
+			messages = append(messages, ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: toolsPrompt,
+			})
 		}
-		messages = append(messages, ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "你将根据用户的问题，选择合适的工具，并调用工具来解决问题. 如果工具需要参数，一定要从用户的问题中提取出参数. ",
-		})
 	}
 	ccr.Messages = append(messages, ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,

@@ -76,7 +76,7 @@ func New(cfg Config) Service {
 	var err error
 	s.preset, err = stores.LoadPreset()
 	if err == nil {
-		logger().Infow("loaded preset", "messages", len(s.preset.Messages))
+		logger().Infow("loaded preset", "mcps", len(s.preset.MCPServers))
 	}
 	s.strapRouter()
 
