@@ -35,9 +35,10 @@ var (
 )
 
 type MatchSpec struct {
-	Question  string
-	Threshold float32
-	Limit     int
+	Question     string
+	Threshold    float32
+	Limit        int
+	SkipKeywords bool
 }
 
 func (ms *MatchSpec) setDefaults() {
@@ -205,10 +206,15 @@ func (s *qaStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt str
 func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error) {
 	ms.setDefaults()
 	var subject string
-	subject, err = GetKeywords(ctx, ms.Question)
-	if err != nil {
-		return
+	if ms.SkipKeywords {
+		subject = ms.Question
+	} else {
+		subject, err = GetKeywords(ctx, ms.Question)
+		if err != nil {
+			return
+		}
 	}
+
 	if len(subject) == 0 {
 		logger().Infow("empty subject", "spec", ms)
 		return

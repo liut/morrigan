@@ -12,6 +12,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/liut/staffio-client v0.2.5
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
+	github.com/mark3labs/mcp-go v0.18.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/sashabaranov/go-openai v1.32.3
 	github.com/stretchr/testify v1.10.0
@@ -21,6 +22,8 @@ require (
 	go.uber.org/zap v1.26.0
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/mark3labs/mcp-go v0.18.0 => github.com/cupogo/mcp-go v0.0.0-20250409034557-54d186f97479
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
@@ -45,6 +48,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yalue/merged_fs v1.2.3 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/otel v1.27.0 // indirect
 	go.opentelemetry.io/otel/metric v1.27.0 // indirect
 	go.opentelemetry.io/otel/trace v1.27.0 // indirect

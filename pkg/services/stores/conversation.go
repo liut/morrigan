@@ -55,7 +55,6 @@ func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) e
 	res := s.rc.RPush(ctx, key, b)
 	err = res.Err()
 	if err == nil {
-		logger().Debugw("add history ok", "item", item)
 		count, _ := res.Result()
 		if err = s.rc.Expire(ctx, key, historyLifetimeS).Err(); err != nil {
 			return err

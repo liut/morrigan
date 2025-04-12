@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -15,45 +14,15 @@ import (
 	"github.com/go-chi/render"
 	"github.com/jpillora/eventsource"
 	"github.com/marcsv/go-binder/binder"
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/models/qas"
+	"github.com/liut/morrigan/pkg/services/mcputils"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 )
-
-const (
-	esDone = "[DONE]"
-
-	tplSystemMsg = "You are a helpful assistant.\nCurrent date: %s"
-)
-
-func today() string {
-	return time.Now().Format("2006-01-02 15:04")
-}
-
-func getDefaultSystemMsg() string {
-	return fmt.Sprintf(tplSystemMsg, today())
-}
-
-type ChatCompletionMessage = openai.ChatCompletionMessage
-
-type CompletionRequest struct {
-	openai.CompletionRequest
-
-	ConversationID string `json:"csid"`
-
-	cs stores.Conversation
-}
-
-type ChatCompletionRequest struct {
-	openai.ChatCompletionRequest
-
-	isSSE bool
-	cs    stores.Conversation
-	hi    *aigc.HistoryItem
-}
 
 func (s *server) getModels(w http.ResponseWriter, r *http.Request) {
 	res, err := s.oc.ListModels(r.Context())
@@ -73,64 +42,6 @@ func (s *server) getModels(w http.ResponseWriter, r *http.Request) {
 // 	apiOk(w, r, res, 0)
 // }
 
-type ChatRequest struct {
-	Prompt          string `json:"prompt"`
-	ConversationID  string `json:"csid"`
-	ParentMessageID string `json:"pmid"`
-	Stream          bool   `json:"stream"`
-	Full            bool   `json:"full,omitempty"`
-
-	// deprecated: for github.com/Chanzhaoyu/chatgpt-web only
-	Options struct {
-		ConversationId string `json:"conversationId,omitempty"`
-	}
-}
-
-type ChatCompletionChoice struct {
-	FinishRsason string `json:"finishReason,omitempty"`
-	Index        int    `json:"index"`
-	Text         string `json:"text"`
-}
-type ConversationResponse struct {
-	ConversationID  string `json:"csid"`
-	ParentMessageID string `json:"pmid"`
-	Detail          struct {
-		Choices []ChatCompletionChoice `json:"choices"`
-
-		Created int64  `json:"created"`
-		ID      string `json:"id"`
-		Model   string `json:"model"`
-		Object  string `json:"object"`
-		Usage   struct {
-			CompletionTokens int `json:"completionTokens"`
-			PromptTokens     int `json:"promptTokens"`
-			TotalTokens      int `json:"totalTokens"`
-		} `json:"usage"`
-	} `json:"detail"`
-}
-
-type ChatMessage struct {
-	ID    string `json:"id,omitempty"`
-	Delta string `json:"delta,omitempty"`
-	Text  string `json:"text,omitempty"`
-	Role  string `json:"role,omitempty"`
-	Name  string `json:"name,omitempty"`
-
-	FinishRsason string `json:"finishReason,omitempty"`
-
-	// for github.com/Chanzhaoyu/chatgpt-web only
-	ConversationId string `json:"conversationId,omitempty"`
-}
-
-type CompletionMessage struct {
-	ID    string `json:"id,omitempty"`
-	Delta string `json:"delta,omitempty"`
-	Text  string `json:"text,omitempty"`
-	Time  int64  `json:"ts,omitempty"`
-
-	FinishRsason string `json:"finishReason,omitempty"`
-}
-
 func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *ChatCompletionRequest {
 	cs := stores.NewConversation(csid)
 	var messages []ChatCompletionMessage
@@ -139,33 +50,38 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	if s.preset.Welcome != nil {
 		messages = append(messages, ChatCompletionMessage{
 			Role: openai.ChatMessageRoleAssistant, Content: s.preset.Welcome.Content})
-	}
-	for _, msg := range s.preset.BeforeQA {
-		if msg.Role == openai.ChatMessageRoleSystem {
-			hasSystem = true
-			msg.Content += "\nCurrent date: " + today()
+	} else {
+		for _, msg := range s.preset.BeforeQA {
+			if msg.Role == openai.ChatMessageRoleSystem {
+				hasSystem = true
+			}
+			messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 		}
-		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
 	}
 
 	var matched int
-
-	docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
-		Question: prompt,
-		Limit:    5,
-	})
-	if err == nil {
-		logger().Infow("matches", "docs", len(docs), "prompt", prompt)
-		for _, doc := range docs {
-			matched++
-			logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
-			messages = append(messages,
-				ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
-				ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
-			)
+	if len(s.tools) == 0 { // 没有工具，使用问答
+		messages = append(messages, ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: dftSystemMsg,
+		})
+		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
+			Question: prompt,
+			Limit:    5,
+		})
+		if err == nil {
+			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
+			for _, doc := range docs {
+				matched++
+				logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
+				messages = append(messages,
+					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
+					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
+				)
+			}
+		} else {
+			logger().Infow("match fail", "err", err)
 		}
-	} else {
-		logger().Infow("match fail", "err", err)
 	}
 
 	if matched == 0 && settings.Current.QAFallback {
@@ -174,25 +90,32 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 		}
 	}
 
-	for _, msg := range s.preset.AfterQA {
-		if msg.Role == openai.ChatMessageRoleSystem {
-			hasSystem = true
-		}
-		messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
-	}
+	// for _, msg := range s.preset.AfterQA {
+	// 	if msg.Role == openai.ChatMessageRoleSystem {
+	// 		hasSystem = true
+	// 	}
+	// 	messages = append(messages, ChatCompletionMessage{Role: msg.Role, Content: msg.Content})
+	// }
 
 	if !hasSystem {
 		messages = append(messages, ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: getDefaultSystemMsg()})
+			Content: dftSystemMsg})
+	}
+	if settings.Current.DateInContext {
+		messages = append(messages, ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: thisMoment(),
+		})
 	}
 
-	const historyLimit = 3000
+	// tokens bytes
+	const historyLimitToken = 50 * 1024
 
 	data, err := cs.ListHistory(ctx)
 	if err == nil && len(data) > 0 {
 		logger().Infow("found history", "size", len(data))
-		data = data.RecentlyWith(historyLimit)
+		data = data.RecentlyWithTokens(historyLimitToken)
 		for _, hi := range data {
 			if hi.ChatItem != nil {
 				if len(hi.ChatItem.User) > 0 {
@@ -206,14 +129,23 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 			}
 		}
 	}
-	messages = append(messages, ChatCompletionMessage{
+	ccr := new(ChatCompletionRequest)
+	ccr.Model = s.cmodel
+	ccr.cs = cs
+
+	if len(s.tools) > 0 { // 转换工具结构
+		if tools, err := mcputils.MCPToolsToOpenAITools(s.tools); err == nil {
+			ccr.Tools = tools
+		}
+		messages = append(messages, ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: "你将根据用户的问题，选择合适的工具，并调用工具来解决问题. 如果工具需要参数，一定要从用户的问题中提取出参数. ",
+		})
+	}
+	ccr.Messages = append(messages, ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: prompt,
 	})
-	ccr := new(ChatCompletionRequest)
-	ccr.Model = s.cmodel
-	ccr.Messages = messages
-	ccr.cs = cs
 	ccr.hi = &aigc.HistoryItem{
 		Time: time.Now().Unix(),
 		ChatItem: &aigc.HistoryChatItem{
@@ -241,8 +173,6 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		csid = param.Options.ConversationId
 	}
 	ccr := s.prepareChatRequest(r.Context(), param.Prompt, csid)
-	logger().Debugw("chat", "ccr", ccr)
-	logger().Infow("chat", "csid", csid, "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	ccr.Stream = isStream
 	if settings.Current.AuthRequired {
@@ -254,9 +184,42 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	ccr.isSSE = isSSE
 
 	// logger().Infow("chat", "id", csid, "prompt", param.Prompt, "stream", isStream)
+	logger().Infow("chat", "csid", csid, "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	if ccr.Stream {
-		answer := s.chatStreamResponse(ccr, w, r)
+		answer, toolCalls := s.chatStreamResponse(ccr, w, r)
+		if len(toolCalls) > 0 {
+			var hasToolCall bool
+			ccr.Messages = append(ccr.Messages, openai.ChatCompletionMessage{
+				Role:      openai.ChatMessageRoleAssistant,
+				ToolCalls: toolCalls,
+			})
+			for _, tc := range toolCalls {
+				logger().Infow("chat", "toolCall", tc)
+				if tc.Type == "function" {
+					logger().Infow("chat", "functionCall", tc)
+					var parameters map[string]any
+					if err := json.Unmarshal([]byte(tc.Function.Arguments), &parameters); err != nil {
+						logger().Infow("chat", "functionCall", tc, "err", err)
+						continue
+					}
+					switch tc.Function.Name {
+					case ToolNameKBSearch:
+						content, err := s.callQASearch(r.Context(), parameters)
+						if err != nil {
+							logger().Infow("chat", "functionCall", tc, "err", err)
+						} else {
+							ccr.Messages = append(ccr.Messages, mcpContentToChatMessage(tc.ID, content))
+							hasToolCall = true
+						}
+					}
+				}
+			}
+			if hasToolCall {
+				// 继续调用
+				answer, _ = s.chatStreamResponse(ccr, w, r)
+			}
+		}
 		if len(answer) > 0 {
 			ccr.hi.ChatItem.Assistant = answer
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
@@ -278,6 +241,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
 	res, err := s.oc.CreateChatCompletion(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
 		apiFail(w, r, 500, err)
@@ -294,7 +258,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		cr.Detail.Object = res.Object
 		if len(res.Choices) > 0 {
 			cr.Detail.Choices = []ChatCompletionChoice{{
-				FinishRsason: string(res.Choices[0].FinishReason),
+				FinishReason: string(res.Choices[0].FinishReason),
 				Index:        res.Choices[0].Index,
 				Text:         res.Choices[0].Message.Content,
 			}}
@@ -312,13 +276,13 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	if len(res.Choices) > 0 {
 		cm.Text = res.Choices[0].Message.Content
 		if res.Choices[0].FinishReason != "stop" {
-			cm.FinishRsason = string(res.Choices[0].FinishReason)
+			cm.FinishReason = string(res.Choices[0].FinishReason)
 		}
 	}
 	render.JSON(w, r, &cm)
 }
 
-func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string) {
+func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string, toolCalls []ToolCall) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
@@ -334,6 +298,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	}
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
+	logger().Debugw("ccs recv start", "ccr", ccr)
 	ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
 		logger().Infow("call chat stream fail", "err", err)
@@ -348,23 +313,23 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 		cm.ConversationId = cm.ID
 	}
 
-	var idx int
 	var finishReason string
-	finishFn := func(reason string) {
-		logger().Infow("stream done", "reason", reason, "answer", answer)
+
+	finalFinishFn := func(reason string) {
 		if ccr.isSSE {
-			_ = writeEvent(w, strconv.Itoa(idx), esDone)
-		} else {
+			_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), esDone)
 			flusher.Flush()
 		}
+		logger().Debugw("ccs recv done", "reason", reason)
 	}
+
 	for {
-		idx++
+		ccr.chunkIdx++
 		var wrote bool
 		ccsr, err := ccs.Recv()
 		if errors.Is(err, io.EOF) { // choices is nil at the moment
 			logger().Debugw("ccs recv eof", "reason", finishReason)
-			finishFn("EOF")
+			finalFinishFn("EOF")
 			break
 		}
 		if err != nil {
@@ -372,29 +337,48 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			break
 		}
 		if len(ccsr.Choices) > 0 {
+			cm.ToolCalls = ccsr.Choices[0].Delta.ToolCalls
 			finishReason = string(ccsr.Choices[0].FinishReason)
 			cm.Delta = ccsr.Choices[0].Delta.Content
 			answer += cm.Delta
-			cm.FinishRsason = finishReason
+			if len(cm.ToolCalls) > 0 {
+				if toolCalls == nil {
+					toolCalls = cm.ToolCalls
+				} else {
+					for i, tc := range cm.ToolCalls {
+						if len(toolCalls) <= i {
+							toolCalls = append(toolCalls, tc)
+						} else {
+							toolCalls[i].Function.Arguments += tc.Function.Arguments
+						}
+					}
+				}
+			}
+
+			cm.FinishReason = finishReason
 			if ccr.isSSE {
-				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
+				if wrote = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
 					break
 				}
 			} else {
 				cm.Text += cm.Delta
 				if err = json.NewEncoder(w).Encode(&cm); err != nil {
-					logger().Infow("json enc fail", "err", err)
+					logger().Infow("json encode fail", "err", err)
 					break
 				}
-				flusher.Flush()
 			}
+			flusher.Flush()
 			if len(finishReason) > 0 {
-				finishFn(finishReason)
+				logger().Infow("stream done", "reason", finishReason, "tc", toolCalls, "answer", answer)
+				if len(toolCalls) == 0 {
+					finalFinishFn(finishReason)
+				}
 				break
 			}
 		}
 	}
 	logger().Infow("ccs recv done", "answer", len(answer))
+	// TODO: 处理工具调用
 	return
 }
 
@@ -511,7 +495,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 				finishReason = ccsr.Choices[0].FinishReason
 				cm.Delta = ccsr.Choices[0].Text
 				answer += cm.Delta
-				cm.FinishRsason = finishReason
+				cm.FinishReason = finishReason
 				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
 					break
 				}
@@ -540,10 +524,6 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, cm, 0)
 }
 
-const (
-	welcomeText = "Hello, I am your virtual assistant. How can I help you?"
-)
-
 func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
 	msg := new(aigc.Message)
 
@@ -567,4 +547,47 @@ func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apiOk(w, r, data, 0)
+}
+
+func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
+	apiOk(w, r, s.tools, 0)
+}
+
+func (s *server) callQASearch(ctx context.Context, args map[string]any) (mcp.Content, error) {
+	logger().Infow("mcp call qa search", "args", args)
+	subjectArg, ok := args["subject"]
+	if !ok {
+		return nil, errors.New("missing required argument: subject")
+	}
+	subject, ok := subjectArg.(string)
+	if !ok {
+		return nil, errors.New("subject argument must be a string")
+	}
+
+	docs, err := s.sto.Qa().MatchDocments(ctx, stores.MatchSpec{
+		Question:     subject,
+		Limit:        5,
+		SkipKeywords: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return mcp.NewTextContent(docs.MarkdownText()), nil
+}
+
+func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {
+	// 将 mcp.Content 转换为 JSON 字符串
+	content := ""
+	if mc != nil {
+		if b, err := json.Marshal(mc); err == nil {
+			content = string(b)
+		}
+	}
+
+	return ChatCompletionMessage{
+		Role:       openai.ChatMessageRoleTool,
+		Content:    content,
+		ToolCallID: id,
+	}
 }

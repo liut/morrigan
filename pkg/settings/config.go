@@ -39,6 +39,8 @@ type Config struct {
 
 	AskRateLimit string `envconfig:"Ask_Rate_Limit" default:"30-H"`
 
+	DateInContext bool `envconfig:"date_in_context"`
+
 	Embedding Provider
 	Interact  Provider
 	Summarize Provider

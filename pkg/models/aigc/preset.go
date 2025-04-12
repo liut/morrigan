@@ -26,7 +26,18 @@ type Preset struct {
 	MCPServers  []MCPServer `json:"mcps,omitempty" yaml:"mcps,omitempty"`
 }
 
+type MCPType string // 'sse' | 'stdio' | 'inmemory' | 'http'
+const (
+	MtSSE      MCPType = "sse"
+	MtStdIO    MCPType = "stdio"
+	MtInMemory MCPType = "inmemory"
+	MtHTTP     MCPType = "http"
+)
+
+// MCPServer is a MCP server
 type MCPServer struct {
-	Name string `json:"name" yaml:"name"`
-	URL  string `json:"url" yaml:"url"`
+	Code string  `json:"code" yaml:"code"`
+	Name string  `json:"name" yaml:"name"`
+	Type MCPType `json:"type" yaml:"type"`
+	URL  string  `json:"url" yaml:"url"`
 }

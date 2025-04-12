@@ -1,6 +1,7 @@
 package qas
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/cupogo/andvari/models/oid"
@@ -16,6 +17,20 @@ func (z Documents) IDs() (out oid.OIDs) {
 		out = append(out, doc.ID)
 	}
 	return
+}
+
+func (z Documents) MarkdownText() string {
+	var buf bytes.Buffer
+	for _, doc := range z {
+		buf.WriteString("\n")
+		buf.WriteString("## " + doc.Title)
+		buf.WriteString("\n\n")
+		buf.WriteString("### " + doc.Heading)
+		buf.WriteString("\n\n")
+		buf.WriteString(doc.Content)
+		buf.WriteString("\n\n")
+	}
+	return buf.String()
 }
 
 func (z DocMatches) DocumentIDs() (out oid.OIDs) {

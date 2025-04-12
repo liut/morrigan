@@ -51,6 +51,10 @@ func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
 	}
 }
 
+const authLoginPath = "/api/auth/login"
+const authLogoutPath = "/api/auth/logout"
+const authCallbackPath = "/api/auth/callback"
+
 func (s *server) strapRouter() {
 
 	s.ar.Get("/", handleNoContent)
@@ -62,11 +66,9 @@ func (s *server) strapRouter() {
 		OnTokenGot: s.handleTokenGot,
 	}).Handler()
 
-	s.ar.Route("/api/auth", func(r chi.Router) {
-		r.Get("/login", staffio.LoginHandler)
-		r.Get("/logout", staffio.LogoutHandler)
-		r.Method(http.MethodGet, "/callback", cch)
-	})
+	s.ar.Get(authLoginPath, staffio.LoginHandler)
+	s.ar.Get(authLogoutPath, staffio.LogoutHandler)
+	s.ar.Method(http.MethodGet, authCallbackPath, cch)
 
 	rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)
 	if err != nil {
@@ -89,6 +91,7 @@ func (s *server) strapRouter() {
 		r.Get("/me", handleMe)
 
 		r.Get("/models", s.getModels)
+		r.Get("/tools", s.getTools)
 		r.Get("/welcome", s.getWelcome)
 		r.Get("/history/{cid}", s.getHistory)
 		r.Group(func(gr chi.Router) {
@@ -116,7 +119,7 @@ func (s *server) strapRouter() {
 }
 
 const (
-	tokenCN = "token"
+	tokenCN = "o_token" // from oauth2 provider
 )
 
 func (s *server) buildTokenCookie(value string) *http.Cookie {
@@ -124,11 +127,16 @@ func (s *server) buildTokenCookie(value string) *http.Cookie {
 		Name:     tokenCN,
 		Value:    value,
 		HttpOnly: true,
+		Path:     settings.Current.CookiePath,
 	}
 }
 
 func (s *server) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
-	http.SetCookie(w, s.buildTokenCookie(it.AccessToken))
+	ot := staffio.TokenFromContext(ctx)
+	if ot != nil {
+		logger().Infow("got token", "it", it, "ot", staffio.TokenFromContext(ctx))
+		http.SetCookie(w, s.buildTokenCookie(ot.AccessToken))
+	}
 }
 
 // nolint
@@ -160,9 +168,11 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 type respSession struct {
 	Status string `json:"status"`
 	Data   struct {
-		Auth bool   `json:"auth"`           // need auth
-		User *User  `json:"user,omitempty"` // logined user
-		URI  string `json:"uri,omitempty"`  // uri of auth
+		Auth  bool   `json:"auth"`            // need auth
+		User  *User  `json:"user,omitempty"`  // logined user
+		URI   string `json:"uri,omitempty"`   // uri of auth
+		Model string `json:"model,omitempty"` // for chatgpt-web
+		Token string `json:"token,omitempty"` // token from oauth2 provider
 	} `json:"data"`
 }
 
@@ -171,13 +181,18 @@ func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
 	user, err := staffio.UserFromRequest(r)
 	var res respSession
 	res.Status = "Success"
+	// res.Data.Model = "ChatGPTAPI"
 
 	if settings.Current.AuthRequired {
 		if err == nil {
+			user.Avatar = patchImageURI(user.Avatar, staffio.GetPrefix())
 			res.Data.User = user
+			if token, err := r.Cookie(tokenCN); err == nil {
+				res.Data.Token = token.Value
+			}
 		} else {
 			res.Data.Auth = true
-			res.Data.URI = "/api/auth/login"
+			res.Data.URI = authLoginPath
 		}
 	} else {
 		res.Data.Auth = len(settings.Current.AuthSecret) > 0
