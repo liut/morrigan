@@ -22,7 +22,9 @@ func (z Documents) IDs() (out oid.OIDs) {
 func (z Documents) MarkdownText() string {
 	var buf bytes.Buffer
 	for _, doc := range z {
-		buf.WriteString("\n")
+		buf.WriteString("---")
+		buf.WriteString("ID: " + doc.StringID())
+		buf.WriteString("\n\n")
 		buf.WriteString("## " + doc.Title)
 		buf.WriteString("\n\n")
 		buf.WriteString("### " + doc.Heading)
