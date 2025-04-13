@@ -79,22 +79,27 @@ func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader) error {
 		return fmt.Errorf("invalid csv head: %+v", rec)
 	}
 	var idx int
+	var valid int
 	for {
 		row, err := rd.Read()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				logger().Infow("import docs", "lines", idx, "valid", valid)
 				return nil
 			}
 			return err
 		}
 		idx++
-		if len(row) < 3 || len(row[0]) == 0 || len(row[1]) == 0 {
-			return fmt.Errorf("invalid csv row #%d: %+v", idx, row)
+		if len(row) < 3 || len(row[0]) == 0 || len(row[1]) == 0 || len(row[2]) == 0 {
+			logger().Infow("empty row, skip", "idx", idx, "row", row)
+			// return fmt.Errorf("invalid csv row #%d: %+v", idx, row)
+			continue
 		}
 		err = s.importLine(ctx, row[0], row[1], row[2])
 		if err != nil {
 			return err
 		}
+		valid++
 	}
 }
 
