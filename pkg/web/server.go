@@ -139,8 +139,14 @@ func (s *server) Stop(ctx context.Context) error {
 func (s *server) initTools() {
 	s.tools = append(s.tools,
 		mcp.NewTool(ToolNameKBSearch,
-			mcp.WithDescription("Search knowledge base with text of keywords or subject"),
+			mcp.WithDescription("Search documents in knowledge base with keywords or subject"),
 			mcp.WithString("subject", mcp.Required(), mcp.Description("text of keywords or subject")),
+		),
+		mcp.NewTool(ToolNameKBCreate,
+			mcp.WithDescription("Create new document of knowledge base"),
+			mcp.WithString("title", mcp.Required(), mcp.Description("title of document, like a main name or topic")),
+			mcp.WithString("heading", mcp.Required(), mcp.Description("heading of document, like a sub name or property")),
+			mcp.WithString("content", mcp.Required(), mcp.Description("long text of content of document")),
 		),
 	)
 	logger().Debugw("init tools", "tools", s.tools)

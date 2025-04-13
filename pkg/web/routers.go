@@ -182,7 +182,7 @@ func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
 	var res respSession
 	res.Status = "Success"
 	// res.Data.Model = "ChatGPTAPI"
-
+	logger().Debugw("handle session", "user", user, "err", err)
 	if settings.Current.AuthRequired {
 		if err == nil {
 			user.Avatar = patchImageURI(user.Avatar, staffio.GetPrefix())

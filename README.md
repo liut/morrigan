@@ -4,7 +4,7 @@ OpenAI/ChatGPT Backend with conversation and API
 
 ## Features
  - Import documents of knowledge base from a table (CSV), save them into PostgreSQL
- - Based on the title and content of the document, generate and fill in QA items in the document using some APIs
+ - Based on the title and content of the document, generate vector of documents with Embedding API
  - Summarize the questions and generate corresponding vectors
  - Implement high-quality Q&A using vector search
  - Welcome message and preset messages
@@ -12,6 +12,7 @@ OpenAI/ChatGPT Backend with conversation and API
  - RESTful API
  - Support text/event-stream
  - Login with OAuth2 client for general Security Provider
+ - Inner MCP support
 
 ## Supported Frontend
 

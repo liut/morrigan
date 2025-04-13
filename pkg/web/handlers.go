@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -177,7 +178,15 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 					}
 					switch tc.Function.Name {
 					case ToolNameKBSearch:
-						content, err := s.callQASearch(r.Context(), parameters)
+						content, err := s.callKBSearch(r.Context(), parameters)
+						if err != nil {
+							logger().Infow("chat", "functionCall", tc, "err", err)
+						} else {
+							ccr.Messages = append(ccr.Messages, mcpContentToChatMessage(tc.ID, content))
+							hasToolCall = true
+						}
+					case ToolNameKBCreate:
+						content, err := s.callKBCreate(r.Context(), parameters)
 						if err != nil {
 							logger().Infow("chat", "functionCall", tc, "err", err)
 						} else {
@@ -525,7 +534,7 @@ func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, s.tools, 0)
 }
 
-func (s *server) callQASearch(ctx context.Context, args map[string]any) (mcp.Content, error) {
+func (s *server) callKBSearch(ctx context.Context, args map[string]any) (mcp.Content, error) {
 	logger().Infow("mcp call qa search", "args", args)
 	subjectArg, ok := args["subject"]
 	if !ok {
@@ -550,6 +559,41 @@ func (s *server) callQASearch(ctx context.Context, args map[string]any) (mcp.Con
 	}
 
 	return mcp.NewTextContent(docs.MarkdownText()), nil
+}
+
+func (s *server) callKBCreate(ctx context.Context, args map[string]any) (mcp.Content, error) {
+	user, ok := stores.UserFromContext(ctx)
+	if !ok {
+		return nil, errors.New("only admin can create document")
+	} else {
+		logger().Infow("mcp call qa create", "args", args, "user", user)
+	}
+	titleArg, ok := args["title"]
+	if !ok {
+		return nil, errors.New("missing required argument: title")
+	}
+	headingArg, ok := args["heading"]
+	if !ok {
+		return nil, errors.New("missing required argument: heading")
+	}
+	contentArg, ok := args["content"]
+	if !ok {
+		return nil, errors.New("missing required argument: content")
+	}
+	docBasic := qas.DocumentBasic{
+		Title:   titleArg.(string),
+		Heading: headingArg.(string),
+		Content: contentArg.(string),
+	}
+	docBasic.MetaAddKVs("creator", user.Name)
+	obj, err := s.sto.Qa().CreateDocument(ctx, docBasic)
+	if err != nil {
+		logger().Infow("create document fail", "title", docBasic.Title, "heading", docBasic.Heading,
+			"content", len(docBasic.Content), "err", err)
+		return mcp.NewTextContent(fmt.Sprintf(
+			"Create KB document with title %q and heading %q is failed, %s", docBasic.Title, docBasic.Heading, err)), nil
+	}
+	return mcp.NewTextContent(fmt.Sprintf("Created KB document with ID %s", obj.StringID())), nil
 }
 
 func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {

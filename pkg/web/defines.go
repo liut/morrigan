@@ -111,4 +111,5 @@ type ToolCall = openai.ToolCall
 
 const (
 	ToolNameKBSearch = "kb_search"
+	ToolNameKBCreate = "kb_create"
 )
