@@ -544,6 +544,10 @@ func (s *server) callQASearch(ctx context.Context, args map[string]any) (mcp.Con
 	if err != nil {
 		return nil, err
 	}
+	logger().Infow("matched", "docs", len(docs))
+	if len(docs) == 0 {
+		return mcp.NewTextContent("No relevant information found"), nil
+	}
 
 	return mcp.NewTextContent(docs.MarkdownText()), nil
 }
