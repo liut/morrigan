@@ -23,19 +23,11 @@ func MCPToolsToOpenAITools(tools []mcp.Tool) ([]openai.Tool, error) {
 
 // MCPToolToOpenAITool 将 mcp.Tool 转换为 openai.Tool
 func MCPToolToOpenAITool(tool mcp.Tool) (openai.Tool, error) {
-	paramsDef := jsonschema.Definition{
-		Type:     jsonschema.Object, // OpenAI Function 的 Parameters 类型必须是 "object"
-		Required: tool.InputSchema.Required,
-	}
 	openaiTool := openai.Tool{
 		Type: openai.ToolTypeFunction,
 		Function: &openai.FunctionDefinition{
 			Name:        tool.Name,
 			Description: tool.Description,
-			Parameters: jsonschema.Definition{
-				Type:     jsonschema.Object, // OpenAI Function 的 Parameters 类型必须是 "object"
-				Required: tool.InputSchema.Required,
-			},
 		},
 	}
 
@@ -47,6 +39,11 @@ func MCPToolToOpenAITool(tool mcp.Tool) (openai.Tool, error) {
 		}
 		openaiTool.Function.Parameters = parameter
 	} else {
+		// 使用结构化的 InputSchema
+		paramsDef := jsonschema.Definition{
+			Type:     jsonschema.Object, // OpenAI Function 的 Parameters 类型必须是 "object"
+			Required: tool.InputSchema.Required,
+		}
 		parameters := make(map[string]jsonschema.Definition)
 		for paramName, paramDef := range tool.InputSchema.Properties {
 			if properties, ok := paramDef.(map[string]any); ok {
@@ -61,7 +58,6 @@ func MCPToolToOpenAITool(tool mcp.Tool) (openai.Tool, error) {
 }
 
 func propertiesToDefinition(properties map[string]any) jsonschema.Definition {
-	// 使用结构化的 InputSchema
 	output := jsonschema.Definition{
 		Type: jsonschema.Object, // 默认为对象类型
 	}
