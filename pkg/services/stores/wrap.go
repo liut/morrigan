@@ -23,6 +23,7 @@ type pgTx = pgx.Tx       //nolint
 type pgIdent = pgx.Ident //nolint
 type pgSafe = pgx.Safe   //nolint
 
+type Model = pgx.Model
 type PageSpec = comm.PageSpec
 type ModelSpec = pgx.ModelSpec
 type TextSearchSpec = pgx.TextSearchSpec
@@ -78,6 +79,7 @@ var (
 func init() {
 	pgx.RegisterDbFs(embeds.DBFS(), schemas.SchemaFS())
 	pgx.RegisterMigrationFs(schemas.UpgradesFS())
+	pgx.RegisterMetaUp(dbModelMetaUps)
 }
 
 // vars ...

@@ -10,7 +10,8 @@ require (
 	github.com/go-chi/render v1.0.3
 	github.com/jpillora/eventsource v1.1.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/liut/staffio-client v0.2.5
+	github.com/liut/simpauth v0.1.15
+	github.com/liut/staffio-client v0.2.6
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/mark3labs/mcp-go v0.18.0
 	github.com/redis/go-redis/v9 v9.7.3
@@ -34,7 +35,6 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/liut/simpauth v0.1.15 // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
