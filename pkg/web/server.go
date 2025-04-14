@@ -143,7 +143,7 @@ func (s *server) initTools() {
 			mcp.WithString("subject", mcp.Required(), mcp.Description("text of keywords or subject")),
 		),
 		mcp.NewTool(ToolNameKBCreate,
-			mcp.WithDescription("Create new document of knowledge base"),
+			mcp.WithDescription("Create new document of knowledge base. Note, this is a write operation, all parameters are required."),
 			mcp.WithString("title", mcp.Required(), mcp.Description("title of document, like a main name or topic")),
 			mcp.WithString("heading", mcp.Required(), mcp.Description("heading of document, like a sub name or property")),
 			mcp.WithString("content", mcp.Required(), mcp.Description("long text of content of document")),

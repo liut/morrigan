@@ -41,6 +41,11 @@ type Config struct {
 
 	DateInContext bool `envconfig:"date_in_context"`
 
+	// 相似度阈值 建议范围 0.39 - 0.65
+	VectorThreshold float32 `envconfig:"Vector_Threshold" default:"0.39"`
+	// 相似度匹配数量
+	VectorLimit int `envconfig:"Vector_Limit" default:"5"`
+
 	Embedding Provider
 	Interact  Provider
 	Summarize Provider

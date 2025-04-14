@@ -35,6 +35,14 @@ func (z Documents) MarkdownText() string {
 	return buf.String()
 }
 
+func (z Documents) Headings() []string {
+	out := make([]string, 0, len(z))
+	for _, doc := range z {
+		out = append(out, doc.Heading)
+	}
+	return out
+}
+
 func (z DocMatches) DocumentIDs() (out oid.OIDs) {
 	m := make(map[oid.OID]array.Empty)
 	for _, p := range z {
@@ -42,6 +50,14 @@ func (z DocMatches) DocumentIDs() (out oid.OIDs) {
 	}
 	for k := range m {
 		out = append(out, k)
+	}
+	return
+}
+
+func (z DocMatches) Subjects() (out []string) {
+	out = make([]string, 0, len(z))
+	for _, p := range z {
+		out = append(out, p.Subject)
 	}
 	return
 }
