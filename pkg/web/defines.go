@@ -15,7 +15,7 @@ const (
 	esDone = "[DONE]"
 
 	dftSystemMsg = "You are a helpful assistant."
-	dftToolsMsg  = "你将根据用户的问题，选择合适的工具，并调用工具来解决问题. 如果工具需要参数，一定要从用户的问题中提取出参数. "
+	dftToolsMsg  = "You will select the appropriate tool based on the user's question and call the tool to solve the problem. If the tool requires parameters, you must extract them from the user's question. Note that it is important to clearly distinguish between read and write operations. If a write operation is required by the tool, it must be explicitly stated in the user's question for writing purposes (such as adding, creating, appending, modifying, etc.), and all necessary parameters for the tool must be included in the user's question before calling; otherwise, treat it as a regular read operation or Q&A."
 	welcomeText  = "Hello, I am your virtual assistant. How can I help you?"
 )
 
