@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/pmezard/go-difflib/difflib"
 	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/qas"
@@ -61,7 +62,7 @@ func validHead(rec []string) bool {
 }
 
 type qaStoreX interface {
-	ImportDocs(ctx context.Context, r io.Reader) error
+	ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error
 	ExportDocs(ctx context.Context, ea ExportArg) error
 	EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
@@ -69,7 +70,7 @@ type qaStoreX interface {
 	MatchVectorWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.DocMatches, err error)
 }
 
-func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader) error {
+func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
 	rd := csv.NewReader(r)
 	rec, err := rd.Read()
 	if err != nil {
@@ -78,6 +79,7 @@ func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader) error {
 	if !validHead(rec) {
 		return fmt.Errorf("invalid csv head: %+v", rec)
 	}
+
 	var idx int
 	var valid int
 	for {
@@ -95,7 +97,11 @@ func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader) error {
 			// return fmt.Errorf("invalid csv row #%d: %+v", idx, row)
 			continue
 		}
-		err = s.importLine(ctx, row[0], row[1], row[2])
+		err = s.importLine(ctx, qas.DocumentBasic{
+			Title:   row[0],
+			Heading: row[1],
+			Content: row[2],
+		}, lw)
 		if err != nil {
 			return err
 		}
@@ -103,19 +109,26 @@ func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader) error {
 	}
 }
 
-func (s *qaStore) importLine(ctx context.Context, title, heading, content string) error {
+func (s *qaStore) importLine(ctx context.Context, basic qas.DocumentBasic, lw io.Writer) error {
 	doc := new(qas.Document)
-	content = replText.Replace(content)
-	err := dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", title, heading)
+	basic.Content = replText.Replace(basic.Content)
+	err := dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", basic.Title, basic.Heading)
 	if err != nil {
-		doc, err = s.CreateDocument(ctx, qas.DocumentBasic{
-			Title:   title,
-			Heading: heading,
-			Content: content,
-		})
+		doc, err = s.CreateDocument(ctx, basic)
 	} else {
+		if doc.Content != basic.Content {
+			logger().Infow("updating", "id", doc.ID, "title", basic.Title, "heading", basic.Heading)
+			dif := diff2(doc.Content, basic.Content)
+			if lw != nil {
+				if _, werr := fmt.Fprintf(lw, "Doc ID: %s, Title: %s, Heading: %s\nDiff:\n%s\n\n",
+					doc.StringID(), basic.Title, basic.Heading, dif); werr != nil {
+					logger().Infow("write diff fail", "lw", lw, "err", werr)
+				}
+			}
+
+		}
 		err = s.UpdateDocument(ctx, doc.StringID(), qas.DocumentSet{
-			Content: &content,
+			Content: &basic.Content,
 		})
 	}
 	if err != nil {
@@ -123,6 +136,18 @@ func (s *qaStore) importLine(ctx context.Context, title, heading, content string
 		return err
 	}
 	return nil
+}
+
+func diff2(text1, text2 string) string {
+	diff := difflib.UnifiedDiff{
+		A:        difflib.SplitLines(text1),
+		B:        difflib.SplitLines(text2),
+		FromFile: "Original",
+		ToFile:   "Current",
+		Context:  3,
+	}
+	text, _ := difflib.GetUnifiedDiffString(diff)
+	return text
 }
 
 func (s *qaStore) afterCreatedQaDocument(ctx context.Context, obj *qas.Document) error {

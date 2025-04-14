@@ -35,7 +35,19 @@ func importDocs(cc *cli.Context) error {
 		return err
 	}
 	defer file.Close()
-	err = stores.Sgt().Qa().ImportDocs(context.Background(), file)
+	difflog := cc.String("diff")
+	var lw *os.File // log write dat
+	if len(difflog) > 0 {
+		lw, err = os.Create(difflog)
+		if err != nil {
+			logger().Warnw("create fail", "difflog", difflog, "err", err)
+			return err
+		}
+		defer lw.Close()
+	} else {
+		lw = os.Stderr
+	}
+	err = stores.Sgt().Qa().ImportDocs(context.Background(), file, lw)
 	if err != nil {
 		logger().Warnw("import fail", "input", input, "err", err)
 		return err
@@ -106,6 +118,9 @@ func main() {
 				Name:   "import",
 				Usage:  "import documents from a csv",
 				Action: importDocs,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "diff", Aliases: []string{"diff-log"}, Value: "", Usage: "a filename of diff"},
+				},
 			},
 			{
 				Name:    "export",
