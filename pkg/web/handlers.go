@@ -25,24 +25,6 @@ import (
 	"github.com/liut/morrigan/pkg/settings"
 )
 
-func (s *server) getModels(w http.ResponseWriter, r *http.Request) {
-	res, err := s.oc.ListModels(r.Context())
-	if err != nil {
-		apiFail(w, r, 400, err)
-		return
-	}
-	apiOk(w, r, res)
-}
-
-// func (s *server) getModel(w http.ResponseWriter, r *http.Request) {
-// 	res, err := s.oc.RetrieveModel(r.Context(), chi.URLParam(r, "id"))
-// 	if err != nil {
-// 		apiFail(w, r, 400, err)
-// 		return
-// 	}
-// 	apiOk(w, r, res, 0)
-// }
-
 func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *ChatCompletionRequest {
 	cs := stores.NewConversation(csid)
 	var messages []ChatCompletionMessage

@@ -90,7 +90,6 @@ func (s *server) strapRouter() {
 		r.Use(s.authMw(false))
 		r.Get("/me", handleMe)
 
-		r.Get("/models", s.getModels)
 		r.Get("/tools", s.getTools)
 		r.Get("/welcome", s.getWelcome)
 		r.Get("/history/{cid}", s.getHistory)
