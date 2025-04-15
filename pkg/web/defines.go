@@ -110,8 +110,6 @@ type ChatMessage struct {
 }
 
 type ChatResponse struct {
-	cm *ChatMessage
-
 	answer    string
 	toolCalls []ToolCall
 	usage     *openai.Usage
