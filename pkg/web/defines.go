@@ -40,6 +40,7 @@ type ChatCompletionRequest struct {
 	cs    stores.Conversation
 	hi    *aigc.HistoryItem
 
+	// for response
 	chunkIdx int
 }
 
@@ -47,6 +48,7 @@ type ChatRequest struct {
 	Prompt          string `json:"prompt"`
 	ConversationID  string `json:"csid"`
 	ParentMessageID string `json:"pmid"`
+	Regenerate      bool   `json:"regen"`
 	Stream          bool   `json:"stream"`
 	Full            bool   `json:"full,omitempty"`
 
@@ -54,6 +56,16 @@ type ChatRequest struct {
 	Options struct {
 		ConversationId string `json:"conversationId,omitempty"`
 	} `json:"options,omitempty"`
+}
+
+func (z *ChatRequest) GetConversionID() string {
+	if z.ConversationID != "" {
+		return z.ConversationID
+	}
+	if z.Options.ConversationId != "" {
+		return z.Options.ConversationId
+	}
+	return ""
 }
 
 type ChatCompletionChoice struct {
@@ -94,8 +106,15 @@ type ChatMessage struct {
 
 	FinishReason string `json:"finishReason,omitempty"`
 
-	// for github.com/Chanzhaoyu/chatgpt-web only
-	ConversationId string `json:"conversationId,omitempty"`
+	ConversationID string `json:"csid,omitempty"`
+}
+
+type ChatResponse struct {
+	cm *ChatMessage
+
+	answer    string
+	toolCalls []ToolCall
+	usage     *openai.Usage
 }
 
 type CompletionMessage struct {

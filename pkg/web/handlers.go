@@ -25,8 +25,8 @@ import (
 	"github.com/liut/morrigan/pkg/settings"
 )
 
-func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *ChatCompletionRequest {
-	cs := stores.NewConversation(csid)
+func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatCompletionRequest {
+	cs := stores.NewConversation(param.GetConversionID())
 	var messages []ChatCompletionMessage
 
 	systemPrompt := dftSystemMsg
@@ -44,11 +44,11 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	var matched int
 	if len(s.tools) == 0 { // 没有工具，使用问答
 		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
-			Question: prompt,
+			Question: param.Prompt,
 			Limit:    5,
 		})
 		if err == nil {
-			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
+			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)
 			for _, doc := range docs {
 				matched++
 				logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
@@ -66,7 +66,7 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	if err == nil && len(data) > 0 {
 		logger().Infow("found history", "size", len(data))
 		data = data.RecentlyWithTokens(historyLimitToken)
-		for _, hi := range data {
+		for i, hi := range data {
 			if hi.ChatItem != nil {
 				if len(hi.ChatItem.User) > 0 {
 					messages = append(messages, ChatCompletionMessage{
@@ -75,6 +75,10 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 				if len(hi.ChatItem.Assistant) > 0 {
 					messages = append(messages, ChatCompletionMessage{
 						Role: openai.ChatMessageRoleAssistant, Content: hi.ChatItem.Assistant})
+				}
+				// skip the last one
+				if i == len(data)-1 && param.Regenerate {
+					break
 				}
 			}
 		}
@@ -99,12 +103,12 @@ func (s *server) prepareChatRequest(ctx context.Context, prompt, csid string) *C
 	}
 	ccr.Messages = append(messages, ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
-		Content: prompt,
+		Content: param.Prompt,
 	})
 	ccr.hi = &aigc.HistoryItem{
 		Time: time.Now().Unix(),
 		ChatItem: &aigc.HistoryChatItem{
-			User: prompt,
+			User: param.Prompt,
 		},
 	}
 
@@ -120,14 +124,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	isProcess := strings.HasSuffix(r.URL.Path, "-process")
 	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
 	isStream := param.Stream || isSSE || isProcess
-	var csid string
-	if len(param.ConversationID) > 0 {
-		csid = param.ConversationID
-	} else {
-		// for github.com/Chanzhaoyu/chatgpt-web only
-		csid = param.Options.ConversationId
-	}
-	ccr := s.prepareChatRequest(r.Context(), param.Prompt, csid)
+	ccr := s.prepareChatRequest(r.Context(), &param)
 
 	ccr.Stream = isStream
 	if settings.Current.AuthRequired {
@@ -139,17 +136,17 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	ccr.isSSE = isSSE
 
 	// logger().Infow("chat", "id", csid, "prompt", param.Prompt, "stream", isStream)
-	logger().Infow("chat", "csid", csid, "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
+	logger().Infow("chat", "csid", param.GetConversionID(), "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	if ccr.Stream {
-		answer, toolCalls := s.chatStreamResponse(ccr, w, r)
-		if len(toolCalls) > 0 {
+		res := s.chatStreamResponse(ccr, w, r)
+		if len(res.toolCalls) > 0 {
 			var hasToolCall bool
 			ccr.Messages = append(ccr.Messages, openai.ChatCompletionMessage{
 				Role:      openai.ChatMessageRoleAssistant,
-				ToolCalls: toolCalls,
+				ToolCalls: res.toolCalls,
 			})
-			for _, tc := range toolCalls {
+			for _, tc := range res.toolCalls {
 				logger().Infow("chat", "toolCall", tc)
 				if tc.Type == "function" {
 					logger().Infow("chat", "functionCall", tc)
@@ -180,21 +177,24 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			}
 			if hasToolCall {
 				// 继续调用
-				answer, _ = s.chatStreamResponse(ccr, w, r)
+				res = s.chatStreamResponse(ccr, w, r)
 			}
 		}
-		if len(answer) > 0 {
-			ccr.hi.ChatItem.Assistant = answer
+		if len(res.answer) > 0 {
+			ccr.hi.ChatItem.Assistant = res.answer
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
 
 			if settings.Current.QAChatLog {
 				in := qas.ChatLogBasic{
 					ChatID:   ccr.cs.GetOID(),
 					Question: param.Prompt,
-					Answer:   answer,
+					Answer:   res.answer,
 				}
 				ip, _, _ := strings.Cut(r.RemoteAddr, ":")
 				in.MetaAddKVs("ip", ip)
+				if res.usage != nil {
+					in.MetaAddKVs("usage", res.usage)
+				}
 				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), in)
 				if err != nil {
 					logger().Infow("save chat log fail", "err", err)
@@ -245,7 +245,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, &cm)
 }
 
-func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (answer string, toolCalls []ToolCall) {
+func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
@@ -273,7 +273,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	var cm ChatMessage
 	if !ccr.isSSE {
 		// for github.com/Chanzhaoyu/chatgpt-web chat-process only
-		cm.ConversationId = cm.ID
+		cm.ConversationID = cm.ID
 	}
 
 	var finishReason string
@@ -303,16 +303,16 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			cm.ToolCalls = ccsr.Choices[0].Delta.ToolCalls
 			finishReason = string(ccsr.Choices[0].FinishReason)
 			cm.Delta = ccsr.Choices[0].Delta.Content
-			answer += cm.Delta
+			res.answer += cm.Delta
 			if len(cm.ToolCalls) > 0 {
-				if toolCalls == nil {
-					toolCalls = cm.ToolCalls
+				if res.toolCalls == nil {
+					res.toolCalls = cm.ToolCalls
 				} else {
 					for i, tc := range cm.ToolCalls {
-						if len(toolCalls) <= i {
-							toolCalls = append(toolCalls, tc)
+						if len(res.toolCalls) <= i {
+							res.toolCalls = append(res.toolCalls, tc)
 						} else {
-							toolCalls[i].Function.Arguments += tc.Function.Arguments
+							res.toolCalls[i].Function.Arguments += tc.Function.Arguments
 						}
 					}
 				}
@@ -320,6 +320,9 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 
 			cm.FinishReason = finishReason
 			if ccr.isSSE {
+				if len(finishReason) > 0 && finishReason == "stop" {
+					cm.ConversationID = ccr.cs.GetID()
+				}
 				if wrote = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
 					break
 				}
@@ -332,15 +335,15 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 			}
 			flusher.Flush()
 			if len(finishReason) > 0 {
-				logger().Infow("stream done", "reason", finishReason, "tc", toolCalls, "answer", answer)
-				if len(toolCalls) == 0 {
+				logger().Infow("stream done", "reason", finishReason, "tc", res.toolCalls, "answer", res.answer)
+				if len(res.toolCalls) == 0 {
 					finalFinishFn(finishReason)
 				}
 				break
 			}
 		}
 	}
-	logger().Infow("ccs recv done", "answer", len(answer))
+	logger().Infow("ccs recv done", "answer", len(res.answer))
 	// TODO: 处理工具调用
 	return
 }
