@@ -1,5 +1,6 @@
 package stores
 
 type Storage interface {
-	Qa() QaStore // gened
+	Qa() QaStore   // gened
+	MCP() MCPStore // gened
 }

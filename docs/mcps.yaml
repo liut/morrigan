@@ -1,0 +1,92 @@
+
+depends:
+  comm: 'github.com/cupogo/andvari/models/comm'
+  oid: 'github.com/cupogo/andvari/models/oid'
+
+enums:
+
+  - comment: MCP 传输类型
+    name: TransType
+    start: 1 
+    type: int8
+    values:
+      - label: 标准IO
+        suffix: StdIO
+      - label: SSE
+        suffix: SSE
+      - label: HTTP
+        suffix: HTTP
+      - label: 内部运行
+        suffix: InMemory
+    stringer: true
+    decodable: true
+    textMarshaler: true
+    textUnmarshaler: true
+
+  - comment: 状态
+    name: Status
+    start: 0
+    type: int8
+    values:
+      - label: 已停止
+        suffix: Stopped
+      - label: 运行中
+        suffix: Running
+    stringer: true
+    decodable: true
+    textMarshaler: true
+    textUnmarshaler: true
+
+
+dbcode: bun
+modelpkg: mcps
+
+models:
+
+  - name: Server
+    comment: '服务器'
+    tableTag: 'qa_mcp_server,alias:s'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 名称
+        name: Name
+        type: string
+        tags: {bson: 'name', json: 'name', pg: ',notnull', binding: 'required'}
+        isset: true
+        query: 'match'
+      - comment: 传输类型
+        name: TransType
+        type: TransType
+        tags: {bson: 'transType', json: 'transType', pg: ',notnull,type:smallint'}
+        isset: true
+        query: 'equal,decode'
+      - comment: 指令 仅对 TransType 为 StdIO 时有效
+        name: Command
+        type: string
+        tags: {bson: 'command', json: 'command', pg: ',notnull'}
+        isset: true
+      - comment: 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
+        name: URL
+        type: string
+        tags: {bson: 'url', json: 'url', pg: ',notnull'}
+      - comment: '状态'
+        name: Status
+        type: Status
+        tags: {bson: 'status', json: 'status', pg: ',notnull,type:smallint'}
+        isset: true
+        query: 'equal'
+      - comment: 备注
+        name: Remark
+        type: string
+        tags: {bson: 'remark', json: 'remark', pg: ',notnull'}
+        isset: true
+      - type: comm.MetaField
+    oidcat: file
+    specNs: MCP
+
+stores:
+  - name: mcpStore
+    iname: MCPStore
+    siname: MCP
+    hods:
+      - { name: Server, type: LGCUD }
