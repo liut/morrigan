@@ -13,7 +13,7 @@ require (
 	github.com/liut/simpauth v0.1.15
 	github.com/liut/staffio-client v0.2.6
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
-	github.com/mark3labs/mcp-go v0.18.0
+	github.com/mark3labs/mcp-go v0.21.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/sashabaranov/go-openai v1.38.1
