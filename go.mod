@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
+	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/cupogo/andvari v0.0.0-20250401053723-7ebc04264991
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-chi/render v1.0.3
@@ -28,7 +29,9 @@ require (
 replace github.com/mark3labs/mcp-go v0.18.0 => github.com/cupogo/mcp-go v0.0.0-20250409034557-54d186f97479
 
 require (
+	github.com/PuerkitoBio/goquery v1.9.2 // indirect
 	github.com/ajg/form v1.5.1 // indirect
+	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -56,6 +59,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	mellium.im/sasl v0.3.2 // indirect

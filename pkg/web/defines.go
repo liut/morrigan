@@ -52,6 +52,8 @@ type ChatRequest struct {
 	Stream          bool   `json:"stream"`
 	Full            bool   `json:"full,omitempty"`
 
+	MCPs []string `json:"mcps,omitempty"`
+
 	// deprecated: for github.com/Chanzhaoyu/chatgpt-web only
 	Options struct {
 		ConversationId string `json:"conversationId,omitempty"`
@@ -129,4 +131,6 @@ type ToolCall = openai.ToolCall
 const (
 	ToolNameKBSearch = "kb_search"
 	ToolNameKBCreate = "kb_create"
+
+	ToolNameFetch = "fetch"
 )

@@ -149,34 +149,25 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			for _, tc := range res.toolCalls {
 				logger().Infow("chat", "toolCall", tc)
 				if tc.Type == "function" {
-					logger().Infow("chat", "functionCall", tc)
+					logger().Infow("chat found function", "toolCall", tc)
 					var parameters map[string]any
 					if err := json.Unmarshal([]byte(tc.Function.Arguments), &parameters); err != nil {
-						logger().Infow("chat", "functionCall", tc, "err", err)
+						logger().Infow("chat", "toolCall", tc, "err", err)
 						continue
 					}
-					switch tc.Function.Name {
-					case ToolNameKBSearch:
-						content, err := s.callKBSearch(r.Context(), parameters)
-						if err != nil {
-							logger().Infow("chat", "functionCall", tc, "err", err)
-						} else {
-							ccr.Messages = append(ccr.Messages, mcpContentToChatMessage(tc.ID, content))
-							hasToolCall = true
-						}
-					case ToolNameKBCreate:
-						content, err := s.callKBCreate(r.Context(), parameters)
-						if err != nil {
-							logger().Infow("chat", "functionCall", tc, "err", err)
-						} else {
-							ccr.Messages = append(ccr.Messages, mcpContentToChatMessage(tc.ID, content))
-							hasToolCall = true
-						}
+					content, err := s.invokeTool(r.Context(), tc.Function.Name, parameters)
+					if err != nil {
+						logger().Infow("invokeTool fail", "toolCall", tc, "err", err)
+					} else {
+						logger().Debugw("invokeTool ok", "toolCall", tc, "content", content)
+						ccr.Messages = append(ccr.Messages, mcpContentToChatMessage(tc.ID, content))
+						hasToolCall = true
 					}
 				}
 			}
 			if hasToolCall {
 				// 继续调用
+				ccr.Tools = nil // 清除工具，有时会导致死循环
 				res = s.chatStreamResponse(ccr, w, r)
 			}
 		}
@@ -579,6 +570,60 @@ func (s *server) callKBCreate(ctx context.Context, args map[string]any) (mcp.Con
 			"Create KB document with title %q and heading %q is failed, %s", docBasic.Title, docBasic.Heading, err)), nil
 	}
 	return mcp.NewTextContent(fmt.Sprintf("Created KB document with ID %s", obj.StringID())), nil
+}
+
+func (s *server) callFetch(ctx context.Context, args map[string]any) (mcp.Content, error) {
+
+	var (
+		urlStr     string
+		maxLength  int
+		startIndex int
+		raw        bool
+	)
+	if s, ok := args["url"]; ok {
+		urlStr = s.(string)
+	}
+	if s, ok := args["max_length"]; ok {
+		maxLength = int(s.(float64))
+	}
+	if s, ok := args["start_index"]; ok {
+		startIndex = int(s.(float64))
+	}
+	if s, ok := args["raw"]; ok {
+		raw = s.(bool)
+	}
+
+	// Fetch URL
+	content, prefix, err := fetchURL(ctx, urlStr, DEFAULT_USER_AGENT_AUTONOMOUS, raw)
+	if err != nil {
+		logger().Infow("fetch", "url", urlStr, "err", err)
+		return mcp.NewTextContent(err.Error()), nil
+		// return nil, err
+	}
+	logger().Debugw("fetch", "url", urlStr, "content", content, "prefix", prefix)
+
+	// Handle truncation
+	originalLength := len(content)
+	if startIndex >= originalLength {
+		content = "<error>No more content available.</error>"
+	} else {
+		endIndex := min(startIndex+maxLength, originalLength)
+		truncatedContent := content[startIndex:endIndex]
+		if len(truncatedContent) == 0 {
+			content = "<error>No more content available.</error>"
+		} else {
+			content = truncatedContent
+			actualContentLength := len(truncatedContent)
+			remainingContent := originalLength - (startIndex + actualContentLength)
+			if actualContentLength == maxLength && remainingContent > 0 {
+				nextStart := startIndex + actualContentLength
+				content += fmt.Sprintf("\n\n<error>Content truncated. Call the fetch tool with a start_index of %d to get more content.</error>", nextStart)
+			}
+		}
+	}
+	logger().Debugw("fetch", "url", urlStr, "content", content, "prefix", prefix)
+
+	return mcp.NewTextContent(fmt.Sprintf("%s\nContents of %s:\n%s", prefix, urlStr, content)), nil
 }
 
 func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {

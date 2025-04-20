@@ -32,6 +32,8 @@ type Config struct {
 	DocHandler http.Handler
 }
 
+type ToolCallFunc = func(ctx context.Context, params map[string]any) (mcp.Content, error)
+
 type server struct {
 	Addr string
 	cfg  Config
@@ -47,6 +49,8 @@ type server struct {
 	preset aigc.Preset
 	mcpcs  map[string]client.MCPClient // with token key, like session
 	tools  []mcp.Tool                  // preset tools
+
+	invokers map[string]ToolCallFunc
 }
 
 // New return new web server
@@ -59,11 +63,12 @@ func New(cfg Config) Service {
 
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
-		cfg:    cfg,
-		sto:    stores.Sgt(),
-		oc:     stores.GetInteractAIClient(),
-		cmodel: settings.Current.ChatModel,
-		mcpcs:  make(map[string]client.MCPClient),
+		cfg:      cfg,
+		sto:      stores.Sgt(),
+		oc:       stores.GetInteractAIClient(),
+		cmodel:   settings.Current.ChatModel,
+		mcpcs:    make(map[string]client.MCPClient),
+		invokers: make(map[string]ToolCallFunc),
 	}
 	s.initTools()
 
@@ -148,6 +153,47 @@ func (s *server) initTools() {
 			mcp.WithString("heading", mcp.Required(), mcp.Description("heading of document, like a sub name or property")),
 			mcp.WithString("content", mcp.Required(), mcp.Description("long text of content of document")),
 		),
+		mcp.NewTool(ToolNameFetch,
+			mcp.WithDescription("Fetches a URL from the internet and optionally extracts its contents as markdown"),
+			mcp.WithString("url",
+				mcp.Required(),
+				mcp.Description("URL to fetch"),
+			),
+			mcp.WithNumber("max_length",
+				mcp.DefaultNumber(5000),
+				mcp.Description("Maximum number of characters to return, default 5000"),
+				mcp.Min(0),
+				mcp.Max(1000000),
+			),
+			mcp.WithNumber("start_index",
+				mcp.DefaultNumber(0),
+				mcp.Description("On return output starting at this character index, default 0"),
+				mcp.Min(0),
+			),
+			mcp.WithBoolean("raw",
+				mcp.DefaultBool(false),
+				mcp.Description("Get the actual HTML content without simplification, dfault false"),
+			),
+		),
 	)
 	logger().Debugw("init tools", "tools", s.tools)
+	s.invokers = map[string]ToolCallFunc{
+		ToolNameKBSearch: s.callKBSearch,
+		ToolNameKBCreate: s.callKBCreate,
+		ToolNameFetch:    s.callFetch,
+	}
+}
+
+func (s *server) invokeTool(ctx context.Context, toolName string, params map[string]any) (mcp.Content, error) {
+	if toolName == "" {
+		return mcp.NewTextContent("tool name is empty"), nil
+	}
+	logger().Debugw("invoking", "toolName", toolName, "params", params)
+	for key, vfn := range s.invokers {
+		if strings.EqualFold(key, toolName) {
+			return vfn(ctx, params)
+		}
+	}
+	// TODO: check if tool is in s.tools
+	return mcp.NewTextContent("tool not found"), nil
 }
