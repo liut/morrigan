@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
-	github.com/cupogo/andvari v0.0.0-20250401053723-7ebc04264991
+	github.com/cupogo/andvari v0.0.0-20250520093111-3949efde97d2
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-chi/render v1.0.3
 	github.com/jpillora/eventsource v1.1.0
@@ -60,9 +60,9 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	mellium.im/sasl v0.3.2 // indirect
 )
