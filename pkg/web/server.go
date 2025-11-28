@@ -148,7 +148,7 @@ func (s *server) initTools() {
 			mcp.WithString("subject", mcp.Required(), mcp.Description("text of keywords or subject")),
 		),
 		mcp.NewTool(ToolNameKBCreate,
-			mcp.WithDescription("Create new document of knowledge base. Note, this is a write operation, all parameters are required."),
+			mcp.WithDescription("Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it. Before invoking, always perform a kb_search to confirm there is no corresponding subject or content. If similar content already exists, do not invoke even if requested by the user!"),
 			mcp.WithString("title", mcp.Required(), mcp.Description("title of document, like a main name or topic")),
 			mcp.WithString("heading", mcp.Required(), mcp.Description("heading of document, like a sub name or property")),
 			mcp.WithString("content", mcp.Required(), mcp.Description("long text of content of document")),
