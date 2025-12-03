@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
-	github.com/cupogo/andvari v0.0.0-20251105053950-acc405f0a06e
+	github.com/cupogo/andvari v0.0.0-20251203082626-b75e99e63e73
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/render v1.0.3
 	github.com/jpillora/eventsource v1.1.0
@@ -16,11 +16,10 @@ require (
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/mark3labs/mcp-go v0.43.1
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/redis/go-redis/v9 v9.17.1
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/stretchr/testify v1.11.1
 	github.com/ulule/limiter/v3 v3.11.2
-	github.com/uptrace/bun/dialect/pgdialect v1.2.15
 	github.com/urfave/cli/v2 v2.27.7
 	go.uber.org/zap v1.27.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -49,8 +48,10 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tinylib/msgp v1.5.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun v1.2.15 // indirect
-	github.com/uptrace/bun/driver/pgdriver v1.2.15 // indirect
+	github.com/uptrace/bun v1.2.16 // indirect
+	github.com/uptrace/bun/dialect/pgdialect v1.2.16 // indirect
+	github.com/uptrace/bun/driver/pgdriver v1.2.16 // indirect
+	github.com/uptrace/bun/extra/bunotel v1.2.16 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

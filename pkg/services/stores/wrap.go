@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/uptrace/bun/dialect/pgdialect"
-
 	"github.com/cupogo/andvari/database/embeds"
 	"github.com/cupogo/andvari/models/comm"
 	"github.com/cupogo/andvari/stores/pgx"
@@ -32,8 +30,7 @@ type StringsDiff = pgx.StringsDiff
 // vars
 // nolint
 var (
-	pgIn    = pgx.In
-	pgArray = pgdialect.Array
+	pgIn = pgx.In
 
 	ErrNoRows   = pgx.ErrNoRows
 	ErrNotFound = pgx.ErrNotFound
