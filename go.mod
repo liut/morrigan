@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
-	github.com/cupogo/andvari v0.0.0-20251203082626-b75e99e63e73
+	github.com/cupogo/andvari v0.0.0-20251217045646-73c6e90dcef0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/render v1.0.3
 	github.com/jpillora/eventsource v1.1.0
