@@ -48,8 +48,13 @@ func NewOpenAIClient(args ...string) *openai.Client {
 		Timeout:   openaiTimeout,
 		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
 	}
+	baseURL := settings.Current.OpenAIBase
 	if len(args) > 1 && len(args[1]) > 0 {
-		occ.BaseURL = args[1]
+		baseURL = args[1]
 	}
+	if len(baseURL) > 0 {
+		occ.BaseURL = baseURL
+	}
+
 	return openai.NewClientWithConfig(occ)
 }
