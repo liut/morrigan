@@ -1,6 +1,6 @@
 # Morrigan
 
-OpenAI/ChatGPT Backend with conversation and API
+Backend implementation of a knowledge base system for AI chat.
 
 ## Features
  - Import documents of knowledge base from a table (CSV), save them into PostgreSQL
