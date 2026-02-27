@@ -103,6 +103,30 @@ go run . usage
 4. **API 响应**: 使用 `render.JSON` 返回 JSON 响应，错误使用 `apiFail`
 5. **类型断言**: 需要做类型断言时注意处理 `ok` 检查
 
+## LLM 幻觉防护
+
+项目已实现多层防护机制，避免 LLM 在知识库未命中时编造答案：
+
+1. **系统提示约束** (`pkg/web/defines.go`)
+   - `dftSystemMsg`: 无工具场景，添加"不知道时诚实回答"约束
+   - `dftToolsMsg`: 工具场景，添加类似约束
+
+2. **检索未命中处理** (`pkg/web/handlers.go`)
+   - 当知识库检索无结果时，添加明确的 System 消息提示
+
+3. **检索命中处理** (`pkg/web/handlers.go`)
+   - 命中文档拼接为单个 System 消息，格式：
+     ```
+     Found X relevant documents in the knowledge base:
+
+     Heading1
+     Content1
+
+     Heading2
+     Content2
+     ...
+     ```
+
 ## 关键文件说明
 
 ### main.go
@@ -114,8 +138,12 @@ go run . usage
 
 - `postChat`: 处理聊天请求，支持流式响应 (SSE)
 - `postCompletions`: 处理补全请求
-- `prepareChatRequest`: 构建聊天请求，包含历史记录和向量匹配
-- `callKBSearch`, `callKBCreate`, `callFetch`: MCP 工具实现
+- `prepareChatRequest`: 构建聊天请求，包含历史记录和 RAG 检索结果
+
+### pkg/services/tools/invokers.go
+
+- MCP 工具实现：`callKBSearch`, `callKBCreate`, `callFetch`
+- `fetchURL`: 网页内容获取，支持 HTML 转 Markdown
 
 ### pkg/services/stores/
 
