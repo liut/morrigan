@@ -23,9 +23,9 @@ jobs:
       run: go vet -v ./...
 
     - name: lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
-        version: v1.64
+        version: v2.6
 
     - name: test models
       run: go test -v ./pkg/models/...
