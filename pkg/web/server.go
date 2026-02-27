@@ -29,8 +29,7 @@ type Config struct {
 	Addr  string
 	Debug bool
 
-	DocHandler     http.Handler
-	EnableKBTools  bool
+	DocHandler http.Handler
 }
 
 type server struct {
@@ -43,12 +42,12 @@ type server struct {
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
 
-	cmodel string // openAI chat model
-	authzr staffio.Authorizer
-	oc     *openai.Client
-	preset aigc.Preset
-	mcpcs  map[string]client.MCPClient // with token key, like session
-	tools  *tools.Registry             // tool registry
+	cmodel  string // openAI chat model
+	authzr  staffio.Authorizer
+	oc      *openai.Client
+	preset  aigc.Preset
+	mcpcs   map[string]client.MCPClient // with token key, like session
+	toolreg *tools.Registry             // tool registry
 }
 
 // New return new web server
@@ -72,7 +71,7 @@ func New(cfg Config) Service {
 	s.rag = stores.NewRAGService(kbProvider)
 
 	// Initialize tools registry
-	s.tools = tools.NewRegistry(stores.Sgt())
+	s.toolreg = tools.NewRegistry(stores.Sgt())
 
 	s.authzr = staffio.NewAuth(staffio.WithCookie(
 		settings.Current.CookieName,

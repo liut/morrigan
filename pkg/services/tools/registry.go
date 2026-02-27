@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/liut/morrigan/pkg/services/stores"
 )
 
@@ -41,10 +42,6 @@ func (r *Registry) Invoke(ctx context.Context, name string, params map[string]an
 		}
 	}
 	return mcp.NewTextContent("tool not found"), nil
-}
-
-type Config struct {
-	EnableKBTools bool
 }
 
 func (r *Registry) initTools() {

@@ -41,7 +41,7 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	})
 
 	var matched int
-	if len(s.tools.Tools()) == 0 { // 没有工具，使用问答
+	if len(s.toolreg.Tools()) == 0 { // 没有工具，使用问答
 		result, err := s.rag.Search(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
@@ -86,9 +86,9 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	ccr.Model = s.cmodel
 	ccr.cs = cs
 
-	if len(s.tools.Tools()) > 0 {
+	if len(s.toolreg.Tools()) > 0 {
 		// 为LLM转换工具结构
-		if tools, err := mcputils.MCPToolsToOpenAITools(s.tools.Tools()); err == nil {
+		if tools, err := mcputils.MCPToolsToOpenAITools(s.toolreg.Tools()); err == nil {
 			ccr.Tools = tools
 			toolsPrompt := dftToolsMsg
 			if len(s.preset.ToolsPrompt) > 0 {
@@ -154,7 +154,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 						logger().Infow("chat", "toolCall", tc, "err", err)
 						continue
 					}
-					content, err := s.tools.Invoke(r.Context(), tc.Function.Name, parameters)
+					content, err := s.toolreg.Invoke(r.Context(), tc.Function.Name, parameters)
 					if err != nil {
 						logger().Infow("invokeTool fail", "toolCall", tc, "err", err)
 					} else {
@@ -504,7 +504,7 @@ func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
-	apiOk(w, r, s.tools.Tools(), 0)
+	apiOk(w, r, s.toolreg.Tools(), 0)
 }
 
 func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {
