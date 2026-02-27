@@ -12,11 +12,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	staffio "github.com/liut/staffio-client"
 	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/services/stores"
+	"github.com/liut/morrigan/pkg/services/tools"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -29,10 +29,9 @@ type Config struct {
 	Addr  string
 	Debug bool
 
-	DocHandler http.Handler
+	DocHandler     http.Handler
+	EnableKBTools  bool
 }
-
-type ToolCallFunc = func(ctx context.Context, params map[string]any) (mcp.Content, error)
 
 type server struct {
 	Addr string
@@ -49,9 +48,7 @@ type server struct {
 	oc     *openai.Client
 	preset aigc.Preset
 	mcpcs  map[string]client.MCPClient // with token key, like session
-	tools  []mcp.Tool                  // preset tools
-
-	invokers map[string]ToolCallFunc
+	tools  *tools.Registry             // tool registry
 }
 
 // New return new web server
@@ -64,18 +61,18 @@ func New(cfg Config) Service {
 
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
-		cfg:      cfg,
-		sto:      stores.Sgt(),
-		oc:       stores.GetInteractAIClient(),
-		cmodel:   settings.Current.ChatModel,
-		mcpcs:    make(map[string]client.MCPClient),
-		invokers: make(map[string]ToolCallFunc),
+		cfg:    cfg,
+		sto:    stores.Sgt(),
+		oc:     stores.GetInteractAIClient(),
+		cmodel: settings.Current.ChatModel,
+		mcpcs:  make(map[string]client.MCPClient),
 	}
 	// Initialize RAG service with KB provider
 	kbProvider := stores.NewKBProvider(stores.Sgt())
 	s.rag = stores.NewRAGService(kbProvider)
 
-	s.initTools()
+	// Initialize tools registry
+	s.tools = tools.NewRegistry(stores.Sgt())
 
 	s.authzr = staffio.NewAuth(staffio.WithCookie(
 		settings.Current.CookieName,
@@ -144,61 +141,4 @@ func (s *server) Stop(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func (s *server) initTools() {
-	s.tools = append(s.tools,
-		mcp.NewTool(ToolNameKBSearch,
-			mcp.WithDescription("Search documents in knowledge base with keywords or subject"),
-			mcp.WithString("subject", mcp.Required(), mcp.Description("text of keywords or subject")),
-		),
-		mcp.NewTool(ToolNameKBCreate,
-			mcp.WithDescription("Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it. Before invoking, always perform a kb_search to confirm there is no corresponding subject or content. If similar content already exists, do not invoke even if requested by the user!"),
-			mcp.WithString("title", mcp.Required(), mcp.Description("title of document, like a main name or topic")),
-			mcp.WithString("heading", mcp.Required(), mcp.Description("heading of document, like a sub name or property")),
-			mcp.WithString("content", mcp.Required(), mcp.Description("long text of content of document")),
-		),
-		mcp.NewTool(ToolNameFetch,
-			mcp.WithDescription("Fetches a URL from the internet and optionally extracts its contents as markdown"),
-			mcp.WithString("url",
-				mcp.Required(),
-				mcp.Description("URL to fetch"),
-			),
-			mcp.WithNumber("max_length",
-				mcp.DefaultNumber(5000),
-				mcp.Description("Maximum number of characters to return, default 5000"),
-				mcp.Min(0),
-				mcp.Max(1000000),
-			),
-			mcp.WithNumber("start_index",
-				mcp.DefaultNumber(0),
-				mcp.Description("On return output starting at this character index, default 0"),
-				mcp.Min(0),
-			),
-			mcp.WithBoolean("raw",
-				mcp.DefaultBool(false),
-				mcp.Description("Get the actual HTML content without simplification, dfault false"),
-			),
-		),
-	)
-	logger().Debugw("init tools", "tools", s.tools)
-	s.invokers = map[string]ToolCallFunc{
-		ToolNameKBSearch: s.callKBSearch,
-		ToolNameKBCreate: s.callKBCreate,
-		ToolNameFetch:    s.callFetch,
-	}
-}
-
-func (s *server) invokeTool(ctx context.Context, toolName string, params map[string]any) (mcp.Content, error) {
-	if toolName == "" {
-		return mcp.NewTextContent("tool name is empty"), nil
-	}
-	logger().Debugw("invoking", "toolName", toolName, "params", params)
-	for key, vfn := range s.invokers {
-		if strings.EqualFold(key, toolName) {
-			return vfn(ctx, params)
-		}
-	}
-	// TODO: check if tool is in s.tools
-	return mcp.NewTextContent("tool not found"), nil
 }

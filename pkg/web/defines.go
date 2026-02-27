@@ -127,10 +127,3 @@ type CompletionMessage struct {
 }
 
 type ToolCall = openai.ToolCall
-
-const (
-	ToolNameKBSearch = "kb_search"
-	ToolNameKBCreate = "kb_create"
-
-	ToolNameFetch = "fetch"
-)

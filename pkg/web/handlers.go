@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -42,7 +41,7 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	})
 
 	var matched int
-	if len(s.tools) == 0 { // 没有工具，使用问答
+	if len(s.tools.Tools()) == 0 { // 没有工具，使用问答
 		result, err := s.rag.Search(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
@@ -87,9 +86,9 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	ccr.Model = s.cmodel
 	ccr.cs = cs
 
-	if len(s.tools) > 0 {
+	if len(s.tools.Tools()) > 0 {
 		// 为LLM转换工具结构
-		if tools, err := mcputils.MCPToolsToOpenAITools(s.tools); err == nil {
+		if tools, err := mcputils.MCPToolsToOpenAITools(s.tools.Tools()); err == nil {
 			ccr.Tools = tools
 			toolsPrompt := dftToolsMsg
 			if len(s.preset.ToolsPrompt) > 0 {
@@ -155,7 +154,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 						logger().Infow("chat", "toolCall", tc, "err", err)
 						continue
 					}
-					content, err := s.invokeTool(r.Context(), tc.Function.Name, parameters)
+					content, err := s.tools.Invoke(r.Context(), tc.Function.Name, parameters)
 					if err != nil {
 						logger().Infow("invokeTool fail", "toolCall", tc, "err", err)
 					} else {
@@ -505,123 +504,7 @@ func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
-	apiOk(w, r, s.tools, 0)
-}
-
-func (s *server) callKBSearch(ctx context.Context, args map[string]any) (mcp.Content, error) {
-	logger().Infow("mcp call qa search", "args", args)
-	subjectArg, ok := args["subject"]
-	if !ok {
-		return nil, errors.New("missing required argument: subject")
-	}
-	subject, ok := subjectArg.(string)
-	if !ok {
-		return nil, errors.New("subject argument must be a string")
-	}
-
-	docs, err := s.sto.Qa().MatchDocments(ctx, stores.MatchSpec{
-		Question:     subject,
-		Limit:        5,
-		SkipKeywords: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-	logger().Infow("matched", "docs", len(docs))
-	if len(docs) == 0 {
-		return mcp.NewTextContent("No relevant information found"), nil
-	}
-
-	return mcp.NewTextContent(docs.MarkdownText()), nil
-}
-
-func (s *server) callKBCreate(ctx context.Context, args map[string]any) (mcp.Content, error) {
-	user, ok := stores.UserFromContext(ctx)
-	if !ok {
-		return nil, errors.New("only admin can create document")
-	} else {
-		logger().Infow("mcp call qa create", "args", args, "user", user)
-	}
-	titleArg, ok := args["title"]
-	if !ok {
-		return nil, errors.New("missing required argument: title")
-	}
-	headingArg, ok := args["heading"]
-	if !ok {
-		return nil, errors.New("missing required argument: heading")
-	}
-	contentArg, ok := args["content"]
-	if !ok {
-		return nil, errors.New("missing required argument: content")
-	}
-	docBasic := qas.DocumentBasic{
-		Title:   titleArg.(string),
-		Heading: headingArg.(string),
-		Content: contentArg.(string),
-	}
-	docBasic.MetaAddKVs("creator", user.Name)
-	obj, err := s.sto.Qa().CreateDocument(ctx, docBasic)
-	if err != nil {
-		logger().Infow("create document fail", "title", docBasic.Title, "heading", docBasic.Heading,
-			"content", len(docBasic.Content), "err", err)
-		return mcp.NewTextContent(fmt.Sprintf(
-			"Create KB document with title %q and heading %q is failed, %s", docBasic.Title, docBasic.Heading, err)), nil
-	}
-	return mcp.NewTextContent(fmt.Sprintf("Created KB document with ID %s", obj.StringID())), nil
-}
-
-func (s *server) callFetch(ctx context.Context, args map[string]any) (mcp.Content, error) {
-
-	var (
-		urlStr     string
-		maxLength  int
-		startIndex int
-		raw        bool
-	)
-	if s, ok := args["url"]; ok {
-		urlStr = s.(string)
-	}
-	if s, ok := args["max_length"]; ok {
-		maxLength = int(s.(float64))
-	}
-	if s, ok := args["start_index"]; ok {
-		startIndex = int(s.(float64))
-	}
-	if s, ok := args["raw"]; ok {
-		raw = s.(bool)
-	}
-
-	// Fetch URL
-	content, prefix, err := fetchURL(ctx, urlStr, DEFAULT_USER_AGENT_AUTONOMOUS, raw)
-	if err != nil {
-		logger().Infow("fetch", "url", urlStr, "err", err)
-		return mcp.NewTextContent(err.Error()), nil
-		// return nil, err
-	}
-	logger().Debugw("fetch", "url", urlStr, "content", content, "prefix", prefix)
-
-	// Handle truncation
-	originalLength := len(content)
-	if startIndex >= originalLength {
-		content = "<error>No more content available.</error>"
-	} else {
-		endIndex := min(startIndex+maxLength, originalLength)
-		truncatedContent := content[startIndex:endIndex]
-		if len(truncatedContent) == 0 {
-			content = "<error>No more content available.</error>"
-		} else {
-			content = truncatedContent
-			actualContentLength := len(truncatedContent)
-			remainingContent := originalLength - (startIndex + actualContentLength)
-			if actualContentLength == maxLength && remainingContent > 0 {
-				nextStart := startIndex + actualContentLength
-				content += fmt.Sprintf("\n\n<error>Content truncated. Call the fetch tool with a start_index of %d to get more content.</error>", nextStart)
-			}
-		}
-	}
-	logger().Debugw("fetch", "url", urlStr, "content", content, "prefix", prefix)
-
-	return mcp.NewTextContent(fmt.Sprintf("%s\nContents of %s:\n%s", prefix, urlStr, content)), nil
+	apiOk(w, r, s.tools.Tools(), 0)
 }
 
 func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {
