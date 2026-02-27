@@ -46,10 +46,10 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun v1.2.17 // indirect
-	github.com/uptrace/bun/dialect/pgdialect v1.2.17 // indirect
-	github.com/uptrace/bun/driver/pgdriver v1.2.17 // indirect
-	github.com/uptrace/bun/extra/bunotel v1.2.17 // indirect
+	github.com/uptrace/bun v1.2.16 // indirect
+	github.com/uptrace/bun/dialect/pgdialect v1.2.16 // indirect
+	github.com/uptrace/bun/driver/pgdriver v1.2.16 // indirect
+	github.com/uptrace/bun/extra/bunotel v1.2.16 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
