@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -48,13 +49,28 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 		})
 		if err == nil {
 			logger().Infow("matches", "docs", len(result.Documents), "prompt", param.Prompt)
-			for _, doc := range result.Documents {
-				matched++
-				logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
-				messages = append(messages,
-					ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: doc.Heading},
-					ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: doc.Content},
-				)
+			if len(result.Documents) == 0 {
+				// 知识库未命中，添加明确提示
+				messages = append(messages, ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: "No relevant information found in the knowledge base. Please honestly state that you don't know rather than making up an answer.",
+				})
+			} else {
+				// 找到文档，拼接成一个 System 消息
+				var sb strings.Builder
+				sb.WriteString(fmt.Sprintf("Found %d relevant documents in the knowledge base:\n\n", len(result.Documents)))
+				for _, doc := range result.Documents {
+					matched++
+					logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
+					sb.WriteString(doc.Heading)
+					sb.WriteString("\n")
+					sb.WriteString(doc.Content)
+					sb.WriteString("\n\n")
+				}
+				messages = append(messages, ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: sb.String(),
+				})
 			}
 		} else {
 			logger().Infow("match fail", "err", err)
