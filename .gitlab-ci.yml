@@ -19,7 +19,7 @@ variables:
   GO111MODULE: 'on'
   GOPATH: /cache/go
   GOPRIVATE: daxv.cn,hyyl.xyz
-  GOPROXY: https://goproxy.io,direct
+  GOPROXY: https://goproxy.cn,direct
   NAME: morrigan
   ROOF: github.com/liut/morrigan
   DB_NAME: morrigantest
