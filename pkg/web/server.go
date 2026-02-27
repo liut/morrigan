@@ -39,6 +39,7 @@ type server struct {
 	cfg  Config
 
 	sto stores.Storage
+	rag *stores.RAGService
 
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
@@ -70,6 +71,10 @@ func New(cfg Config) Service {
 		mcpcs:    make(map[string]client.MCPClient),
 		invokers: make(map[string]ToolCallFunc),
 	}
+	// Initialize RAG service with KB provider
+	kbProvider := stores.NewKBProvider(stores.Sgt())
+	s.rag = stores.NewRAGService(kbProvider)
+
 	s.initTools()
 
 	s.authzr = staffio.NewAuth(staffio.WithCookie(

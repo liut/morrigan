@@ -43,13 +43,13 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 
 	var matched int
 	if len(s.tools) == 0 { // 没有工具，使用问答
-		docs, err := stores.Sgt().Qa().MatchDocments(ctx, stores.MatchSpec{
+		result, err := s.rag.Search(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
 		})
 		if err == nil {
-			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)
-			for _, doc := range docs {
+			logger().Infow("matches", "docs", len(result.Documents), "prompt", param.Prompt)
+			for _, doc := range result.Documents {
 				matched++
 				logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
 				messages = append(messages,
@@ -392,9 +392,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	spec := stores.MatchSpec{}
-	spec.Question = prompt
-	prompt, err := stores.Sgt().Qa().ConstructPrompt(r.Context(), spec)
+	prompt, err := s.rag.BuildContext(r.Context(), prompt)
 	if err != nil {
 		apiFail(w, r, 503, err)
 		return
