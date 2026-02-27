@@ -5,14 +5,14 @@ Backend implementation of a knowledge base system for AI chat.
 ## Features
  - Import documents of knowledge base from a table (CSV), save them into PostgreSQL
  - Based on the title and content of the document, generate vector of documents with Embedding API
- - Summarize the questions and generate corresponding vectors
+ - Generate document vectors using Embedding API
  - Implement high-quality Q&A using vector search
  - Welcome message and preset messages
  - Chat History for Conversation (based on redis)
  - RESTful API
  - Support text/event-stream
  - Login with OAuth2 client for general Security Provider
- - Inner MCP support
+ - Built-in MCP (Model Context Protocol) tool support
 
 ## Supported Frontend
 
@@ -123,18 +123,21 @@ Backend implementation of a knowledge base system for AI chat.
 
 ```bash
 
-test -e .env || cp .env.example .env
-# Edit .env and change api key of OpenAI
-# Embedding and replacing frontend resources
-
+# Install dependencies (includes forego for env loading)
 make deps
 
+# Or manually
+go mod tidy
+go install github.com/ddollar/forego@latest
+
+# Create .env from example and configure (update PG/Redis URLs, API keys, etc.)
+test -e .env || cp .env.example .env
+
+# Start server with environment variables from .env
 forego start
 
-# or
-
-make dist
-
+# Or directly
+go run . web
 
 ```
 
@@ -184,8 +187,10 @@ COMMANDS:
    usage, env                   show usage
    initdb                       init database schema
    import                       import documents from a csv
-   embedding, embedding-pormpt  read prompt documents and embedding
+   export                       export documents to csv/jsonl
+   embedding, embedding-prompt  read prompt documents and embedding
    web, run                     run a web server
+   version, ver                 show version
    help, h                      Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
@@ -222,7 +227,7 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 1. Prepare a CSV file for the corpus document.
 2. Import documents.
-3. Generate Questions and Anwsers from documents with Completion.
+3. Generate Questions and Answers from documents with Completion.
 4. Generate Prompts and vector from QAs with Embedding
 5. Done and go to chat
 
@@ -230,7 +235,7 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 | title      | heading     | content                                   |
 |------------|-------------|-------------------------------------------|
-| my company | introducion | A great company stems from a genius idea. |
+| my company | introduction | A great company stems from a genius idea. |
 |            |             |                                           |
 
 ```bash
