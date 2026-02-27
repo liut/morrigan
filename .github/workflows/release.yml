@@ -1,0 +1,63 @@
+# This workflow will build and release a golang project
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Build
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        ext=""
+        if [ "$GOOS" = "windows" ]; then
+          ext=".exe"
+        fi
+        LDFLAGS="-X github.com/liut/morrigan/pkg/settings.version=${TAG} -s -w"
+        go build -ldflags="$LDFLAGS" -o morrigan-${GOOS}-${GOARCH}${ext} .
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: morrigan-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: morrigan-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: artifacts/morrigan-*
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
