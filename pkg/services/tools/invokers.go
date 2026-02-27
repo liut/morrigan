@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
+	htmd "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/liut/morrigan/pkg/models/qas"
 	"github.com/liut/morrigan/pkg/services/stores"
 )
@@ -134,6 +137,17 @@ func (r *Registry) callFetch(ctx context.Context, args map[string]any) (mcp.Cont
 	return mcp.NewTextContent(fmt.Sprintf("%s\nContents of %s:\n%s", prefix, urlStr, content)), nil
 }
 
+var converter = htmd.NewConverter("", true, nil)
+
+func extractContentFromHTML(html string) string {
+	doc, err := converter.ConvertString(html)
+	if err != nil {
+		logger().Infow("failed to convert HTML to markdown", "err", err)
+		return strings.TrimSpace(html)
+	}
+	return doc
+}
+
 func fetchURL(ctx context.Context, urlStr, userAgent string, raw bool) (content, prefix string, err error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
 	if err != nil {
@@ -158,9 +172,15 @@ func fetchURL(ctx context.Context, urlStr, userAgent string, raw bool) (content,
 		return
 	}
 	content = string(b)
-	prefix = "Markdown"
-	if raw {
-		prefix = "HTML"
+
+	contentType := resp.Header.Get("content-type")
+	isHTML := strings.Contains(contentType, "text/html") || strings.Contains(content, "<html")
+
+	if isHTML && !raw {
+		content = extractContentFromHTML(content)
+		prefix = "Markdown"
+	} else {
+		prefix = fmt.Sprintf("Content type %s, raw content:", contentType)
 	}
 	return
 }
