@@ -49,10 +49,11 @@ func (r *Registry) callKBSearch(ctx context.Context, args map[string]any) (mcp.C
 
 // KB Create implementation
 func (r *Registry) callKBCreate(ctx context.Context, args map[string]any) (mcp.Content, error) {
-	user, ok := stores.UserFromContext(ctx)
-	if !ok {
-		return nil, errors.New("only admin can create document")
+	if !r.IsKeeper(ctx) {
+		return nil, errors.New("permission denied: keeper role required")
 	}
+
+	user, _ := stores.UserFromContext(ctx)
 	logger().Infow("mcp call qa create", "args", args, "user", user)
 
 	titleArg, ok := args["title"]

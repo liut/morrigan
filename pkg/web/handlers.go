@@ -42,7 +42,7 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	})
 
 	var matched int
-	if len(s.toolreg.Tools()) == 0 { // 没有工具，使用问答
+	if len(s.toolreg.ToolsFor(ctx)) == 0 { // 没有工具，使用问答
 		result, err := s.rag.Search(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
@@ -102,9 +102,9 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	ccr.Model = s.cmodel
 	ccr.cs = cs
 
-	if len(s.toolreg.Tools()) > 0 {
+	if len(s.toolreg.ToolsFor(ctx)) > 0 {
 		// 为LLM转换工具结构
-		if tools, err := mcputils.MCPToolsToOpenAITools(s.toolreg.Tools()); err == nil {
+		if tools, err := mcputils.MCPToolsToOpenAITools(s.toolreg.ToolsFor(ctx)); err == nil {
 			ccr.Tools = tools
 			toolsPrompt := dftToolsMsg
 			if len(s.preset.ToolsPrompt) > 0 {
@@ -520,7 +520,7 @@ func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
-	apiOk(w, r, s.toolreg.Tools(), 0)
+	apiOk(w, r, s.toolreg.ToolsFor(r.Context()), 0)
 }
 
 func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {

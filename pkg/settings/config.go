@@ -42,6 +42,8 @@ type Config struct {
 
 	DateInContext bool `envconfig:"date_in_context"`
 
+	KeeperRole string `envconfig:"Keeper_Role" default:"keeper" desc:"role required for write tools"`
+
 	// 相似度阈值 建议范围 0.39 - 0.65
 	VectorThreshold float32 `envconfig:"Vector_Threshold" default:"0.39"`
 	// 相似度匹配数量

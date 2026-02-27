@@ -92,6 +92,7 @@ go run . usage
 | `OPENAI_API_KEY` | - | OpenAI API Key |
 | `CHAT_MODEL` | gpt-4o-mini | 默认聊天模型 |
 | `AUTH_REQUIRED` | false | 是否启用认证 |
+| `KEEPER_ROLE` | keeper | 写操作工具需要的角色 |
 | `VECTOR_THRESHOLD` | 0.39 | 向量相似度阈值 |
 | `VECTOR_LIMIT` | 5 | 向量匹配数量 |
 
@@ -140,6 +141,14 @@ go run . usage
 - `postCompletions`: 处理补全请求
 - `prepareChatRequest`: 构建聊天请求，包含历史记录和 RAG 检索结果
 
+### pkg/services/tools/registry.go
+
+- 工具注册和管理中心
+- `Tools()`: 返回所有工具（兼容旧接口）
+- `ToolsFor(ctx)`: 根据上下文返回适合的工具列表，非 keeper 角色只返回公开工具
+- `IsKeeper(ctx)`: 检查用户是否具有 keeper 角色
+- 受限工具（如 `kb_create`）需要用户具有 `KEEPER_ROLE`（默认 "keeper"）角色
+
 ### pkg/services/tools/invokers.go
 
 - MCP 工具实现：`callKBSearch`, `callKBCreate`, `callFetch`
@@ -176,3 +185,4 @@ go run . usage
 2. 向量搜索需要先运行 `embedding` 命令生成向量
 3. 使用 SSE 时需要实现 `http.Flusher` 接口
 4. MCP 工具参数需要做类型断言，注意 JSON number 转为 float64
+5. 写操作工具需要 keeper 角色，配置项 `KEEPER_ROLE`（默认 "keeper"）控制所需角色
