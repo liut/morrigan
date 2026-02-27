@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -23,9 +23,11 @@ jobs:
       run: go vet -v ./...
 
     - name: lint
-      uses: golangci/golangci-lint-action@v8
+      uses: golangci/golangci-lint-action@v6
       with:
-        version: v2.6
+        install-mode: "goinstall"
+        version: v1.64
 
     - name: test models
       run: go test -v ./pkg/models/...
+
