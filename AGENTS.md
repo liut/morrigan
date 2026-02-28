@@ -56,45 +56,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 └── docs/                  # API 文档
 ```
 
-## 常用命令
-
-```bash
-# 安装依赖
-go mod tidy
-
-# 初始化数据库
-go run . initdb
-
-# 导入 CSV 文档
-go run . import documents.csv
-
-# 生成向量嵌入
-go run . embedding
-
-# 启动 Web 服务器
-go run . web
-# 或指定端口
-go run . web --listen :5001
-
-# 查看配置
-go run . usage
-```
-
-## 环境变量
-
-关键配置项：
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL 连接串 |
-| `REDIS_URI` | redis://localhost:6379/1 | Redis 连接串 |
-| `HTTP_LISTEN` | :5001 | HTTP 监听地址 |
-| `OPENAI_API_KEY` | - | OpenAI API Key |
-| `CHAT_MODEL` | gpt-4o-mini | 默认聊天模型 |
-| `AUTH_REQUIRED` | false | 是否启用认证 |
-| `KEEPER_ROLE` | keeper | 写操作工具需要的角色 |
-| `VECTOR_THRESHOLD` | 0.39 | 向量相似度阈值 |
-| `VECTOR_LIMIT` | 5 | 向量匹配数量 |
+> 更多使用说明（命令行用法、环境变量配置）请参考 [README.md](./README.md)
 
 ## 编码规范
 

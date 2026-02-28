@@ -209,7 +209,19 @@ go run . usage
 Example:
 
 ```plan
-MORRIGAN_OPENAI_API_KEY=oo-xx
+# Interact provider (chat)
+MORRIGAN_INTERACT_API_KEY=sk-xxx
+MORRIGAN_INTERACT_MODEL=gpt-4o-mini
+MORRIGAN_INTERACT_URL=https://api.openai.com/v1
+
+# Embedding provider (vector)
+MORRIGAN_EMBEDDING_API_KEY=sk-xxx
+MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
+
+# Summarize provider (optional)
+MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
+MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
+
 MORRIGAN_HTTP_LISTEN=:3002
 
 # optional preset data
@@ -222,6 +234,42 @@ OAUTH_PREFIX=https://portal.my-company.xyz
 # optional proxy
 HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 ```
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MORRIGAN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL connection string |
+| `MORRIGAN_REDIS_URI` | redis://localhost:6379/1 | Redis connection string |
+| `MORRIGAN_HTTP_LISTEN` | :5001 | HTTP listen address |
+| `MORRIGAN_AUTH_REQUIRED` | false | Enable authentication |
+| `MORRIGAN_KEEPER_ROLE` | keeper | Role required for write operations |
+| `MORRIGAN_VECTOR_THRESHOLD` | 0.39 | Vector similarity threshold |
+| `MORRIGAN_VECTOR_LIMIT` | 5 | Number of vector matches |
+
+#### Provider Configuration (AI Services)
+
+Each provider requires `API_KEY` and `MODEL`, optional `URL` for custom endpoints:
+
+| Provider | Purpose | Required Variables |
+|----------|---------|-------------------|
+| `INTERACT` | Chat/completion | `API_KEY`, `MODEL` |
+| `EMBEDDING` | Vector embedding | `API_KEY`, `MODEL` |
+| `SUMMARIZE` | Text summarization | `API_KEY`, `MODEL` |
+
+Example:
+```
+MORRIGAN_INTERACT_API_KEY=sk-xxx
+MORRIGAN_INTERACT_MODEL=gpt-4o-mini
+
+MORRIGAN_EMBEDDING_API_KEY=sk-xxx
+MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
+
+MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
+MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
+```
+
+> Tip: Run `go run . usage` to view all current configurations
 
 ## The operation steps for generating data.
 
