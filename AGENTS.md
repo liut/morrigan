@@ -17,7 +17,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 
 ## 技术栈
 
-- **语言**: Go 1.24
+- **语言**: Go 1.25
 - **Web 框架**: chi/v5
 - **数据库**: PostgreSQL (含 vector 扩展)
 - **缓存/会话**: Redis
@@ -29,30 +29,14 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 
 ```
 .
-├── main.go                 # CLI 入口，定义所有命令
-├── pkg/
-│   ├── web/               # HTTP 服务器、路由、处理器
-│   │   ├── server.go      # Web 服务器主逻辑
-│   │   ├── handlers.go    # API 处理器 (聊天、问答等)
-│   │   ├── routers.go     # 路由定义
-│   │   └── defines.go     # 请求/响应结构体
-│   ├── settings/          # 配置管理
-│   │   ├── config.go      # 配置结构体和环境变量解析
-│   │   └── version.go     # 版本信息
-│   ├── services/
-│   │   ├── stores/        # 数据存储层 (PostgreSQL + Redis)
-│   │   │   ├── qa_x.go    # 问答相关数据库操作
-│   │   │   ├── conversation.go  # 对话历史
-│   │   │   └── auth.go    # 认证相关
-│   │   └── mcputils/      # MCP 工具转换
-│   └── models/            # 数据模型
-│       ├── qas/           # 问答模型
-│       ├── aigc/          # AI 对话模型
-│       └── mcps/          # MCP 模型
+├── main.go                 # CLI 入口
 ├── data/                  # 预设数据 (YAML)
-│   ├── preset.yaml        # 默认预设
-│   └── messages.yaml      # 消息配置
-├── htdocs/                # 前端静态资源 (嵌入文件)
+├── pkg/
+│   ├── models/            # 数据模型 (qas/aigc/mcps)
+│   ├── services/          # 业务服务 (stores/tools)
+│   ├── settings/          # 配置管理
+│   └── web/               # HTTP 服务 (server/handlers/routers)
+├── htdocs/                # 前端静态资源
 └── docs/                  # API 文档
 ```
 
