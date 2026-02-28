@@ -2,13 +2,11 @@ package tools
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/liut/morrigan/pkg/services/stores"
-	"github.com/liut/morrigan/pkg/settings"
 )
 
 type Invoker func(ctx context.Context, params map[string]any) (mcp.Content, error)
@@ -106,18 +104,9 @@ func (r *Registry) initTools() {
 // ToolsFor 返回适合当前上下文的工具列表
 // 如果用户有 keeper 角色，返回所有工具；否则只返回公开工具
 func (r *Registry) ToolsFor(ctx context.Context) []mcp.Tool {
-	if r.IsKeeper(ctx) {
+	if stores.IsKeeper(ctx) {
 		// 合并公开工具和受限工具
 		return append(r.tools, r.privTools...)
 	}
 	return r.tools
-}
-
-// IsKeeper 检查当前上下文中的用户是否具有 keeper 角色
-func (r *Registry) IsKeeper(ctx context.Context) bool {
-	user, ok := stores.UserFromContext(ctx)
-	if !ok {
-		return false
-	}
-	return slices.Contains(user.Roles, settings.Current.KeeperRole)
 }

@@ -2,10 +2,12 @@ package stores
 
 import (
 	"context"
+	"slices"
 
 	"github.com/cupogo/andvari/models/comm"
 	"github.com/cupogo/andvari/models/field"
 	"github.com/cupogo/andvari/models/oid"
+	"github.com/liut/morrigan/pkg/settings"
 	auth "github.com/liut/simpauth"
 )
 
@@ -13,6 +15,19 @@ type User = auth.User
 
 func UserFromContext(ctx context.Context) (*User, bool) {
 	return auth.UserFromContext(ctx)
+}
+
+// IsKeeper 检查当前上下文中的用户是否具有 keeper 角色或 UID
+func IsKeeper(ctx context.Context) bool {
+	user, ok := UserFromContext(ctx)
+	if !ok {
+		return false
+	}
+	// 检查 UID 是否在白名单中
+	if len(settings.Current.KeeperUIDs) > 0 && slices.Contains(settings.Current.KeeperUIDs, user.UID) {
+		return true
+	}
+	return slices.Contains(user.Roles, settings.Current.KeeperRole)
 }
 
 type ModelMeta = comm.ModelMeta

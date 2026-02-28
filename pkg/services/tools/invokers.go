@@ -49,7 +49,7 @@ func (r *Registry) callKBSearch(ctx context.Context, args map[string]any) (mcp.C
 
 // KB Create implementation
 func (r *Registry) callKBCreate(ctx context.Context, args map[string]any) (mcp.Content, error) {
-	if !r.IsKeeper(ctx) {
+	if !stores.IsKeeper(ctx) {
 		return nil, errors.New("permission denied: keeper role required")
 	}
 

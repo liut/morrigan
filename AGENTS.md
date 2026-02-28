@@ -92,19 +92,19 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 - 工具注册和管理中心
 - `Tools()`: 返回所有工具（兼容旧接口）
 - `ToolsFor(ctx)`: 根据上下文返回适合的工具列表，非 keeper 角色只返回公开工具
-- `IsKeeper(ctx)`: 检查用户是否具有 keeper 角色
-- 受限工具（如 `kb_create`）需要用户具有 `KEEPER_ROLE`（默认 "keeper"）角色
 
 ### pkg/services/tools/invokers.go
 
 - MCP 工具实现：`callKBSearch`, `callKBCreate`, `callFetch`
 - `fetchURL`: 网页内容获取，支持 HTML 转 Markdown
+- 受限工具（如 `kb_create`）需要 keeper 角色
 
 ### pkg/services/stores/
 
 - 使用 bun ORM 操作 PostgreSQL
 - 问答文档的 CRUD 和向量匹配
 - 对话历史存储在 Redis 中
+- `IsKeeper(ctx)`: 检查用户是否具有 keeper 角色或 UID
 
 ### MCP 工具
 
