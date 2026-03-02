@@ -27,8 +27,8 @@ type ResultOk struct {
 
 // RespDone 操作成功返回的结构 (兼容 chi 框架)
 type RespDone struct {
-	Status int         `json:"status"`
-	Data   any         `json:"data,omitempty"`
-	Count  int         `json:"count,omitempty"`
-	Extra  interface{} `json:"extra,omitempty"`
+	Status int `json:"status"`
+	Data   any `json:"data,omitempty"`
+	Count  int `json:"count,omitempty"`
+	Extra  any `json:"extra,omitempty"`
 }

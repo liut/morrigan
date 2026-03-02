@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
+	"github.com/liut/morrigan/pkg/models/convo"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -25,17 +26,35 @@ type Conversation interface {
 	ClearHistory(ctx context.Context) error
 }
 
-func NewConversation(id any) Conversation {
+func NewConversation(ctx context.Context, id any) Conversation {
+	sto := Sgt()
 	cid := oid.Cast(id)
-	if cid.IsZero() {
-		cid = oid.NewID(oid.OtEvent)
+	var sess *convo.Session
+	var err error
+	if cid.Valid() {
+		sess, err = sto.Convo().GetSession(ctx, cid.String())
+		if err != nil {
+			sess = convo.NewSessionWithID(cid)
+		}
+	} else {
+		sess = new(convo.Session)
+		sess.Creating() //nolint
 	}
-	return &conversation{id: cid, rc: SgtRC()}
+
+	return &conversation{
+		id:   sess.ID,
+		rc:   SgtRC(),
+		sess: sess,
+		sto:  Sgt(),
+	}
 }
 
 type conversation struct {
 	id oid.OID
 	rc RedisClient
+
+	sess *convo.Session
+	sto  Storage
 }
 
 func (s *conversation) GetID() string {
@@ -45,6 +64,8 @@ func (s *conversation) GetID() string {
 func (s *conversation) GetOID() oid.OID {
 	return s.id
 }
+
+// TODO: AddMessages(), Summary()
 
 func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) error {
 	key := s.getKey()

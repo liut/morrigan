@@ -26,7 +26,7 @@ import (
 )
 
 func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatCompletionRequest {
-	cs := stores.NewConversation(param.GetConversionID())
+	cs := stores.NewConversation(ctx, param.GetConversionID())
 	var messages []ChatCompletionMessage
 
 	systemPrompt := dftSystemMsg
@@ -386,7 +386,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	param.cs = stores.NewConversation(param.ConversationID)
+	param.cs = stores.NewConversation(r.Context(), param.ConversationID)
 
 	header := "Answer the question as truthfully as possible using the provided context."
 
@@ -503,14 +503,14 @@ func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
 		msg.Content = welcomeText
 	}
 
-	cs := stores.NewConversation("")
+	cs := stores.NewConversation(r.Context(), "")
 	msg.ID = cs.GetID()
 	apiOk(w, r, msg)
 }
 
 func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
 	cid := chi.URLParam(r, "cid")
-	cs := stores.NewConversation(cid)
+	cs := stores.NewConversation(r.Context(), cid)
 	data, err := cs.ListHistory(r.Context())
 	if err != nil {
 		apiFail(w, r, 500, err)
