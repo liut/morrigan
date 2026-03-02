@@ -37,10 +37,10 @@ const authLoginPath = "/api/auth/login"
 const authLogoutPath = "/api/auth/logout"
 const authCallbackPath = "/api/auth/callback"
 
-func (s *server) strapRouter() {
+func (s *server) strapRouter(ar chi.Router) {
 
-	s.ar.Get("/", handleNoContent)
-	s.ar.Get("/api/ping", handlerPing)
+	ar.Get("/", handleNoContent)
+	ar.Get("/api/ping", handlerPing)
 
 	staffio.SetAdminPath("/")
 
@@ -48,27 +48,28 @@ func (s *server) strapRouter() {
 		OnTokenGot: s.handleTokenGot,
 	}).Handler()
 
-	s.ar.Get(authLoginPath, staffio.LoginHandler)
-	s.ar.Get(authLogoutPath, staffio.LogoutHandler)
-	s.ar.Method(http.MethodGet, authCallbackPath, cch)
+	ar.Get(authLoginPath, staffio.LoginHandler)
+	ar.Get(authLogoutPath, staffio.LogoutHandler)
+	ar.Method(http.MethodGet, authCallbackPath, cch)
 
-	rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)
-	if err != nil {
-		logger().Fatalw("settings failed", "err", err)
-	}
-	store, err := limitRedis.NewStoreWithOptions(stores.SgtRC(), limiter.StoreOptions{
-		Prefix: "chat-lr-",
-	})
-	if err != nil {
-		logger().Fatalw("limiter with redis option failed", "err", err)
-	}
-	instance := limiter.New(store, rate)
-	middleware := stdlib.NewMiddleware(instance,
-		stdlib.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
-			logger().Warnw("failed on", "uri", r.RequestURI, "err", err)
-		}))
+	ar.Route("/api", func(r chi.Router) {
 
-	s.ar.Route("/api", func(r chi.Router) {
+		rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)
+		if err != nil {
+			logger().Fatalw("settings failed", "err", err)
+		}
+		store, err := limitRedis.NewStoreWithOptions(stores.SgtRC(), limiter.StoreOptions{
+			Prefix: "chat-lr-",
+		})
+		if err != nil {
+			logger().Fatalw("limiter with redis option failed", "err", err)
+		}
+		instance := limiter.New(store, rate)
+		middleware := stdlib.NewMiddleware(instance,
+			stdlib.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
+				logger().Warnw("failed on", "uri", r.RequestURI, "err", err)
+			}))
+
 		r.Use(s.authMw(false))
 		r.Get("/me", handleMe)
 
@@ -82,20 +83,33 @@ func (s *server) strapRouter() {
 			gr.Post("/completions", s.postCompletions)
 		})
 
+		// 遍历 handles 注册路由
+		pr := r.With(routes.AuthMw(false))
+		for _, hi := range handles {
+			if hi.auth {
+				if len(hi.rid) > 0 {
+					pr.With(authPerm(hi.rid)).Method(hi.method, hi.path, hi.hafn(s))
+				} else {
+					pr.Method(hi.method, hi.path, hi.hafn(s))
+				}
+			} else {
+				r.Method(hi.method, hi.path, hi.hafn(s))
+			}
+		}
 	})
 
-	s.ar.Get("/api/session", s.handleSession)
-	s.ar.Post("/api/session", s.handleSession)
-	s.ar.Post("/api/verify", s.handleVerify)
+	ar.Get("/api/session", s.handleSession)
+	ar.Post("/api/session", s.handleSession)
+	ar.Post("/api/verify", s.handleVerify)
 
-	s.ar.Group(func(r chi.Router) {
+	ar.Group(func(r chi.Router) {
 		r.Use(s.authMw(true))
 		if s.cfg.DocHandler != nil {
 			r.Get("/", s.cfg.DocHandler.ServeHTTP)
 		}
 	})
 	if s.cfg.DocHandler != nil {
-		s.ar.NotFound(s.cfg.DocHandler.ServeHTTP)
+		ar.NotFound(s.cfg.DocHandler.ServeHTTP)
 	}
 }
 
@@ -118,15 +132,6 @@ func (s *server) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *
 		logger().Infow("got token", "it", it, "ot", staffio.TokenFromContext(ctx))
 		http.SetCookie(w, s.buildTokenCookie(ot.AccessToken))
 	}
-}
-
-// nolint
-func handleNoContent(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(204)
-}
-
-func handlerPing(w http.ResponseWriter, r *http.Request) {
-	render.Data(w, r, []byte("Pong\n"))
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {

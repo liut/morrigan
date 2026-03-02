@@ -1,3 +1,7 @@
+//go:build api
+
+// TODO: migrate all api handelers from pkg/web/handle*
+
 package apim1
 
 import (
@@ -33,7 +37,7 @@ type api struct {
 
 // init 注册到 routes
 func init() {
-	routes.Register("/api/m1", routes.StrapFunc(strap))
+	routes.Register("api", routes.StrapFunc(strap))
 }
 
 func strap(r chi.Router) {
@@ -47,7 +51,7 @@ func newapi(sto stores.Storage) *api {
 
 // Strap 注册路由到 chi.Router
 func (a *api) Strap(r chi.Router) {
-	r.Route("/api/m1", func(r chi.Router) {
+	r.Route("/api", func(r chi.Router) {
 		r.Get("/ping", ping)
 		// 遍历 handles 注册路由
 		pr := r.With(routes.AuthMw(false))

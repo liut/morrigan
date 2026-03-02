@@ -17,7 +17,6 @@ import (
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/services/tools"
 	"github.com/liut/morrigan/pkg/settings"
-	"github.com/liut/morrigan/pkg/web/routes"
 )
 
 type Service interface {
@@ -77,8 +76,7 @@ func New(cfg Config) Service {
 	if err == nil {
 		logger().Infow("loaded preset", "mcps", len(s.preset.MCPServers))
 	}
-	s.strapRouter()
-	routes.Routers(s.ar)
+	s.strapRouter(ar)
 
 	s.hs = &http.Server{
 		Addr:    s.Addr,

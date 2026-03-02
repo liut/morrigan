@@ -17,8 +17,6 @@ import (
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 	"github.com/liut/morrigan/pkg/web"
-
-	_ "github.com/liut/morrigan/pkg/web/api_m1"
 )
 
 func usage(cc *cli.Context) error {

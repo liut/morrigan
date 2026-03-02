@@ -1,6 +1,4 @@
-// This file is generated - Do Not Edit.
-
-package apim1
+package web
 
 import (
 	"net/http"
@@ -15,22 +13,22 @@ var queryBinder = querybinder.NewQueryBinder()
 
 // init 注册路由处理函数
 func init() {
-	regHI(false, "GET", "/convo/sessions", "", func(a *api) http.HandlerFunc {
+	regHI(false, "GET", "/convo/sessions", "", func(a *server) http.HandlerFunc {
 		return a.getConvoSessions
 	})
-	regHI(false, "GET", "/convo/sessions/:id", "", func(a *api) http.HandlerFunc {
+	regHI(false, "GET", "/convo/sessions/:id", "", func(a *server) http.HandlerFunc {
 		return a.getConvoSession
 	})
-	regHI(true, "DELETE", "/convo/sessions/:id", "m1-convo-sessions-id-delete", func(a *api) http.HandlerFunc {
+	regHI(true, "DELETE", "/convo/sessions/:id", "m1-convo-sessions-id-delete", func(a *server) http.HandlerFunc {
 		return a.deleteConvoSession
 	})
-	regHI(false, "GET", "/convo/messages", "", func(a *api) http.HandlerFunc {
+	regHI(false, "GET", "/convo/messages", "", func(a *server) http.HandlerFunc {
 		return a.getConvoMessages
 	})
-	regHI(false, "GET", "/convo/messages/:id", "", func(a *api) http.HandlerFunc {
+	regHI(false, "GET", "/convo/messages/:id", "", func(a *server) http.HandlerFunc {
 		return a.getConvoMessage
 	})
-	regHI(true, "DELETE", "/convo/messages/:id", "m1-convo-messages-id-delete", func(a *api) http.HandlerFunc {
+	regHI(true, "DELETE", "/convo/messages/:id", "m1-convo-messages-id-delete", func(a *server) http.HandlerFunc {
 		return a.deleteConvoMessage
 	})
 }
@@ -44,7 +42,7 @@ func init() {
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 503 {object} Failure "服务端错误"
 // @Router /api/m1/convo/sessions [get]
-func (a *api) getConvoSessions(w http.ResponseWriter, r *http.Request) {
+func (a *server) getConvoSessions(w http.ResponseWriter, r *http.Request) {
 	var spec stores.ConvoSessionSpec
 	if err := queryBinder.Bind(&spec, r.URL); err != nil {
 		fail(w, r, 400, err)
@@ -70,7 +68,7 @@ func (a *api) getConvoSessions(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 503 {object} Failure "服务端错误"
 // @Router /api/m1/convo/sessions/{id} [get]
-func (a *api) getConvoSession(w http.ResponseWriter, r *http.Request) {
+func (a *server) getConvoSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	obj, err := a.sto.Convo().GetSession(r.Context(), id)
 	if err != nil {
@@ -91,7 +89,7 @@ func (a *api) getConvoSession(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 503 {object} Failure "服务端错误"
 // @Router /api/m1/convo/sessions/{id} [delete]
-func (a *api) deleteConvoSession(w http.ResponseWriter, r *http.Request) {
+func (a *server) deleteConvoSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := a.sto.Convo().DeleteSession(r.Context(), id)
 	if err != nil {
@@ -111,7 +109,7 @@ func (a *api) deleteConvoSession(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 503 {object} Failure "服务端错误"
 // @Router /api/m1/convo/messages [get]
-func (a *api) getConvoMessages(w http.ResponseWriter, r *http.Request) {
+func (a *server) getConvoMessages(w http.ResponseWriter, r *http.Request) {
 	var spec stores.ConvoMessageSpec
 	if err := queryBinder.Bind(&spec, r.URL); err != nil {
 		fail(w, r, 400, err)
@@ -137,7 +135,7 @@ func (a *api) getConvoMessages(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 503 {object} Failure "服务端错误"
 // @Router /api/m1/convo/messages/{id} [get]
-func (a *api) getConvoMessage(w http.ResponseWriter, r *http.Request) {
+func (a *server) getConvoMessage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	obj, err := a.sto.Convo().GetMessage(r.Context(), id)
 	if err != nil {
@@ -158,7 +156,7 @@ func (a *api) getConvoMessage(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 503 {object} Failure "服务端错误"
 // @Router /api/m1/convo/messages/{id} [delete]
-func (a *api) deleteConvoMessage(w http.ResponseWriter, r *http.Request) {
+func (a *server) deleteConvoMessage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := a.sto.Convo().DeleteMessage(r.Context(), id)
 	if err != nil {
