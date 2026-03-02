@@ -11,7 +11,7 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 	openai "github.com/sashabaranov/go-openai"
 
-	"github.com/liut/morrigan/pkg/models/qas"
+	"github.com/liut/morrigan/pkg/models/cob"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -50,7 +50,7 @@ func (ms *MatchSpec) setDefaults() {
 }
 
 type ExportArg struct {
-	Spec   *QaDocumentSpec
+	Spec   *CobDocumentSpec
 	Out    io.Writer
 	Format string // csv,jsonl
 }
@@ -59,16 +59,16 @@ func validHead(rec []string) bool {
 	return len(rec) >= len(qaHeads) && rec[0] == qaHeads[0] && rec[1] == qaHeads[1] && rec[2] == qaHeads[2]
 }
 
-type qaStoreX interface {
+type CobStoreX interface {
 	ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error
 	ExportDocs(ctx context.Context, ea ExportArg) error
-	EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) error
+	EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
-	MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error)
-	MatchVectorWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.DocMatches, err error)
+	MatchDocments(ctx context.Context, ms MatchSpec) (data cob.Documents, err error)
+	MatchVectorWith(ctx context.Context, vec cob.Vector, threshold float32, limit int) (data cob.DocMatches, err error)
 }
 
-func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
+func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
 	rd := csv.NewReader(r)
 	rec, err := rd.Read()
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) err
 			// return fmt.Errorf("invalid csv row #%d: %+v", idx, row)
 			continue
 		}
-		err = s.importLine(ctx, qas.DocumentBasic{
+		err = s.importLine(ctx, cob.DocumentBasic{
 			Title:   row[0],
 			Heading: row[1],
 			Content: row[2],
@@ -107,8 +107,8 @@ func (s *qaStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) err
 	}
 }
 
-func (s *qaStore) importLine(ctx context.Context, basic qas.DocumentBasic, lw io.Writer) error {
-	doc := new(qas.Document)
+func (s *cobStore) importLine(ctx context.Context, basic cob.DocumentBasic, lw io.Writer) error {
+	doc := new(cob.Document)
 	basic.Content = replText.Replace(basic.Content)
 	err := dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", basic.Title, basic.Heading)
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *qaStore) importLine(ctx context.Context, basic qas.DocumentBasic, lw io
 			}
 
 		}
-		err = s.UpdateDocument(ctx, doc.StringID(), qas.DocumentSet{
+		err = s.UpdateDocument(ctx, doc.StringID(), cob.DocumentSet{
 			Content: &basic.Content,
 		})
 	}
@@ -148,8 +148,8 @@ func diff2(text1, text2 string) string {
 	return text
 }
 
-func (s *qaStore) afterCreatedQaDocument(ctx context.Context, obj *qas.Document) error {
-	dvb := qas.DocVectorBasic{
+func (s *cobStore) afterCreatedCobDocument(ctx context.Context, obj *cob.Document) error {
+	dvb := cob.DocVectorBasic{
 		DocID:   obj.ID,
 		Subject: obj.GetSubject(),
 	}
@@ -169,7 +169,7 @@ func (s *qaStore) afterCreatedQaDocument(ctx context.Context, obj *qas.Document)
 	return nil
 }
 
-func GetEmbedding(ctx context.Context, text string) (vec qas.Vector, err error) {
+func GetEmbedding(ctx context.Context, text string) (vec cob.Vector, err error) {
 	if len(text) == 0 {
 		err = ErrEmptyParam
 		return
@@ -184,7 +184,7 @@ func GetEmbedding(ctx context.Context, text string) (vec qas.Vector, err error) 
 		return
 	}
 	if len(res.Data) > 0 {
-		vec = qas.Vector(res.Data[0].Embedding)
+		vec = cob.Vector(res.Data[0].Embedding)
 		logger().Infow("embedding res", "text", text, "vec", len(vec), "usage", &res.Usage)
 	} else {
 		logger().Infow("embedding result is empty", "text", text)
@@ -214,8 +214,8 @@ func GetKeywords(ctx context.Context, text string) (kw string, err error) {
 	return
 }
 
-func (s *qaStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
-	var docs qas.Documents
+func (s *cobStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
+	var docs cob.Documents
 	docs, err = s.MatchDocments(ctx, ms)
 	if err != nil {
 		return
@@ -227,11 +227,11 @@ func (s *qaStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt str
 	}
 
 	prompt = fmt.Sprintf("%s\n\n%s %s\n%s",
-		strings.Join(sections, ""), qas.PrefixQ, ms.Question, qas.PrefixA)
+		strings.Join(sections, ""), cob.PrefixQ, ms.Question, cob.PrefixA)
 
 	return
 }
-func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Documents, err error) {
+func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data cob.Documents, err error) {
 	ms.setDefaults()
 	var subject string
 	if ms.SkipKeywords {
@@ -247,20 +247,20 @@ func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Doc
 		logger().Infow("empty subject", "spec", ms)
 		return
 	}
-	var vec qas.Vector
+	var vec cob.Vector
 	vec, err = GetEmbedding(ctx, subject)
 	if err != nil {
 		logger().Infow("GetEmbedding fail", "err", err)
 		return
 	}
-	var ps qas.DocMatches
+	var ps cob.DocMatches
 	ps, err = s.MatchVectorWith(ctx, vec, ms.Threshold, ms.Limit)
 	logger().Infow("matching", "docs", ps.Subjects(), "err", err)
 	if err != nil || len(ps) == 0 {
 		logger().Infow("no match docs", "subj", subject)
 		return
 	}
-	spec := &QaDocumentSpec{}
+	spec := &CobDocumentSpec{}
 	spec.IDs = ps.DocumentIDs()
 	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
 	if err != nil {
@@ -271,16 +271,16 @@ func (s *qaStore) MatchDocments(ctx context.Context, ms MatchSpec) (data qas.Doc
 	return
 }
 
-func (s *qaStore) MatchVectorWith(ctx context.Context, vec qas.Vector, threshold float32, limit int) (data qas.DocMatches, err error) {
-	if len(vec) != qas.VectorLen {
-		logger().Infow("mismatch length of vector", "a", len(vec), "b", qas.VectorLen)
+func (s *cobStore) MatchVectorWith(ctx context.Context, vec cob.Vector, threshold float32, limit int) (data cob.DocMatches, err error) {
+	if len(vec) != cob.VectorLen {
+		logger().Infow("mismatch length of vector", "a", len(vec), "b", cob.VectorLen)
 		return
 	}
 	logger().Debugw("match with", "vec", vec[0:5])
 	err = s.w.db.NewRaw("SELECT * FROM qa_match_docs_4(?, ?, ?)", vec, threshold, limit).
 		Scan(ctx, &data)
 	// err = s.w.db.NewSelect().
-	// 	Table(qas.DocVectorTable).
+	// 	Table(cob.DocVectorTable).
 	// 	Column("doc_id", "subject").
 	// 	ColumnExpr("(embedding <=> ?) as similarity", vec).
 	// 	Where("(embedding <=> ?) < ?", vec, threshold).
@@ -294,7 +294,7 @@ func (s *qaStore) MatchVectorWith(ctx context.Context, vec qas.Vector, threshold
 	return
 }
 
-func (s *qaStore) ExportDocs(ctx context.Context, ea ExportArg) error {
+func (s *cobStore) ExportDocs(ctx context.Context, ea ExportArg) error {
 	data, _, err := s.ListDocument(ctx, ea.Spec)
 	if err != nil {
 		return err
@@ -308,7 +308,7 @@ func (s *qaStore) ExportDocs(ctx context.Context, ea ExportArg) error {
 	return errors.New("invalid format: " + ea.Format)
 }
 
-func documentsToCSV(data qas.Documents, w io.Writer) error {
+func documentsToCSV(data cob.Documents, w io.Writer) error {
 
 	head := []string{"doc_id", "title", "heading", "content"}
 	cw := csv.NewWriter(w)
@@ -328,7 +328,7 @@ func documentsToCSV(data qas.Documents, w io.Writer) error {
 	return cw.Error()
 }
 
-func (s *qaStore) EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) error {
+func (s *cobStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error {
 	data, _, err := s.ListDocument(ctx, spec)
 	if err != nil {
 		return err
@@ -340,10 +340,10 @@ func (s *qaStore) EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) 
 		if err != nil {
 			return err
 		}
-		exist := new(qas.DocVector)
+		exist := new(cob.DocVector)
 		err = dbGetWithUnique(ctx, s.w.db, exist, "doc_id", doc.ID)
 		if err == nil {
-			exist.SetWith(qas.DocVectorSet{
+			exist.SetWith(cob.DocVectorSet{
 				Subject: &subject,
 				Vector:  &vec,
 			})
@@ -351,7 +351,7 @@ func (s *qaStore) EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) 
 				return err
 			}
 		} else {
-			dv := qas.NewDocVectorWithBasic(qas.DocVectorBasic{
+			dv := cob.NewDocVectorWithBasic(cob.DocVectorBasic{
 				DocID:   doc.ID,
 				Subject: subject,
 				Vector:  vec,
@@ -364,7 +364,7 @@ func (s *qaStore) EmbeddingDocVector(ctx context.Context, spec *QaDocumentSpec) 
 	return nil
 }
 
-func dbAfterDeleteQaDocument(ctx context.Context, db ormDB, obj *qas.Document) error {
-	_, err := dbBatchDeleteWithKeyID(ctx, db, qas.DocVectorTable, "doc_id", obj.ID)
+func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *cob.Document) error {
+	_, err := dbBatchDeleteWithKeyID(ctx, db, cob.DocVectorTable, "doc_id", obj.ID)
 	return err
 }

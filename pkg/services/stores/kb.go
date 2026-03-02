@@ -3,8 +3,8 @@ package stores
 import (
 	"context"
 
+	"github.com/liut/morrigan/pkg/models/cob"
 	mkb "github.com/liut/morrigan/pkg/models/kb"
-	"github.com/liut/morrigan/pkg/models/qas"
 )
 
 // KBProvider implements mkb.KnowledgeBase interface.
@@ -27,7 +27,7 @@ func (p *KBProvider) Search(ctx context.Context, req mkb.SearchRequest) (mkb.Sea
 	}
 	spec.setDefaults()
 
-	docs, err := p.sto.Qa().MatchDocments(ctx, spec)
+	docs, err := p.sto.Cob().MatchDocments(ctx, spec)
 	if err != nil {
 		return mkb.SearchResult{}, err
 	}
@@ -37,11 +37,11 @@ func (p *KBProvider) Search(ctx context.Context, req mkb.SearchRequest) (mkb.Sea
 	}
 	for _, d := range docs {
 		result.Documents = append(result.Documents, mkb.Document{
-			ID:       d.StringID(),
-			Title:    d.Title,
-			Heading:  d.Heading,
-			Content:  d.Content,
-			Score:    0, // Score not available from current implementation
+			ID:      d.StringID(),
+			Title:   d.Title,
+			Heading: d.Heading,
+			Content: d.Content,
+			Score:   0, // Score not available from current implementation
 		})
 	}
 
@@ -56,12 +56,12 @@ func (p *KBProvider) GetContext(ctx context.Context, query string, limit int) (s
 	}
 	spec.setDefaults()
 
-	return p.sto.Qa().ConstructPrompt(ctx, spec)
+	return p.sto.Cob().ConstructPrompt(ctx, spec)
 }
 
 // Create adds a new document to the knowledge base.
 func (p *KBProvider) Create(ctx context.Context, doc mkb.DocumentBasic) (mkb.Document, error) {
-	basic := qas.DocumentBasic{
+	basic := cob.DocumentBasic{
 		Title:   doc.Title,
 		Heading: doc.Heading,
 		Content: doc.Content,
@@ -74,15 +74,15 @@ func (p *KBProvider) Create(ctx context.Context, doc mkb.DocumentBasic) (mkb.Doc
 		}
 	}
 
-	obj, err := p.sto.Qa().CreateDocument(ctx, basic)
+	obj, err := p.sto.Cob().CreateDocument(ctx, basic)
 	if err != nil {
 		return mkb.Document{}, err
 	}
 
 	return mkb.Document{
-		ID:       obj.StringID(),
-		Title:    obj.Title,
-		Heading:  obj.Heading,
-		Content:  obj.Content,
+		ID:      obj.StringID(),
+		Title:   obj.Title,
+		Heading: obj.Heading,
+		Content: obj.Content,
 	}, nil
 }

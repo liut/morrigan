@@ -2,7 +2,7 @@ depends:
   comm: github.com/cupogo/andvari/models/comm
   oid: github.com/cupogo/andvari/models/oid
 
-modelpkg: qas
+modelpkg: cob
 
 models:
   - name: Document
@@ -35,8 +35,8 @@ models:
       # beforeSaving: yes
       afterCreated: yes
       afterDeleting: yes
-    hookNs: qa
-    specNs: qa
+    hookNs: cob
+    specNs: cob
 
   - name: DocVector
     comment: '文档向量 400=1024, 600=1536'
@@ -69,8 +69,8 @@ models:
     oidcat: event
     # hooks:
     #   beforeSaving: yes
-    hookNs: qa
-    specNs: qa
+    hookNs: cob
+    specNs: cob
 
   - name: DocMatch
     comment: '提示匹配结果'
@@ -116,8 +116,8 @@ models:
     oidcat: event
 
 stores:
-  - name: qaStore
-    embed: qaStoreX
+  - name: cobStore
+    embed: CobStoreX
     hods:
       - { name: Document, type: LGCUD }
       - { name: DocVector, type: GCD }

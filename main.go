@@ -49,7 +49,7 @@ func importDocs(cc *cli.Context) error {
 	} else {
 		lw = os.Stderr
 	}
-	err = stores.Sgt().Qa().ImportDocs(context.Background(), file, lw)
+	err = stores.Sgt().Cob().ImportDocs(context.Background(), file, lw)
 	if err != nil {
 		logger().Warnw("import fail", "input", input, "err", err)
 		return err
@@ -66,7 +66,7 @@ func exportDocs(cc *cli.Context) error {
 	}
 	defer file.Close()
 	ctx := context.Background()
-	spec := &stores.QaDocumentSpec{}
+	spec := &stores.CobDocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
 	ea := stores.ExportArg{
@@ -74,12 +74,12 @@ func exportDocs(cc *cli.Context) error {
 		Out:    file,
 		Format: cc.String("format"),
 	}
-	return stores.Sgt().Qa().ExportDocs(ctx, ea)
+	return stores.Sgt().Cob().ExportDocs(ctx, ea)
 }
 
 func embeddingDocVector(cc *cli.Context) error {
 	ctx := context.Background()
-	spec := &stores.QaDocumentSpec{}
+	spec := &stores.CobDocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
 	return stores.Sgt().Qa().EmbeddingDocVector(ctx, spec)

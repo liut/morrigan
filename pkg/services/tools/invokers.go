@@ -11,7 +11,7 @@ import (
 	htmd "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/mark3labs/mcp-go/mcp"
 
-	"github.com/liut/morrigan/pkg/models/qas"
+	"github.com/liut/morrigan/pkg/models/cob"
 	"github.com/liut/morrigan/pkg/services/stores"
 )
 
@@ -31,7 +31,7 @@ func (r *Registry) callKBSearch(ctx context.Context, args map[string]any) (mcp.C
 		return nil, errors.New("subject argument must be a string")
 	}
 
-	docs, err := r.sto.Qa().MatchDocments(ctx, stores.MatchSpec{
+	docs, err := r.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 		Question:     subject,
 		Limit:        5,
 		SkipKeywords: true,
@@ -69,13 +69,13 @@ func (r *Registry) callKBCreate(ctx context.Context, args map[string]any) (mcp.C
 		return nil, errors.New("missing required argument: content")
 	}
 
-	docBasic := qas.DocumentBasic{
+	docBasic := cob.DocumentBasic{
 		Title:   titleArg.(string),
 		Heading: headingArg.(string),
 		Content: contentArg.(string),
 	}
 	docBasic.MetaAddKVs("creator", user.Name)
-	obj, err := r.sto.Qa().CreateDocument(ctx, docBasic)
+	obj, err := r.sto.Cob().CreateDocument(ctx, docBasic)
 	if err != nil {
 		logger().Infow("create document fail", "title", docBasic.Title, "heading", docBasic.Heading,
 			"content", len(docBasic.Content), "err", err)

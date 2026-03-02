@@ -19,7 +19,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
-	"github.com/liut/morrigan/pkg/models/qas"
+	"github.com/liut/morrigan/pkg/models/cob"
 	"github.com/liut/morrigan/pkg/services/mcputils"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
@@ -191,7 +191,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
 
 			if settings.Current.QAChatLog {
-				in := qas.ChatLogBasic{
+				in := cob.ChatLogBasic{
 					ChatID:   ccr.cs.GetOID(),
 					Question: param.Prompt,
 					Answer:   res.answer,
@@ -201,7 +201,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 				if res.usage != nil {
 					in.MetaAddKVs("usage", res.usage)
 				}
-				_, err := stores.Sgt().Qa().CreateChatLog(r.Context(), in)
+				_, err := stores.Sgt().Cob().CreateChatLog(r.Context(), in)
 				if err != nil {
 					logger().Infow("save chat log fail", "err", err)
 				}
