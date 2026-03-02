@@ -1,0 +1,96 @@
+
+depends:
+  comm: 'github.com/cupogo/andvari/models/comm'
+  oid: 'github.com/cupogo/andvari/models/oid'
+
+enums:
+
+  - comment: 状态
+    name: SessionStatus
+    start: 1
+    type: int8
+    values:
+      - label: 开启
+        suffix: Open
+      - label: 关闭
+        suffix: Closed
+    stringer: true
+    decodable: true
+    textMarshaler: true
+    textUnmarshaler: true
+
+dbcode: bun
+modelpkg: convo
+
+models:
+
+  - name: Session
+    comment: '会话'
+    tableTag: 'convo_session,alias:cs'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 标题
+        name: Title
+        type: string
+        tags: {bson: 'title', json: 'title', pg: ',notnull', binding: 'required'}
+        isset: true
+        query: 'match'
+      - comment: '状态'
+        name: Status
+        type: SessionStatus
+        tags: {bson: 'status', json: 'status', pg: ',notnull,type:smallint'}
+        isset: true
+        query: 'equal'
+      - type: comm.MetaField
+      - type: comm.OwnerField
+    oidcat: event
+    oidKey: cs
+    specNs: convo
+
+  - name: Message
+    comment: '会话'
+    tableTag: 'convo_message,alias:cm'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 会话编号
+        name: SessionID
+        type: oid.OID
+        tags: {bson: 'session_id', json: 'session', pg: ',notnull', binding: 'required'}
+        isset: true
+        query: 'match'
+      - comment: 角色
+        name: Role
+        type: string
+        tags: {bson: 'role', json: 'role', pg: ',notnull', binding: 'required'}
+        isset: true
+        query: 'match'
+      - comment: 内容
+        name: Content
+        type: string
+        tags: {bson: 'content', json: 'content', pg: ',notnull', binding: 'required'}
+        isset: true
+      - comment: 'TokenCount'
+        name: TokenCount
+        type: int
+        tags: {bson: 'tokenCount', json: 'tokenCount', pg: ',notnull,type:smallint'}
+        isset: true
+        query: 'equal'
+      - type: comm.MetaField
+    oidcat: message
+    specNs: convo
+
+stores:
+  - name: convoStore
+    hods:
+      - { name: Session, type: LGCUD }
+      - { name: Message, type: LGCD }
+
+webapi:
+  pkg: api_m1
+  uris:
+    - model: Session
+      prefix: '/api/m1/convo'
+      ignore: CU
+    - model: Message
+      prefix: '/api/m1/convo'
+      ignore: CU

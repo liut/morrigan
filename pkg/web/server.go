@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	staffio "github.com/liut/staffio-client"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/sashabaranov/go-openai"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/services/tools"
 	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morrigan/pkg/web/routes"
 )
 
 type Service interface {
@@ -43,7 +43,6 @@ type server struct {
 	hs *http.Server // http server
 
 	cmodel  string // openAI chat model
-	authzr  staffio.Authorizer
 	oc      *openai.Client
 	preset  aigc.Preset
 	mcpcs   map[string]client.MCPClient // with token key, like session
@@ -73,18 +72,13 @@ func New(cfg Config) Service {
 	// Initialize tools registry
 	s.toolreg = tools.NewRegistry(stores.Sgt())
 
-	s.authzr = staffio.NewAuth(staffio.WithCookie(
-		settings.Current.CookieName,
-		settings.Current.CookiePath,
-		settings.Current.CookieDomain,
-	), staffio.WithRefresh(), staffio.WithURI(staffio.LoginPath))
-
 	var err error
 	s.preset, err = stores.LoadPreset()
 	if err == nil {
 		logger().Infow("loaded preset", "mcps", len(s.preset.MCPServers))
 	}
 	s.strapRouter()
+	routes.Routers(s.ar)
 
 	s.hs = &http.Server{
 		Addr:    s.Addr,

@@ -16,6 +16,7 @@ import (
 
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morrigan/pkg/web/routes"
 )
 
 type M = render.M
@@ -29,26 +30,7 @@ var (
 )
 
 func (s *server) authMw(redir bool) func(next http.Handler) http.Handler {
-	if settings.Current.AuthRequired {
-		return s.authzr.MiddlewareWordy(redir)
-	}
-	needAuth := len(settings.Current.AuthSecret) > 0
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if needAuth {
-				tok, err := s.authzr.TokenFromRequest(r)
-				if err != nil || tok != settings.Current.AuthSecret {
-					w.WriteHeader(401)
-					render.JSON(w, r, M{
-						"status":  "Unauthorized",
-						"message": "Please authenticate.",
-					})
-					return
-				}
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
+	return routes.AuthMw(redir)
 }
 
 const authLoginPath = "/api/auth/login"
@@ -139,11 +121,6 @@ func (s *server) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *
 }
 
 // nolint
-func handlerHome(w http.ResponseWriter, r *http.Request) {
-	render.HTML(w, r, "hi")
-}
-
-// nolint
 func handleNoContent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
@@ -222,7 +199,7 @@ func (s *server) handleVerify(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, M{"status": "Success"})
 }
 
-func apiFail(w http.ResponseWriter, r *http.Request, status int, err interface{}) {
+func apiFail(w http.ResponseWriter, r *http.Request, status int, err any) {
 	res := render.M{
 		"status": status,
 		"error":  err,

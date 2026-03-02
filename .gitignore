@@ -110,4 +110,6 @@ tests/
 
 .idea/
 
+*.local.*
+
 morrigan
