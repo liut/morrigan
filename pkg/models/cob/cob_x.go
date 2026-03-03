@@ -1,8 +1,8 @@
 package cob
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/cupogo/andvari/models/oid"
 	"github.com/cupogo/andvari/utils/array"
@@ -20,19 +20,23 @@ func (z Documents) IDs() (out oid.OIDs) {
 }
 
 func (z Documents) MarkdownText() string {
-	var buf bytes.Buffer
-	for _, doc := range z {
-		buf.WriteString("---")
-		buf.WriteString("ID: " + doc.StringID())
-		buf.WriteString("\n\n")
-		buf.WriteString("## " + doc.Title)
-		buf.WriteString("\n\n")
-		buf.WriteString("### " + doc.Heading)
-		buf.WriteString("\n\n")
-		buf.WriteString(doc.Content)
-		buf.WriteString("\n\n")
+	if len(z) == 0 {
+		return "No relevant information found in the knowledge base."
 	}
-	return buf.String()
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Found %d relevant documents in the knowledge base:\n\n", len(z)))
+	for _, doc := range z {
+		sb.WriteString("---\nID: ")
+		sb.WriteString(doc.StringID())
+		sb.WriteString("\n\n## ")
+		sb.WriteString(doc.Title)
+		sb.WriteString("\n\n### ")
+		sb.WriteString(doc.Heading)
+		sb.WriteString("\n\n")
+		sb.WriteString(doc.Content)
+		sb.WriteString("\n\n")
+	}
+	return sb.String()
 }
 
 func (z Documents) Headings() []string {
