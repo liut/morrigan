@@ -92,12 +92,12 @@ func ping(w http.ResponseWriter, r *http.Request) {
 }
 
 // success 成功响应
-func success(w http.ResponseWriter, r *http.Request, result interface{}) {
+func success(w http.ResponseWriter, r *http.Request, result any) {
 	resp.Ok(w, r, result)
 }
 
 // fail 失败响应
-func fail(w http.ResponseWriter, r *http.Request, code int, args ...interface{}) {
+func fail(w http.ResponseWriter, r *http.Request, code int, args ...any) {
 	resp.Fail(w, r, code, args...)
 }
 
