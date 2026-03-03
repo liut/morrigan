@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/mark3labs/mcp-go/client"
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
@@ -43,8 +42,7 @@ type server struct {
 	cmodel  string // openAI chat model
 	oc      *openai.Client
 	preset  aigc.Preset
-	mcpcs   map[string]client.MCPClient // with token key, like session
-	toolreg *tools.Registry             // tool registry
+	toolreg *tools.Registry // tool registry
 }
 
 // New return new web server
@@ -61,7 +59,6 @@ func New(cfg Config) Service {
 		sto:    stores.Sgt(),
 		oc:     stores.GetInteractAIClient(),
 		cmodel: settings.Current.ChatModel,
-		mcpcs:  make(map[string]client.MCPClient),
 	}
 
 	// Initialize tools registry

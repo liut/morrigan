@@ -15,7 +15,6 @@ import (
 	"github.com/go-chi/render"
 	"github.com/jpillora/eventsource"
 	"github.com/marcsv/go-binder/binder"
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
@@ -42,7 +41,7 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	})
 
 	var matched int
-	if len(s.toolreg.ToolsFor(ctx)) == 0 { // 没有工具，使用问答
+	if len(s.toolreg.Tools()) == 0 { // 没有工具，使用问答
 		docs, err := s.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
@@ -102,7 +101,7 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	ccr.Model = s.cmodel
 	ccr.cs = cs
 
-	if len(s.toolreg.ToolsFor(ctx)) > 0 {
+	if len(s.toolreg.Tools()) > 0 {
 		// 为LLM转换工具结构
 		if tools, err := mcputils.MCPToolsToOpenAITools(s.toolreg.ToolsFor(ctx)); err == nil {
 			ccr.Tools = tools
@@ -525,11 +524,11 @@ func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, s.toolreg.ToolsFor(r.Context()), 0)
 }
 
-func mcpContentToChatMessage(id string, mc mcp.Content) ChatCompletionMessage {
-	// 将 mcp.Content 转换为 JSON 字符串
+func mcpContentToChatMessage(id string, result map[string]any) ChatCompletionMessage {
+	// 将 map[string]any 转换为 JSON 字符串
 	content := ""
-	if mc != nil {
-		if b, err := json.Marshal(mc); err == nil {
+	if result != nil {
+		if b, err := json.Marshal(result); err == nil {
 			content = string(b)
 		}
 	}

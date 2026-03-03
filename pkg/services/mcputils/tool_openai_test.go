@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/liut/morrigan/pkg/models/mcps"
 	"github.com/sashabaranov/go-openai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,29 +12,35 @@ import (
 
 func TestMCPToolToOpenAITool(t *testing.T) {
 	// 构造一个复杂的 MCP Tool 进行测试
-	mcpTool := mcp.NewTool("calculate",
-		mcp.WithDescription("Perform basic arithmetic calculations"),
-		mcp.WithString("operation",
-			mcp.Required(),
-			mcp.Description("The arithmetic operation to perform (add, subtract, multiply, divide)"),
-			mcp.Enum("add", "subtract", "multiply", "divide"),
-		),
-		mcp.WithNumber("x",
-			mcp.Required(),
-			mcp.Description("First number"),
-		),
-		mcp.WithNumber("y",
-			mcp.Required(),
-			mcp.Description("Second number"),
-		),
-	)
+	mcpTool := mcps.ToolDescriptor{
+		Name:        "calculate",
+		Description: "Perform basic arithmetic calculations",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"operation": map[string]any{
+					"type":        "string",
+					"description": "The arithmetic operation to perform (add, subtract, multiply, divide)",
+					"enum":        []string{"add", "subtract", "multiply", "divide"},
+				},
+				"x": map[string]any{
+					"type":        "number",
+					"description": "First number",
+				},
+				"y": map[string]any{
+					"type":        "number",
+					"description": "Second number",
+				},
+			},
+			"required": []string{"operation", "x", "y"},
+		},
+	}
 
 	// 将 MCP Tool 转换为 OpenAI Tool
 	openaiTool, err := MCPToolToOpenAITool(mcpTool)
 	require.NoError(t, err)
 
 	// 验证基本属性
-	// t.Logf("openaiTool Function: %+v", openaiTool.Function)
 	assert.Equal(t, openai.ToolTypeFunction, openaiTool.Type)
 	assert.Equal(t, "calculate", openaiTool.Function.Name)
 	assert.Equal(t, "Perform basic arithmetic calculations", openaiTool.Function.Description)
@@ -91,27 +97,27 @@ func TestMCPToolToOpenAITool(t *testing.T) {
 
 // 测试使用 RawInputSchema 的转换
 func TestMCPToolToOpenAIToolWithRawSchema(t *testing.T) {
-	// 准备一个原始 JSON Schema
-	rawSchema := []byte(`{
+	// 准备一个 JSON Schema
+	rawSchema := map[string]any{
 		"type": "object",
-		"required": ["name", "age"],
-		"properties": {
-			"name": {
-				"type": "string",
-				"description": "User name"
+		"required": []string{"name", "age"},
+		"properties": map[string]any{
+			"name": map[string]any{
+				"type":        "string",
+				"description": "User name",
 			},
-			"age": {
-				"type": "number", 
-				"description": "User age"
-			}
-		}
-	}`)
+			"age": map[string]any{
+				"type":        "number",
+				"description": "User age",
+			},
+		},
+	}
 
 	// 创建带有 RawInputSchema 的 MCP Tool
-	tool := mcp.Tool{
-		Name:           "createUser",
-		Description:    "Create a new user",
-		RawInputSchema: rawSchema,
+	tool := mcps.ToolDescriptor{
+		Name:        "createUser",
+		Description: "Create a new user",
+		InputSchema: rawSchema,
 	}
 
 	// 转换为 OpenAI Tool
@@ -141,7 +147,7 @@ func TestMCPToolToOpenAIToolWithRawSchema(t *testing.T) {
 
 // 测试嵌套对象
 func TestMCPToolToOpenAIToolWithNestedObject(t *testing.T) {
-	// 使用 mcp.Properties 创建嵌套对象
+	// 使用 map 创建嵌套对象
 	addressProps := map[string]any{
 		"type":        "object",
 		"description": "Person's address",
@@ -169,12 +175,21 @@ func TestMCPToolToOpenAIToolWithNestedObject(t *testing.T) {
 		"address": addressProps,
 	}
 
-	mcpTool := mcp.NewTool("createPerson",
-		mcp.WithDescription("Create a new person record"),
-		mcp.WithObject("person",
-			mcp.Description("Person information"),
-			mcp.Properties(personProps), mcp.Required()),
-	)
+	mcpTool := mcps.ToolDescriptor{
+		Name:        "createPerson",
+		Description: "Create a new person record",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"person": map[string]any{
+					"type":        "object",
+					"description": "Person information",
+					"properties":  personProps,
+				},
+			},
+			"required": []string{"person"},
+		},
+	}
 
 	openaiTool, err := MCPToolToOpenAITool(mcpTool)
 	require.NoError(t, err)
@@ -212,21 +227,28 @@ func TestMCPToolToOpenAIToolWithNestedObject(t *testing.T) {
 
 // 测试数组类型
 func TestMCPToolToOpenAIToolWithArray(t *testing.T) {
-	mcpTool := mcp.NewTool("addTags",
-		mcp.WithDescription("Add tags to an item"),
-		mcp.WithString("itemId",
-			mcp.Required(),
-			mcp.Description("ID of the item"),
-		),
-		mcp.WithArray("tags",
-			mcp.Required(),
-			mcp.Description("List of tags"),
-			mcp.Items(map[string]any{
-				"type": "string",
-				"enum": []string{"red", "green", "blue"},
-			}),
-		),
-	)
+	mcpTool := mcps.ToolDescriptor{
+		Name:        "addTags",
+		Description: "Add tags to an item",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"itemId": map[string]any{
+					"type":        "string",
+					"description": "ID of the item",
+				},
+				"tags": map[string]any{
+					"type":        "array",
+					"description": "List of tags",
+					"items": map[string]any{
+						"type": "string",
+						"enum": []string{"red", "green", "blue"},
+					},
+				},
+			},
+			"required": []string{"itemId", "tags"},
+		},
+	}
 
 	openaiTool, err := MCPToolToOpenAITool(mcpTool)
 	require.NoError(t, err)
@@ -256,17 +278,24 @@ func TestMCPToolToOpenAIToolWithArray(t *testing.T) {
 
 // 测试布尔类型
 func TestMCPToolToOpenAIToolWithBoolean(t *testing.T) {
-	mcpTool := mcp.NewTool("setUserStatus",
-		mcp.WithDescription("Set user active status"),
-		mcp.WithString("userId",
-			mcp.Required(),
-			mcp.Description("ID of the user"),
-		),
-		mcp.WithBoolean("isActive",
-			mcp.Required(),
-			mcp.Description("Whether the user is active"),
-		),
-	)
+	mcpTool := mcps.ToolDescriptor{
+		Name:        "setUserStatus",
+		Description: "Set user active status",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"userId": map[string]any{
+					"type":        "string",
+					"description": "ID of the user",
+				},
+				"isActive": map[string]any{
+					"type":        "boolean",
+					"description": "Whether the user is active",
+				},
+			},
+			"required": []string{"userId", "isActive"},
+		},
+	}
 
 	openaiTool, err := MCPToolToOpenAITool(mcpTool)
 	require.NoError(t, err)
@@ -290,9 +319,14 @@ func TestMCPToolToOpenAIToolWithBoolean(t *testing.T) {
 
 // 测试无参数工具
 func TestMCPToolToOpenAIToolWithNoParams(t *testing.T) {
-	mcpTool := mcp.NewTool("ping",
-		mcp.WithDescription("Simple ping command with no parameters"),
-	)
+	mcpTool := mcps.ToolDescriptor{
+		Name:        "ping",
+		Description: "Simple ping command with no parameters",
+		InputSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+	}
 
 	openaiTool, err := MCPToolToOpenAITool(mcpTool)
 	require.NoError(t, err)
@@ -317,17 +351,35 @@ func TestMCPToolToOpenAIToolWithNoParams(t *testing.T) {
 // 测试工具列表转换函数
 func TestMCPToolsToOpenAITools(t *testing.T) {
 	// 创建多个工具
-	tool1 := mcp.NewTool("tool1",
-		mcp.WithDescription("Tool 1"),
-		mcp.WithString("param1", mcp.Description("Parameter 1")),
-	)
+	tool1 := mcps.ToolDescriptor{
+		Name:        "tool1",
+		Description: "Tool 1",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"param1": map[string]any{
+					"type":        "string",
+					"description": "Parameter 1",
+				},
+			},
+		},
+	}
 
-	tool2 := mcp.NewTool("tool2",
-		mcp.WithDescription("Tool 2"),
-		mcp.WithNumber("param2", mcp.Description("Parameter 2")),
-	)
+	tool2 := mcps.ToolDescriptor{
+		Name:        "tool2",
+		Description: "Tool 2",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"param2": map[string]any{
+					"type":        "number",
+					"description": "Parameter 2",
+				},
+			},
+		},
+	}
 
-	tools := []mcp.Tool{tool1, tool2}
+	tools := []mcps.ToolDescriptor{tool1, tool2}
 
 	// 转换工具列表
 	openaiTools, err := MCPToolsToOpenAITools(tools)

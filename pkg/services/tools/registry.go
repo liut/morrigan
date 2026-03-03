@@ -4,39 +4,38 @@ import (
 	"context"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
+	"github.com/liut/morrigan/pkg/models/mcps"
 	"github.com/liut/morrigan/pkg/services/stores"
 )
 
-type Invoker func(ctx context.Context, params map[string]any) (mcp.Content, error)
+type Invoker func(ctx context.Context, params map[string]any) (map[string]any, error)
 
 type Registry struct {
 	sto      stores.Storage
-	tools    []mcp.Tool
+	tools    []mcps.ToolDescriptor
 	invokers map[string]Invoker
 
 	// 受限工具列表（需要 keeper 角色）
-	privTools []mcp.Tool
+	privTools []mcps.ToolDescriptor
 }
 
 func NewRegistry(sto stores.Storage) *Registry {
 	r := &Registry{
 		sto:      sto,
-		tools:    make([]mcp.Tool, 0),
+		tools:    make([]mcps.ToolDescriptor, 0),
 		invokers: make(map[string]Invoker),
 	}
 	r.initTools()
 	return r
 }
 
-func (r *Registry) Tools() []mcp.Tool {
+func (r *Registry) Tools() []mcps.ToolDescriptor {
 	return r.tools
 }
 
-func (r *Registry) Invoke(ctx context.Context, name string, params map[string]any) (mcp.Content, error) {
+func (r *Registry) Invoke(ctx context.Context, name string, params map[string]any) (map[string]any, error) {
 	if name == "" {
-		return mcp.NewTextContent("tool name is empty"), nil
+		return mcps.BuildToolErrorResult("tool name is empty"), nil
 	}
 	logger().Debugw("invoking", "toolName", name, "params", params)
 	for key, invoker := range r.invokers {
@@ -44,58 +43,88 @@ func (r *Registry) Invoke(ctx context.Context, name string, params map[string]an
 			return invoker(ctx, params)
 		}
 	}
-	return mcp.NewTextContent("tool not found"), nil
+	return mcps.BuildToolErrorResult("tool not found"), nil
 }
 
 func (r *Registry) initTools() {
 	// Add KB tools
 	if r.sto != nil {
 		// 公开工具：KBSearch
-		r.tools = append(r.tools,
-			mcp.NewTool(ToolNameKBSearch,
-				mcp.WithDescription("Search documents in knowledge base with keywords or subject"),
-				mcp.WithString("subject", mcp.Required(), mcp.Description("text of keywords or subject")),
-			),
-		)
+		r.tools = append(r.tools, mcps.ToolDescriptor{
+			Name:        ToolNameKBSearch,
+			Description: "Search documents in knowledge base with keywords or subject",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"subject": map[string]any{
+						"type":        "string",
+						"description": "text of keywords or subject",
+					},
+				},
+				"required": []string{"subject"},
+			},
+		})
 		r.invokers[ToolNameKBSearch] = r.callKBSearch
 
 		// 受限工具：KBCreate (需要 keeper 角色)
-		r.privTools = append(r.privTools,
-			mcp.NewTool(ToolNameKBCreate,
-				mcp.WithDescription("Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it. Before invoking, always perform a kb_search to confirm there is no corresponding subject or content. If similar content already exists, do not invoke even if requested by the user!"),
-				mcp.WithString("title", mcp.Required(), mcp.Description("title of document, like a main name or topic")),
-				mcp.WithString("heading", mcp.Required(), mcp.Description("heading of document, like a sub name or property")),
-				mcp.WithString("content", mcp.Required(), mcp.Description("long text of content of document")),
-			),
-		)
+		r.privTools = append(r.privTools, mcps.ToolDescriptor{
+			Name:        ToolNameKBCreate,
+			Description: "Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it. Before invoking, always perform a kb_search to confirm there is no corresponding subject or content. If similar content already exists, do not invoke even if requested by the user!",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"title": map[string]any{
+						"type":        "string",
+						"description": "title of document, like a main name or topic",
+					},
+					"heading": map[string]any{
+						"type":        "string",
+						"description": "heading of document, like a sub name or property",
+					},
+					"content": map[string]any{
+						"type":        "string",
+						"description": "long text of content of document",
+					},
+				},
+				"required": []string{"title", "heading", "content"},
+			},
+		})
 		r.invokers[ToolNameKBCreate] = r.callKBCreate
 	}
 
 	// 公开工具：Fetch
-	r.tools = append(r.tools,
-		mcp.NewTool(ToolNameFetch,
-			mcp.WithDescription("Fetches a URL from the internet and optionally extracts its contents as markdown"),
-			mcp.WithString("url",
-				mcp.Required(),
-				mcp.Description("URL to fetch"),
-			),
-			mcp.WithNumber("max_length",
-				mcp.DefaultNumber(5000),
-				mcp.Description("Maximum number of characters to return, default 5000"),
-				mcp.Min(0),
-				mcp.Max(1000000),
-			),
-			mcp.WithNumber("start_index",
-				mcp.DefaultNumber(0),
-				mcp.Description("On return output starting at this character index, default 0"),
-				mcp.Min(0),
-			),
-			mcp.WithBoolean("raw",
-				mcp.DefaultBool(false),
-				mcp.Description("Get the actual HTML content without simplification, dfault false"),
-			),
-		),
-	)
+	r.tools = append(r.tools, mcps.ToolDescriptor{
+		Name:        ToolNameFetch,
+		Description: "Fetches a URL from the internet and optionally extracts its contents as markdown",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"url": map[string]any{
+					"type":        "string",
+					"description": "URL to fetch",
+				},
+				"max_length": map[string]any{
+					"type":        "number",
+					"description": "Maximum number of characters to return, default 5000",
+					"default":     5000,
+					"minimum":     0,
+					"maximum":     1000000,
+				},
+				"start_index": map[string]any{
+					"type":        "number",
+					"description": "On return output starting at this character index, default 0",
+					"default":     0,
+					"minimum":     0,
+				},
+				"raw": map[string]any{
+					"type":        "boolean",
+					"description": "Get the actual HTML content without simplification, default false",
+					"default":     false,
+				},
+			},
+			"required": []string{"url"},
+		},
+	})
 	r.invokers[ToolNameFetch] = r.callFetch
 
 	logger().Debugw("init tools", "tools", r.tools, "priv", len(r.privTools))
@@ -103,7 +132,7 @@ func (r *Registry) initTools() {
 
 // ToolsFor 返回适合当前上下文的工具列表
 // 如果用户有 keeper 角色，返回所有工具；否则只返回公开工具
-func (r *Registry) ToolsFor(ctx context.Context) []mcp.Tool {
+func (r *Registry) ToolsFor(ctx context.Context) []mcps.ToolDescriptor {
 	if stores.IsKeeper(ctx) {
 		// 合并公开工具和受限工具
 		return append(r.tools, r.privTools...)
