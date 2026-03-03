@@ -36,7 +36,6 @@ type server struct {
 	cfg  Config
 
 	sto stores.Storage
-	rag *stores.RAGService
 
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
@@ -64,9 +63,6 @@ func New(cfg Config) Service {
 		cmodel: settings.Current.ChatModel,
 		mcpcs:  make(map[string]client.MCPClient),
 	}
-	// Initialize RAG service with KB provider
-	kbProvider := stores.NewKBProvider(stores.Sgt())
-	s.rag = stores.NewRAGService(kbProvider)
 
 	// Initialize tools registry
 	s.toolreg = tools.NewRegistry(stores.Sgt())

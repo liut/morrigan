@@ -43,13 +43,13 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 
 	var matched int
 	if len(s.toolreg.ToolsFor(ctx)) == 0 { // 没有工具，使用问答
-		result, err := s.rag.Search(ctx, stores.MatchSpec{
+		docs, err := s.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
 		})
 		if err == nil {
-			logger().Infow("matches", "docs", len(result.Documents), "prompt", param.Prompt)
-			if len(result.Documents) == 0 {
+			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)
+			if len(docs) == 0 {
 				// 知识库未命中，添加明确提示
 				messages = append(messages, ChatCompletionMessage{
 					Role:    openai.ChatMessageRoleSystem,
@@ -58,8 +58,8 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 			} else {
 				// 找到文档，拼接成一个 System 消息
 				var sb strings.Builder
-				sb.WriteString(fmt.Sprintf("Found %d relevant documents in the knowledge base:\n\n", len(result.Documents)))
-				for _, doc := range result.Documents {
+				sb.WriteString(fmt.Sprintf("Found %d relevant documents in the knowledge base:\n\n", len(docs)))
+				for _, doc := range docs {
 					matched++
 					logger().Infow("hit", "id", doc.ID, "head", doc.Heading)
 					sb.WriteString(doc.Heading)
@@ -407,7 +407,9 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompt, err := s.rag.BuildContext(r.Context(), prompt)
+	prompt, err := s.sto.Cob().ConstructPrompt(r.Context(), stores.MatchSpec{
+		Question: prompt,
+	})
 	if err != nil {
 		apiFail(w, r, 503, err)
 		return
