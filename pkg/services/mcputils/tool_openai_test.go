@@ -127,13 +127,13 @@ func TestMCPToolToOpenAIToolWithRawSchema(t *testing.T) {
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	var paramsDef map[string]interface{}
+	var paramsDef map[string]any
 	err = json.Unmarshal(paramsJSON, &paramsDef)
 	require.NoError(t, err)
 
 	// 验证从 RawInputSchema 正确解析
 	assert.Equal(t, "object", paramsDef["type"])
-	requiredProps, ok := paramsDef["required"].([]interface{})
+	requiredProps, ok := paramsDef["required"].([]any)
 	assert.True(t, ok)
 	assert.Contains(t, requiredProps, "name")
 	assert.Contains(t, requiredProps, "age")
@@ -185,25 +185,25 @@ func TestMCPToolToOpenAIToolWithNestedObject(t *testing.T) {
 	require.NoError(t, err)
 	// t.Logf("paramsJSON: %s", paramsJSON)
 
-	var paramsDef map[string]interface{}
+	var paramsDef map[string]any
 	err = json.Unmarshal(paramsJSON, &paramsDef)
 	require.NoError(t, err)
 
-	properties, ok := paramsDef["properties"].(map[string]interface{})
+	properties, ok := paramsDef["properties"].(map[string]any)
 	assert.True(t, ok)
 
-	personProp, ok := properties["person"].(map[string]interface{})
+	personProp, ok := properties["person"].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, "object", personProp["type"])
 
-	personProperties, ok := personProp["properties"].(map[string]interface{})
+	personProperties, ok := personProp["properties"].(map[string]any)
 	assert.True(t, ok)
 
-	addressProp, ok := personProperties["address"].(map[string]interface{})
+	addressProp, ok := personProperties["address"].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, "object", addressProp["type"])
 
-	addressProperties, ok := addressProp["properties"].(map[string]interface{})
+	addressProperties, ok := addressProp["properties"].(map[string]any)
 	assert.True(t, ok)
 	assert.Contains(t, addressProperties, "street")
 	assert.Contains(t, addressProperties, "city")
@@ -236,20 +236,20 @@ func TestMCPToolToOpenAIToolWithArray(t *testing.T) {
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	var paramsDef map[string]interface{}
+	var paramsDef map[string]any
 	err = json.Unmarshal(paramsJSON, &paramsDef)
 	require.NoError(t, err)
 
-	properties, ok := paramsDef["properties"].(map[string]interface{})
+	properties, ok := paramsDef["properties"].(map[string]any)
 	assert.True(t, ok)
 
-	tagsProp, ok := properties["tags"].(map[string]interface{})
+	tagsProp, ok := properties["tags"].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, "array", tagsProp["type"])
 
 	// 验证数组项类型
 	// t.Logf("tagsProp: %+v", tagsProp)
-	items, ok := tagsProp["items"].(map[string]interface{})
+	items, ok := tagsProp["items"].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, "string", items["type"])
 }
@@ -276,14 +276,14 @@ func TestMCPToolToOpenAIToolWithBoolean(t *testing.T) {
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	var paramsDef map[string]interface{}
+	var paramsDef map[string]any
 	err = json.Unmarshal(paramsJSON, &paramsDef)
 	require.NoError(t, err)
 
-	properties, ok := paramsDef["properties"].(map[string]interface{})
+	properties, ok := paramsDef["properties"].(map[string]any)
 	assert.True(t, ok)
 
-	isActiveProp, ok := properties["isActive"].(map[string]interface{})
+	isActiveProp, ok := properties["isActive"].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, "boolean", isActiveProp["type"])
 }
@@ -302,13 +302,13 @@ func TestMCPToolToOpenAIToolWithNoParams(t *testing.T) {
 	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	var paramsDef map[string]interface{}
+	var paramsDef map[string]any
 	err = json.Unmarshal(paramsJSON, &paramsDef)
 	require.NoError(t, err)
 
 	// 即使没有参数，应该有 type: object
 	assert.Equal(t, "object", paramsDef["type"])
-	properties, ok := paramsDef["properties"].(map[string]interface{})
+	properties, ok := paramsDef["properties"].(map[string]any)
 	if ok {
 		assert.Empty(t, properties)
 	}
