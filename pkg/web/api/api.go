@@ -61,10 +61,17 @@ func strap(r chi.Router) {
 }
 
 func newapi(sto stores.Storage) *api {
+	preset, err := stores.LoadPreset()
+	if err == nil {
+		logger().Infow("loaded preset", "mcps", len(preset.MCPServers))
+	}
+
 	return &api{
-		sto:    sto,
-		oc:     stores.GetInteractAIClient(),
-		cmodel: settings.Current.ChatModel,
+		sto:     sto,
+		oc:      stores.GetInteractAIClient(),
+		cmodel:  settings.Current.ChatModel,
+		preset:  preset,
+		toolreg: tools.NewRegistry(sto),
 	}
 }
 
