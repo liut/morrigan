@@ -11,19 +11,19 @@ import (
 )
 
 func init() {
-	regHI(false, "GET", "/convo/sessions", "", func(a *api) http.HandlerFunc {
+	regHI(true, "GET", "/convo/sessions", "", func(a *api) http.HandlerFunc {
 		return a.getConvoSessions
 	})
-	regHI(false, "GET", "/convo/sessions/:id", "", func(a *api) http.HandlerFunc {
+	regHI(true, "GET", "/convo/sessions/:id", "", func(a *api) http.HandlerFunc {
 		return a.getConvoSession
 	})
 	regHI(true, "DELETE", "/convo/sessions/:id", "convo-sessions-id-delete", func(a *api) http.HandlerFunc {
 		return a.deleteConvoSession
 	})
-	regHI(false, "GET", "/convo/messages", "", func(a *api) http.HandlerFunc {
+	regHI(true, "GET", "/convo/messages", "", func(a *api) http.HandlerFunc {
 		return a.getConvoMessages
 	})
-	regHI(false, "GET", "/convo/messages/:id", "", func(a *api) http.HandlerFunc {
+	regHI(true, "GET", "/convo/messages/:id", "", func(a *api) http.HandlerFunc {
 		return a.getConvoMessage
 	})
 	regHI(true, "DELETE", "/convo/messages/:id", "convo-messages-id-delete", func(a *api) http.HandlerFunc {
@@ -35,6 +35,7 @@ func init() {
 // @Summary 列出会话
 // @Accept json
 // @Produce json
+// @Param token    header   string  true "登录票据凭证"
 // @Param   query  query   stores.ConvoSessionSpec  true   "Object"
 // @Success 200 {object} Done{result=ResultData{data=convo.Sessions}}
 // @Failure 400 {object} Failure "请求或参数错误"
@@ -63,6 +64,7 @@ func (a *api) getConvoSessions(w http.ResponseWriter, r *http.Request) {
 // @Summary 获取会话
 // @Accept json
 // @Produce json
+// @Param token    header   string  true "登录票据凭证"
 // @Param   id    path   string  true   "编号"
 // @Success 200 {object} Done{result=convo.Session}
 // @Failure 400 {object} Failure "请求或参数错误"
@@ -111,6 +113,7 @@ func (a *api) deleteConvoSession(w http.ResponseWriter, r *http.Request) {
 // @Summary 列出会话
 // @Accept json
 // @Produce json
+// @Param token    header   string  true "登录票据凭证"
 // @Param   query  query   stores.ConvoMessageSpec  true   "Object"
 // @Success 200 {object} Done{result=ResultData{data=convo.Messages}}
 // @Failure 400 {object} Failure "请求或参数错误"
@@ -139,6 +142,7 @@ func (a *api) getConvoMessages(w http.ResponseWriter, r *http.Request) {
 // @Summary 获取会话
 // @Accept json
 // @Produce json
+// @Param token    header   string  true "登录票据凭证"
 // @Param   id    path   string  true   "编号"
 // @Success 200 {object} Done{result=convo.Message}
 // @Failure 400 {object} Failure "请求或参数错误"

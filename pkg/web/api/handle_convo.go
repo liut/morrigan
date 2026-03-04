@@ -1,4 +1,4 @@
-package web
+package api
 
 import (
 	"context"
@@ -23,13 +23,34 @@ import (
 	"github.com/liut/morrigan/pkg/settings"
 )
 
-func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatCompletionRequest {
+func init() {
+	regHI(true, "POST", "/chat", "", func(a *api) http.HandlerFunc {
+		return a.postChat
+	})
+	regHI(true, "POST", "/chat-{suffix}", "", func(a *api) http.HandlerFunc {
+		return a.postChat
+	})
+	regHI(true, "POST", "/completions", "", func(a *api) http.HandlerFunc {
+		return a.postCompletions
+	})
+	regHI(true, "GET", "/welcome", "", func(a *api) http.HandlerFunc {
+		return a.getWelcome
+	})
+	regHI(true, "GET", "/history/{cid}", "", func(a *api) http.HandlerFunc {
+		return a.getHistory
+	})
+	regHI(true, "GET", "/tools", "", func(a *api) http.HandlerFunc {
+		return a.getTools
+	})
+}
+
+func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatCompletionRequest {
 	cs := stores.NewConversation(ctx, param.GetConversionID())
 	var messages []ChatCompletionMessage
 
 	systemPrompt := dftSystemMsg
-	if len(s.preset.SystemPrompt) > 0 {
-		systemPrompt = s.preset.SystemPrompt
+	if len(a.preset.SystemPrompt) > 0 {
+		systemPrompt = a.preset.SystemPrompt
 	}
 	if settings.Current.DateInContext {
 		systemPrompt = systemPrompt + "\n" + thisMoment()
@@ -39,8 +60,8 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 		Content: systemPrompt,
 	})
 
-	if len(s.toolreg.Tools()) == 0 { // 没有工具，使用问答
-		docs, err := s.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
+	if len(a.toolreg.Tools()) == 0 { // 没有工具，使用问答
+		docs, err := a.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
 		})
@@ -83,16 +104,16 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 		}
 	}
 	ccr := new(ChatCompletionRequest)
-	ccr.Model = s.cmodel
+	ccr.Model = a.cmodel
 	ccr.cs = cs
 
-	if len(s.toolreg.Tools()) > 0 {
+	if len(a.toolreg.Tools()) > 0 {
 		// 为LLM转换工具结构
-		if tools, err := mcputils.MCPToolsToOpenAITools(s.toolreg.ToolsFor(ctx)); err == nil {
+		if tools, err := mcputils.MCPToolsToOpenAITools(a.toolreg.ToolsFor(ctx)); err == nil {
 			ccr.Tools = tools
 			toolsPrompt := dftToolsMsg
-			if len(s.preset.ToolsPrompt) > 0 {
-				toolsPrompt = s.preset.ToolsPrompt
+			if len(a.preset.ToolsPrompt) > 0 {
+				toolsPrompt = a.preset.ToolsPrompt
 			}
 			messages = append(messages, ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleSystem,
@@ -114,7 +135,18 @@ func (s *server) prepareChatRequest(ctx context.Context, param *ChatRequest) *Ch
 	return ccr
 }
 
-func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
+// @Tags 聊天
+// @Summary 发送聊天消息
+// @Accept json
+// @Produce json
+// @Param token header string false "登录票据凭证"
+// @Param chatRequest body ChatRequest true "聊天请求"
+// @Success 200 {object} Done{result=ChatMessage}
+// @Success 200 {object} Done{result=ConversationResponse}
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 500 {object} Failure "服务端错误"
+// @Router /api/chat [post]
+func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 	var param ChatRequest
 	if err := binder.BindBody(r, &param); err != nil {
 		apiFail(w, r, 400, err)
@@ -123,7 +155,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	isProcess := strings.HasSuffix(r.URL.Path, "-process")
 	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
 	isStream := param.Stream || isSSE || isProcess
-	ccr := s.prepareChatRequest(r.Context(), &param)
+	ccr := a.prepareChatRequest(r.Context(), &param)
 
 	ccr.Stream = isStream
 	if settings.Current.AuthRequired {
@@ -138,7 +170,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	logger().Infow("chat", "csid", param.GetConversionID(), "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	if ccr.Stream {
-		res := s.chatStreamResponse(ccr, w, r)
+		res := a.chatStreamResponse(ccr, w, r)
 		if len(res.toolCalls) > 0 {
 			var hasToolCall bool
 			ccr.Messages = append(ccr.Messages, openai.ChatCompletionMessage{
@@ -154,7 +186,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 						logger().Infow("chat", "toolCall", tc, "err", err)
 						continue
 					}
-					content, err := s.toolreg.Invoke(r.Context(), tc.Function.Name, parameters)
+					content, err := a.toolreg.Invoke(r.Context(), tc.Function.Name, parameters)
 					if err != nil {
 						logger().Infow("invokeTool fail", "toolCall", tc, "err", err)
 					} else {
@@ -167,7 +199,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 			if hasToolCall {
 				// 继续调用
 				ccr.Tools = nil // 清除工具，有时会导致死循环
-				res = s.chatStreamResponse(ccr, w, r)
+				res = a.chatStreamResponse(ccr, w, r)
 			}
 		}
 		if len(res.answer) > 0 {
@@ -195,7 +227,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := s.oc.CreateChatCompletion(r.Context(), ccr.ChatCompletionRequest)
+	res, err := a.oc.CreateChatCompletion(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
 		apiFail(w, r, 500, err)
 		return
@@ -235,7 +267,7 @@ func (s *server) postChat(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, &cm)
 }
 
-func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
+func (a *api) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
@@ -252,7 +284,7 @@ func (s *server) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseW
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
 	logger().Debugw("ccs recv start", "ccr", ccr)
-	ccs, err := s.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
+	ccs, err := a.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
 	if err != nil {
 		logger().Infow("call chat stream fail", "err", err)
 		apiFail(w, r, 500, err)
@@ -363,7 +395,17 @@ func writeEvent(w io.Writer, id string, m any) bool {
 	return true
 }
 
-func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
+// @Tags 聊天
+// @Summary 文本补全
+// @Accept json
+// @Produce json
+// @Param token header string false "登录票据凭证"
+// @Param completion body CompletionRequest true "补全请求"
+// @Success 200 {object} Done{result=CompletionMessage}
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/completions [post]
+func (a *api) postCompletions(w http.ResponseWriter, r *http.Request) {
 	var param CompletionRequest
 	if err := binder.BindBody(r, &param); err != nil {
 		apiFail(w, r, 400, err)
@@ -374,14 +416,14 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 
 	header := "Answer the question as truthfully as possible using the provided context."
 
-	if s.preset.Completion != nil {
-		header = s.preset.Completion.Header
-		if !settings.Current.QAEmbedding && len(s.preset.Completion.Model) > 0 {
-			param.Model = s.preset.Completion.Model
+	if a.preset.Completion != nil {
+		header = a.preset.Completion.Header
+		if !settings.Current.QAEmbedding && len(a.preset.Completion.Model) > 0 {
+			param.Model = a.preset.Completion.Model
 		}
 	}
-	if len(s.preset.Stop) > 0 {
-		param.Stop = s.preset.Stop
+	if len(a.preset.Stop) > 0 {
+		param.Stop = a.preset.Stop
 	}
 	var prompt string
 	if s, ok := param.Prompt.(string); ok {
@@ -391,7 +433,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompt, err := s.sto.Cob().ConstructPrompt(r.Context(), stores.MatchSpec{
+	prompt, err := a.sto.Cob().ConstructPrompt(r.Context(), stores.MatchSpec{
 		Question: prompt,
 	})
 	if err != nil {
@@ -416,7 +458,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 			return
 		}
-		ccs, err := s.oc.CreateCompletionStream(r.Context(), param.CompletionRequest)
+		ccs, err := a.oc.CreateCompletionStream(r.Context(), param.CompletionRequest)
 		if err != nil {
 			apiFail(w, r, 400, err)
 			return
@@ -465,7 +507,7 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := s.oc.CreateCompletion(r.Context(), param.CompletionRequest)
+	res, err := a.oc.CreateCompletion(r.Context(), param.CompletionRequest)
 	if err != nil {
 		logger().Infow("completion fail", "err", err)
 		apiFail(w, r, 400, err)
@@ -480,11 +522,17 @@ func (s *server) postCompletions(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, cm, 0)
 }
 
-func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
+// @Tags 聊天
+// @Summary 获取欢迎信息
+// @Accept json
+// @Produce json
+// @Success 200 {object} Done{result=aigc.Message}
+// @Router /api/welcome [get]
+func (a *api) getWelcome(w http.ResponseWriter, r *http.Request) {
 	msg := new(aigc.Message)
 
-	if s.preset.Welcome != nil {
-		msg.Content = s.preset.Welcome.Content
+	if a.preset.Welcome != nil {
+		msg.Content = a.preset.Welcome.Content
 	} else {
 		msg.Content = welcomeText
 	}
@@ -494,7 +542,16 @@ func (s *server) getWelcome(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, msg)
 }
 
-func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
+// @Tags 聊天
+// @Summary 获取会话历史
+// @Accept json
+// @Produce json
+// @Param token header string false "登录票据凭证"
+// @Param cid path string true "会话ID"
+// @Success 200 {object} Done{result=aigc.History}
+// @Failure 500 {object} Failure "服务端错误"
+// @Router /api/history/{cid} [get]
+func (a *api) getHistory(w http.ResponseWriter, r *http.Request) {
 	cid := chi.URLParam(r, "cid")
 	cs := stores.NewConversation(r.Context(), cid)
 	data, err := cs.ListHistory(r.Context())
@@ -505,8 +562,15 @@ func (s *server) getHistory(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, data, 0)
 }
 
-func (s *server) getTools(w http.ResponseWriter, r *http.Request) {
-	apiOk(w, r, s.toolreg.ToolsFor(r.Context()), 0)
+// @Tags 聊天
+// @Summary 获取可用工具列表
+// @Accept json
+// @Produce json
+// @Param token header string false "登录票据凭证"
+// @Success 200 {object} Done{result=[]Tool}
+// @Router /api/tools [get]
+func (a *api) getTools(w http.ResponseWriter, r *http.Request) {
+	apiOk(w, r, a.toolreg.ToolsFor(r.Context()), 0)
 }
 
 func mcpContentToChatMessage(id string, result map[string]any) ChatCompletionMessage {

@@ -10,12 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/sashabaranov/go-openai"
-
-	"github.com/liut/morrigan/pkg/models/aigc"
-	"github.com/liut/morrigan/pkg/services/stores"
-	"github.com/liut/morrigan/pkg/services/tools"
-	"github.com/liut/morrigan/pkg/settings"
 )
 
 type Service interface {
@@ -34,15 +28,9 @@ type server struct {
 	Addr string
 	cfg  Config
 
-	sto stores.Storage
-
 	ar *chi.Mux     // app router
 	hs *http.Server // http server
 
-	cmodel  string // openAI chat model
-	oc      *openai.Client
-	preset  aigc.Preset
-	toolreg *tools.Registry // tool registry
 }
 
 // New return new web server
@@ -55,20 +43,9 @@ func New(cfg Config) Service {
 
 	s := &server{
 		Addr: cfg.Addr, ar: ar,
-		cfg:    cfg,
-		sto:    stores.Sgt(),
-		oc:     stores.GetInteractAIClient(),
-		cmodel: settings.Current.ChatModel,
+		cfg: cfg,
 	}
 
-	// Initialize tools registry
-	s.toolreg = tools.NewRegistry(stores.Sgt())
-
-	var err error
-	s.preset, err = stores.LoadPreset()
-	if err == nil {
-		logger().Infow("loaded preset", "mcps", len(s.preset.MCPServers))
-	}
 	s.strapRouter(ar)
 
 	s.hs = &http.Server{

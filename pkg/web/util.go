@@ -5,7 +5,6 @@ import (
 	"math"
 	"reflect"
 	"runtime"
-	"strings"
 )
 
 func nameOfFunction(f any) string {
@@ -34,13 +33,3 @@ func FormatBytes(num float64, suffix string) (str string) {
 	return
 }
 
-func patchImageURI(uri, prefix string) string {
-	if uri == "" {
-		return ""
-	}
-	if strings.HasPrefix(uri, "http") || strings.HasPrefix(uri, "//") {
-		return uri
-	}
-
-	return strings.TrimRight(prefix, "/") + "/" + strings.TrimLeft(uri, "/")
-}

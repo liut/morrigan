@@ -90,6 +90,7 @@ webcode: chi
 webapi:
   formTag: form
   pkg: api
+  needAuth: true
   uris:
     - model: Session
       prefix: '/api/convo'

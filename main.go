@@ -13,6 +13,8 @@ import (
 
 	"github.com/cupogo/andvari/utils/zlog"
 
+	_ "github.com/liut/morrigan/pkg/web/api"
+
 	"github.com/liut/morrigan/htdocs"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"

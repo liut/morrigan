@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sashabaranov/go-openai"
+	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/settings"
 )
