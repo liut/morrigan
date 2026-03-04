@@ -1,13 +1,10 @@
-//go:build api
-
-// TODO: migrate all api handelers from pkg/web/handle*
-
-package apim1
+package api
 
 import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	urlquerybinder "github.com/wgarunap/url-query-binder"
 
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/web/resp"
@@ -15,6 +12,8 @@ import (
 )
 
 var handles = []handleIn{}
+
+var queryBinder = urlquerybinder.NewQueryBinder()
 
 type haFunc func(a *api) http.HandlerFunc
 
@@ -35,8 +34,8 @@ type api struct {
 	sto stores.Storage
 }
 
-// init 注册到 routes
 func init() {
+	queryBinder.SetTag("form")
 	routes.Register("api", routes.StrapFunc(strap))
 }
 
