@@ -85,12 +85,16 @@ stores:
       - { name: Session, type: LGCUD }
       - { name: Message, type: LGCD }
 
-# webapi:
-#   pkg: api_m1
-#   uris:
-#     - model: Session
-#       prefix: '/api/m1/convo'
-#       ignore: CU
-#     - model: Message
-#       prefix: '/api/m1/convo'
-#       ignore: CU
+
+webcode: chi
+webapi:
+  formTag: form
+  pkg: api
+  needAuth: true
+  uris:
+    - model: Session
+      prefix: '/api/convo'
+      ignore: CU
+    - model: Message
+      prefix: '/api/convo'
+      ignore: CU

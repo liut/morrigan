@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/redis/go-redis/v9"
+	redis "github.com/redis/go-redis/v9"
 
 	"github.com/liut/morrigan/pkg/settings"
 )

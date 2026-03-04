@@ -1,20 +1,30 @@
-//go:build api
-
-// TODO: migrate all api handelers from pkg/web/handle*
-
-package apim1
+package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
+	"github.com/sashabaranov/go-openai"
+	"github.com/ulule/limiter/v3"
+	"github.com/ulule/limiter/v3/drivers/middleware/stdlib"
+	limitRedis "github.com/ulule/limiter/v3/drivers/store/redis"
+	urlquerybinder "github.com/wgarunap/url-query-binder"
 
+	staffio "github.com/liut/staffio-client"
+
+	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/services/stores"
+	"github.com/liut/morrigan/pkg/services/tools"
+	"github.com/liut/morrigan/pkg/settings"
 	"github.com/liut/morrigan/pkg/web/resp"
 	"github.com/liut/morrigan/pkg/web/routes"
 )
 
 var handles = []handleIn{}
+
+var queryBinder = urlquerybinder.NewQueryBinder()
 
 type haFunc func(a *api) http.HandlerFunc
 
@@ -33,10 +43,15 @@ func regHI(auth bool, method string, path string, rid string, hafn haFunc) {
 // nolint
 type api struct {
 	sto stores.Storage
+
+	cmodel  string // openAI chat model
+	oc      *openai.Client
+	preset  aigc.Preset
+	toolreg *tools.Registry
 }
 
-// init 注册到 routes
 func init() {
+	queryBinder.SetTag("form")
 	routes.Register("api", routes.StrapFunc(strap))
 }
 
@@ -46,13 +61,45 @@ func strap(r chi.Router) {
 }
 
 func newapi(sto stores.Storage) *api {
-	return &api{sto: sto}
+	return &api{
+		sto:    sto,
+		oc:     stores.GetInteractAIClient(),
+		cmodel: settings.Current.ChatModel,
+	}
 }
 
 // Strap 注册路由到 chi.Router
-func (a *api) Strap(r chi.Router) {
-	r.Route("/api", func(r chi.Router) {
+func (a *api) Strap(router chi.Router) {
+	// staffio 认证路由
+	staffio.SetAdminPath("/")
+	router.Get(authLoginPath, staffio.LoginHandler)
+	router.Get(authLogoutPath, staffio.LogoutHandler)
+	router.Method(http.MethodGet, authCallbackPath, (&staffio.CodeCallback{
+		OnTokenGot: handleTokenGot,
+	}).Handler())
+
+	// 限流器初始化
+	rate, err := limiter.NewRateFromFormatted(settings.Current.AskRateLimit)
+	if err != nil {
+		logger().Fatalw("settings failed", "err", err)
+	}
+	store, err := limitRedis.NewStoreWithOptions(stores.SgtRC(), limiter.StoreOptions{
+		Prefix: "chat-lr-",
+	})
+	if err != nil {
+		logger().Fatalw("limiter with redis option failed", "err", err)
+	}
+	instance := limiter.New(store, rate)
+	middleware := stdlib.NewMiddleware(instance,
+		stdlib.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
+			logger().Warnw("failed on", "uri", r.RequestURI, "err", err)
+		}))
+
+	router.Route("/api", func(r chi.Router) {
+		r.Use(middleware.Handler) // 限流
+
 		r.Get("/ping", ping)
+
 		// 遍历 handles 注册路由
 		pr := r.With(routes.AuthMw(false))
 		for _, hi := range handles {
@@ -75,6 +122,8 @@ func (a *api) authPerm(permID string) func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !stores.IsKeeper(r.Context()) {
 				w.WriteHeader(403)
+				logger().Infow("no permission", "id", permID,
+					"method", r.Method, "uri", r.RequestURI)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -92,12 +141,12 @@ func ping(w http.ResponseWriter, r *http.Request) {
 }
 
 // success 成功响应
-func success(w http.ResponseWriter, r *http.Request, result interface{}) {
+func success(w http.ResponseWriter, r *http.Request, result any) {
 	resp.Ok(w, r, result)
 }
 
 // fail 失败响应
-func fail(w http.ResponseWriter, r *http.Request, code int, args ...interface{}) {
+func fail(w http.ResponseWriter, r *http.Request, code int, args ...any) {
 	resp.Fail(w, r, code, args...)
 }
 
@@ -108,3 +157,42 @@ func dtResult(data any, total int) *resp.ResultData {
 		Total: total,
 	}
 }
+
+// apiFail 失败响应
+func apiFail(w http.ResponseWriter, r *http.Request, status int, err any) {
+	res := render.M{
+		"status": status,
+		"error":  err,
+	}
+	switch ret := err.(type) {
+	case error:
+		res["message"] = ret.Error()
+	case fmt.Stringer:
+		res["message"] = ret.String()
+	case string, *string, []byte:
+		res["message"] = ret
+	}
+	render.JSON(w, r, res)
+}
+
+// apiOk 成功响应
+func apiOk(w http.ResponseWriter, r *http.Request, args ...any) {
+	res := &ResultData{}
+	if len(args) > 0 && args[0] != nil {
+		res.Data = args[0]
+		if len(args) > 1 {
+			if c, ok := args[1].(int); ok {
+				res.Total = c
+			}
+		}
+	}
+
+	render.JSON(w, r, res)
+}
+
+type Done = resp.Done
+type Failure = resp.Failure
+type ResultData = resp.ResultData
+type ResultID = resp.ResultID
+
+type M = render.M

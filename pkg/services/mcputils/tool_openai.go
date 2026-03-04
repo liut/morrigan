@@ -1,16 +1,15 @@
 package mcputils
 
 import (
-	"encoding/json"
-
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sashabaranov/go-openai/jsonschema"
+
+	"github.com/liut/morrigan/pkg/models/mcps"
 )
 
-// MCPToolsToOpenAITools 将 mcp.Tool 列表转换为 openai.Tool 列表
-func MCPToolsToOpenAITools(tools []mcp.Tool) ([]openai.Tool, error) {
-	var openaiTools []openai.Tool
+// MCPToolsToOpenAITools 将 mcps.ToolDescriptor 列表转换为 openai.Tool 列表
+func MCPToolsToOpenAITools(tools []mcps.ToolDescriptor) ([]openai.Tool, error) {
+	openaiTools := make([]openai.Tool, 0, len(tools))
 	for _, tool := range tools {
 		openaiTool, err := MCPToolToOpenAITool(tool)
 		if err != nil {
@@ -21,8 +20,8 @@ func MCPToolsToOpenAITools(tools []mcp.Tool) ([]openai.Tool, error) {
 	return openaiTools, nil
 }
 
-// MCPToolToOpenAITool 将 mcp.Tool 转换为 openai.Tool
-func MCPToolToOpenAITool(tool mcp.Tool) (openai.Tool, error) {
+// MCPToolToOpenAITool 将 mcps.ToolDescriptor 转换为 openai.Tool
+func MCPToolToOpenAITool(tool mcps.ToolDescriptor) (openai.Tool, error) {
 	openaiTool := openai.Tool{
 		Type: openai.ToolTypeFunction,
 		Function: &openai.FunctionDefinition{
@@ -31,92 +30,103 @@ func MCPToolToOpenAITool(tool mcp.Tool) (openai.Tool, error) {
 		},
 	}
 
-	if tool.RawInputSchema != nil {
-		var parameter jsonschema.Definition
-		if err := json.Unmarshal(tool.RawInputSchema, &parameter); err != nil {
-			logger().Infow("unmarshal input schema fail", "raw", tool.RawInputSchema, "err", err)
-			return openaiTool, err
-		}
-		openaiTool.Function.Parameters = parameter
-	} else {
-		// 使用结构化的 InputSchema
-		paramsDef := jsonschema.Definition{
-			Type:     jsonschema.Object, // OpenAI Function 的 Parameters 类型必须是 "object"
-			Required: tool.InputSchema.Required,
-		}
-		parameters := make(map[string]jsonschema.Definition)
-		for paramName, paramDef := range tool.InputSchema.Properties {
-			if properties, ok := paramDef.(map[string]any); ok {
-				parameters[paramName] = propertiesToDefinition(properties)
-			}
-		}
-		paramsDef.Properties = parameters
+	// 将 InputSchema 转换为 openai 的格式
+	if tool.InputSchema != nil {
+		paramsDef := convertInputSchemaToDefinition(tool.InputSchema)
 		openaiTool.Function.Parameters = paramsDef
 	}
 
 	return openaiTool, nil
 }
 
-func propertiesToDefinition(properties map[string]any) jsonschema.Definition {
-	output := jsonschema.Definition{
-		Type: jsonschema.Object, // 默认为对象类型
+// convertInputSchemaToDefinition 将 map[string]any 格式的 InputSchema 转换为 jsonschema.Definition
+func convertInputSchemaToDefinition(schema map[string]any) jsonschema.Definition {
+	def := jsonschema.Definition{
+		Type: jsonschema.Object,
 	}
 
-	for propName, propDef := range properties {
-		logger().Debugw("propertiesToDefinition", "propName", propName,
-			"propDef", propDef)
-		switch propName {
-		case "type":
-			if typeStr, ok := propDef.(string); ok {
-				output.Type = jsonschema.DataType(typeStr)
-			}
-		case "description":
-			if descStr, ok := propDef.(string); ok {
-				output.Description = descStr
-			}
-		case "enum":
-			// 处理枚举值
-			output.Enum = convertToStringSlice(propDef)
-		case "properties":
-			// 处理属性对象
-			logger().Debugw("propertiesToDefinition", "propName", propName, "propDef", propDef)
-			output.Properties = make(map[string]jsonschema.Definition)
-			if propsMap, ok := propDef.(map[string]any); ok {
-				for key, subprop := range propsMap {
-					if subPropMap, ok := subprop.(map[string]any); ok {
-						output.Properties[key] = propertiesToDefinition(subPropMap)
-					}
+	// 处理 type
+	if t, ok := schema["type"].(string); ok {
+		def.Type = jsonschema.DataType(t)
+	}
+
+	// 处理 required - 可能是 []any 或 []string
+	if required, ok := schema["required"]; ok {
+		switch r := required.(type) {
+		case []any:
+			for _, item := range r {
+				if rs, ok := item.(string); ok {
+					def.Required = append(def.Required, rs)
 				}
 			}
-		case "required":
-			// 处理必需字段
-			output.Required = convertToStringSlice(propDef)
-		case "items":
-			// 处理数组项
-			if itemsMap, ok := propDef.(map[string]any); ok {
-				itemsDef := propertiesToDefinition(itemsMap)
-				output.Items = &itemsDef
-			}
-		case "additionalProperties":
-			// 处理额外属性
-			output.AdditionalProperties = propDef
+		case []string:
+			def.Required = r
 		}
 	}
 
-	return output
+	// 处理 properties
+	if properties, ok := schema["properties"].(map[string]any); ok {
+		def.Properties = make(map[string]jsonschema.Definition)
+		for propName, propDef := range properties {
+			if propMap, ok := propDef.(map[string]any); ok {
+				def.Properties[propName] = convertPropertyToDefinition(propMap)
+			}
+		}
+	}
+
+	return def
 }
 
-// convertToStringSlice 将不同类型的列表转换为字符串切片
-func convertToStringSlice(value any) (result []string) {
-	if strSlice, ok := value.([]string); ok {
-		return strSlice
-	} else if anySlice, ok := value.([]any); ok {
-		for _, val := range anySlice {
-			if strVal, ok := val.(string); ok {
-				result = append(result, strVal)
+// convertPropertyToDefinition 将属性定义转换为 jsonschema.Definition
+func convertPropertyToDefinition(prop map[string]any) jsonschema.Definition {
+	def := jsonschema.Definition{}
+
+	// 处理 type
+	if t, ok := prop["type"].(string); ok {
+		def.Type = jsonschema.DataType(t)
+	}
+
+	// 处理 description
+	if desc, ok := prop["description"].(string); ok {
+		def.Description = desc
+	}
+
+	// 处理 enum - 可能是 []any 或 []string
+	if enum, ok := prop["enum"]; ok {
+		switch e := enum.(type) {
+		case []any:
+			def.Enum = toStringSlice(e)
+		case []string:
+			def.Enum = e
+		}
+	}
+
+	// 处理 items (数组类型)
+	if items, ok := prop["items"].(map[string]any); ok {
+		itemDef := convertPropertyToDefinition(items)
+		def.Items = &itemDef
+	}
+
+	// 处理 properties (嵌套对象)
+	if properties, ok := prop["properties"].(map[string]any); ok {
+		def.Properties = make(map[string]jsonschema.Definition)
+		for propName, propDef := range properties {
+			if propMap, ok := propDef.(map[string]any); ok {
+				def.Properties[propName] = convertPropertyToDefinition(propMap)
 			}
 		}
 	}
 
-	return
+	return def
+}
+
+// toStringSlice 将 []any 转换为 []string
+func toStringSlice(arr []any) []string {
+	result := make([]string, 0, len(arr))
+	for _, v := range arr {
+		if s, ok := v.(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result
 }
