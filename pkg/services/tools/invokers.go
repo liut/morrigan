@@ -6,9 +6,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
+
+	nurl "net/url"
 
 	htmd "github.com/JohannesKaufmann/html-to-markdown"
 
+	readeck "codeberg.org/readeck/go-readability/v2"
 	"github.com/liut/morrigan/pkg/models/cob"
 	"github.com/liut/morrigan/pkg/models/mcps"
 	"github.com/liut/morrigan/pkg/services/stores"
@@ -94,6 +98,9 @@ func (r *Registry) callFetch(ctx context.Context, args map[string]any) (map[stri
 	)
 
 	urlStr = mcps.StringArg(args, "url")
+	if urlStr == "" {
+		return mcps.BuildToolErrorResult("missing required argument: url"), nil
+	}
 	maxLength, _, _ = mcps.IntArg(args, "max_length")
 	if maxLength == 0 {
 		maxLength = 5000
@@ -101,13 +108,20 @@ func (r *Registry) callFetch(ctx context.Context, args map[string]any) (map[stri
 	startIndex, _, _ = mcps.IntArg(args, "start_index")
 	raw, _, _ = mcps.BoolArg(args, "raw")
 
+	// Input validation
+	if maxLength <= 0 || maxLength >= 1000000 {
+		return mcps.BuildToolErrorResult("max_length must be between 1 and 999999"), nil
+	}
+	if startIndex < 0 {
+		return mcps.BuildToolErrorResult("start_index must be >= 0"), nil
+	}
+
 	// Fetch URL
 	content, prefix, err := fetchURL(ctx, urlStr, DEFAULT_USER_AGENT_AUTONOMOUS, raw)
 	if err != nil {
 		logger().Infow("fetch", "url", urlStr, "err", err)
 		return mcps.BuildToolSuccessResult(err.Error()), nil
 	}
-	logger().Debugw("fetch", "url", urlStr, "content", content, "prefix", prefix)
 
 	// Handle truncation
 	originalLength := len(content)
@@ -128,37 +142,61 @@ func (r *Registry) callFetch(ctx context.Context, args map[string]any) (map[stri
 			}
 		}
 	}
-	logger().Debugw("fetch", "url", urlStr, "content", content, "prefix", prefix)
+	logger().Debugw("fetched", "url", urlStr, "content", content, "prefix", prefix)
 
 	return mcps.BuildToolSuccessResult(fmt.Sprintf("%s\nContents of %s:\n%s", prefix, urlStr, content)), nil
 }
 
 var converter = htmd.NewConverter("", true, nil)
 
-func extractContentFromHTML(html string) string {
-	doc, err := converter.ConvertString(html)
+func extractContentFromHTML(htmlContent, uri string) string {
+	parsedURL, _ := nurl.Parse(uri)
+	article, err := readeck.FromReader(strings.NewReader(htmlContent), parsedURL)
+	if err != nil {
+		return "<error>Page failed to be simplified from HTML</error>"
+	}
+
+	if article.Node == nil {
+		return "<error>Page failed to be simplified from HTML</error>"
+	}
+
+	var sb strings.Builder
+	if err := article.RenderText(&sb); err != nil {
+		return "<error>Failed to render article text</error>"
+	}
+
+	textContent := sb.String()
+	if textContent == "" {
+		return "<error>Page failed to be simplified from HTML</error>"
+	}
+
+	markdown, err := converter.ConvertString(textContent)
 	if err != nil {
 		logger().Infow("failed to convert HTML to markdown", "err", err)
-		return strings.TrimSpace(html)
+		return "<error>Failed to convert HTML to markdown</error>"
 	}
-	return doc
+
+	return markdown
 }
 
 func fetchURL(ctx context.Context, urlStr, userAgent string, raw bool) (content, prefix string, err error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
 	if err != nil {
 		return
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 400 {
 		err = fmt.Errorf("HTTP %d", resp.StatusCode)
 		return
 	}
@@ -170,10 +208,14 @@ func fetchURL(ctx context.Context, urlStr, userAgent string, raw bool) (content,
 	content = string(b)
 
 	contentType := resp.Header.Get("content-type")
-	isHTML := strings.Contains(contentType, "text/html") || strings.Contains(content, "<html")
+	pagePreview := content
+	if len(pagePreview) > 100 {
+		pagePreview = pagePreview[:100]
+	}
+	isHTML := strings.Contains(contentType, "text/html") || strings.Contains(pagePreview, "<html")
 
 	if isHTML && !raw {
-		content = extractContentFromHTML(content)
+		content = extractContentFromHTML(content, urlStr)
 		prefix = "Markdown"
 	} else {
 		prefix = fmt.Sprintf("Content type %s, raw content:", contentType)
