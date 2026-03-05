@@ -114,7 +114,7 @@ func TestConvertToolCallsForJSON(t *testing.T) {
 				t.Fatalf("json.Marshal failed: %v", err)
 			}
 			// nil 应该序列化为 null
-			if tt.input == nil || len(tt.input) == 0 {
+			if len(tt.input) == 0 {
 				if string(jsonBytes) != "null" {
 					t.Errorf("expected null, got %s", jsonBytes)
 				}

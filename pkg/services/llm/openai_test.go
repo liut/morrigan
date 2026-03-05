@@ -72,7 +72,7 @@ func TestOpenAIProviderChat(t *testing.T) {
 		// 返回模拟响应
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"choices": [{
 				"message": {
 					"content": "Hello, how can I help you?"
@@ -129,7 +129,7 @@ func TestOpenAIProviderEmbedding(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"data": [{
 				"embedding": [0.1, 0.2, 0.3]
 			}]
@@ -164,7 +164,7 @@ func TestOpenAIProviderGenerate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"choices": [{
 				"text": "This is a generated response."
 			}],
@@ -209,9 +209,9 @@ func TestOpenAIProviderStreamChat(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		// 直接写入模拟流式数据
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"},\"index\":0,\"finish_reason\":null}]}\n\n")
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\" World\"},\"index\":0,\"finish_reason\":null}]}\n\n")
-		io.WriteString(w, "data: [DONE]\n\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"},\"index\":0,\"finish_reason\":null}]}\n\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\" World\"},\"index\":0,\"finish_reason\":null}]}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 	}))
 	defer server.Close()
 
@@ -253,9 +253,9 @@ func TestOpenAIProviderStreamChatWithTools(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"index\":0,\"function\":{\"name\":\"get_weather\"}}]},\"index\":0,\"finish_reason\":null}]}\n\n")
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"\"},\"index\":0,\"finish_reason\":\"tool_calls\"}]}\n\n")
-		io.WriteString(w, "data: [DONE]\n\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"id\":\"call_1\",\"type\":\"function\",\"index\":0,\"function\":{\"name\":\"get_weather\"}}]},\"index\":0,\"finish_reason\":null}]}\n\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"\"},\"index\":0,\"finish_reason\":\"tool_calls\"}]}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 	}))
 	defer server.Close()
 
@@ -305,7 +305,7 @@ func TestOpenAIProviderChatWithTools(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"choices": [{
 				"message": {
 					"content": "Let me check the weather.",
@@ -367,7 +367,7 @@ func TestOpenAIProviderChatError(t *testing.T) {
 	// 测试 HTTP 错误响应
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":{"message":"Internal error","type":"server_error"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"Internal error","type":"server_error"}}`))
 	}))
 	defer server.Close()
 
@@ -392,7 +392,7 @@ func TestOpenAIProviderChatEmptyChoices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":0,"total_tokens":5}}`))
+		_, _ = w.Write([]byte(`{"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":0,"total_tokens":5}}`))
 	}))
 	defer server.Close()
 
@@ -415,7 +415,7 @@ func TestOpenAIProviderEmbeddingError(t *testing.T) {
 	// 测试 embedding 错误
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":{"message":"Invalid request"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"Invalid request"}}`))
 	}))
 	defer server.Close()
 
@@ -436,7 +436,7 @@ func TestOpenAIProviderGenerateError(t *testing.T) {
 	// 测试 Generate 错误
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte(`{"error":{"message":"Rate limit exceeded"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"Rate limit exceeded"}}`))
 	}))
 	defer server.Close()
 
@@ -458,7 +458,7 @@ func TestOpenAIProviderGenerateEmptyChoices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":0,"total_tokens":5}}`))
+		_, _ = w.Write([]byte(`{"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":0,"total_tokens":5}}`))
 	}))
 	defer server.Close()
 
@@ -480,7 +480,7 @@ func TestDoRequestTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
 	}))
 	defer server.Close()
 
@@ -560,7 +560,7 @@ func TestOpenAIProviderEmbeddingWithCustomModel(t *testing.T) {
 		// 验证请求中的 model
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data":[{"embedding":[0.5,0.6,0.7]}]}`))
+		_, _ = w.Write([]byte(`{"data":[{"embedding":[0.5,0.6,0.7]}]}`))
 	}))
 	defer server.Close()
 
