@@ -32,10 +32,16 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 ├── main.go                 # CLI 入口
 ├── data/                  # 预设数据 (YAML)
 ├── pkg/
-│   ├── models/            # 数据模型 (qas/aigc/mcps)
-│   ├── services/          # 业务服务 (stores/tools)
+│   ├── models/            # 数据模型 (qas/aigc/mcps/convo)
+│   ├── services/          # 业务服务 (stores/tools/mcputils)
 │   ├── settings/          # 配置管理
-│   └── web/               # HTTP 服务 (server/handlers/routers)
+│   └── web/               # HTTP 服务
+│       ├── api/           # API 处理器 (convo/user/convo_gen)
+│       ├── i18n/         # 国际化
+│       ├── resp/         # 响应处理
+│       ├── routes/       # 路由注册和认证
+│       ├── server.go     # 服务器主文件
+│       └── util.go       # 工具函数
 ├── htdocs/                # 前端静态资源
 └── docs/                  # API 文档
 ```
@@ -54,14 +60,14 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 
 项目已实现多层防护机制，避免 LLM 在知识库未命中时编造答案：
 
-1. **系统提示约束** (`pkg/web/defines.go`)
+1. **系统提示约束** (`pkg/web/api/convo_basic.go`)
    - `dftSystemMsg`: 无工具场景，添加"不知道时诚实回答"约束
    - `dftToolsMsg`: 工具场景，添加类似约束
 
-2. **检索未命中处理** (`pkg/web/handlers.go`)
+2. **检索未命中处理** (`pkg/web/api/handle_convo.go`)
    - 当知识库检索无结果时，添加明确的 System 消息提示
 
-3. **检索命中处理** (`pkg/web/handlers.go`)
+3. **检索命中处理** (`pkg/web/api/handle_convo.go`)
    - 命中文档拼接为单个 System 消息，格式：
      ```
      Found X relevant documents in the knowledge base:
@@ -81,11 +87,78 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 - 定义 CLI 命令: `initdb`, `import`, `embedding`, `web`, `usage`, `version`
 - 启动 Web 服务器逻辑
 
-### pkg/web/handlers.go
+### pkg/web/server.go
 
-- `postChat`: 处理聊天请求，支持流式响应 (SSE)
-- `postCompletions`: 处理补全请求
-- `prepareChatRequest`: 构建聊天请求，包含历史记录和 RAG 检索结果
+- Web 服务器主文件
+- `Service` 接口：定义 Serve() 和 Stop() 方法
+- `New()`: 创建服务器实例
+- `strapRouter()`: 注册路由，使用 routes.Routers() 加载子路由
+
+### pkg/web/routes/registry.go
+
+- 路由注册机制：使用 Strapper 接口解耦
+- `Register()`: 各业务包 init() 时注册路由
+- `Routers()`: 统一挂载所有注册路由
+
+### pkg/web/routes/auth.go
+
+- 认证中间件实现
+- `Authzr()`: 获取 staffio Authorizer 单例
+- `AuthMw()`: 返回认证中间件，支持 staffio 和简单 Token 两种模式
+
+### pkg/web/api/api.go
+
+- API 入口文件，注册 /api 路由
+- `api` 结构体：包含 Storage、AI 客户端、工具注册器
+- 集成限流器 (limiter) 防止 API 滥用
+- 使用 `regHI()` 注册路由处理器
+
+### pkg/web/api/convo_basic.go
+
+- 聊天相关基础结构体定义
+- `ChatRequest`, `ChatCompletionRequest`, `ChatMessage`
+- `CompletionRequest`, `CompletionMessage`
+- `ConversationResponse`
+- 默认系统消息 `dftSystemMsg` 和工具消息 `dftToolsMsg`
+
+### pkg/web/api/handle_convo.go
+
+- 聊天请求处理核心逻辑
+- `postChat`: 处理聊天请求，支持流式 SSE 响应
+- `prepareChatRequest`: 构建聊天请求，包含历史记录和 RAG 检索
+- `postCompletions`: 处理文本补全请求
+- `getWelcome`: 获取欢迎消息
+- `getHistory`: 获取会话历史
+- `getTools`: 获取可用 MCP 工具列表
+- `chatStreamResponse`: 处理流式响应和工具调用
+
+### pkg/web/api/handle_user.go
+
+- 用户认证相关处理
+- `handleSession`: 获取会话信息 (支持 chatgpt-web)
+- `handleVerify`: 验证 Token
+- `handleMe`: 获取当前用户信息
+
+### pkg/web/api/handle_convo_gen.go
+
+- 会话 CRUD API (自动生成)
+- `/api/convo/sessions`: 会话列表/获取/删除
+- `/api/convo/messages`: 消息列表/获取/删除
+
+### pkg/web/resp/resp.go
+
+- 响应处理工具函数
+- `Ok()`: 成功响应
+- `Fail()`: 失败响应
+- `Done`: 成功返回结构
+- `Failure`: 失败返回结构
+
+### pkg/web/i18n/locales.go
+
+- 国际化支持
+- `GetTag()`: 根据请求获取语言
+- `GetPrinter()`: 获取消息打印器
+- 支持中英文等多语言
 
 ### pkg/services/tools/registry.go
 
@@ -111,7 +184,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 项目内置以下 MCP 工具：
 
 - `kb_search`: 知识库搜索
-- `kb_create`: 创建知识库文档
+- `kb_create`: 创建知识库文档 (需要权限)
 - `fetch`: 网页内容获取
 
 ## 数据库
