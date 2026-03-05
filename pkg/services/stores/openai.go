@@ -1,60 +1,69 @@
 package stores
 
 import (
-	"net/http"
-	"time"
-
-	openai "github.com/sashabaranov/go-openai"
-
+	"github.com/liut/morrigan/pkg/services/llm"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
 var (
-	ocEm *openai.Client // for embedding
-	ocIt *openai.Client // for Interact
-	ocSu *openai.Client // for summary
-)
-
-const (
-	openaiTimeout = time.Second * 90
+	// 新的 LLM Clients - 按用途分离
+	llmEm llm.Client // for Embedding
+	llmIt llm.Client // for Interact (chat)
+	llmSu llm.Client // for Summarize/Completion
 )
 
 func init() {
-	ocEm = NewOpenAIClient(
-		settings.Current.Embedding.APIKey,
-		settings.Current.Embedding.URL,
+	// 初始化新的 llm clients
+	var err error
+
+	// Embedding Client
+	llmEmPtr, err := llm.NewClient(
+		llm.WithProvider("openai"),
+		llm.WithAPIKey(settings.Current.Embedding.APIKey),
+		llm.WithBaseURL(settings.Current.Embedding.URL),
+		llm.WithModel(settings.Current.Embedding.Model),
 	)
-	ocIt = NewOpenAIClient(
-		settings.Current.Interact.APIKey,
-		settings.Current.Interact.URL,
+	if err != nil {
+		logger().Fatalw("create llm embedding client failed", "err", err)
+	}
+	llmEm = llmEmPtr
+
+	// Interact Client (chat)
+	llmItPtr, err := llm.NewClient(
+		llm.WithProvider("openai"),
+		llm.WithAPIKey(settings.Current.Interact.APIKey),
+		llm.WithBaseURL(settings.Current.Interact.URL),
+		llm.WithModel(settings.Current.Interact.Model),
 	)
-	ocSu = NewOpenAIClient(
-		settings.Current.Summarize.APIKey,
-		settings.Current.Summarize.URL,
+	if err != nil {
+		logger().Fatalw("create llm interact client failed", "err", err)
+	}
+	llmIt = llmItPtr
+
+	// Summarize/Completion Client (共用)
+	llmSuPtr, err := llm.NewClient(
+		llm.WithProvider("openai"),
+		llm.WithAPIKey(settings.Current.Summarize.APIKey),
+		llm.WithBaseURL(settings.Current.Summarize.URL),
+		llm.WithModel(settings.Current.Summarize.Model),
 	)
+	if err != nil {
+		logger().Fatalw("create llm summarize client failed", "err", err)
+	}
+	llmSu = llmSuPtr
 }
 
-func GetInteractAIClient() *openai.Client {
-	return ocIt
+// GetLLMClient 获取 LLM Client (默认 Interact)
+func GetLLMClient() llm.Client {
+	return llmIt
 }
 
-func NewOpenAIClient(args ...string) *openai.Client {
-	apikey := settings.Current.OpenAIAPIKey
-	if len(args) > 0 && len(args[0]) > 0 {
-		apikey = args[0]
-	}
-	occ := openai.DefaultConfig(apikey)
-	occ.HTTPClient = &http.Client{
-		Timeout:   openaiTimeout,
-		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
-	}
-	baseURL := settings.Current.OpenAIBase
-	if len(args) > 1 && len(args[1]) > 0 {
-		baseURL = args[1]
-	}
-	if len(baseURL) > 0 {
-		occ.BaseURL = baseURL
-	}
+// GetLLMEmbeddingClient 获取 Embedding 用 LLM Client
+func GetLLMEmbeddingClient() llm.Client {
+	return llmEm
+}
 
-	return openai.NewClientWithConfig(occ)
+// GetLLMSummarizeClient 获取 Summarize/Completion 用 LLM Client
+func GetLLMSummarizeClient() llm.Client {
+	return llmSu
 }

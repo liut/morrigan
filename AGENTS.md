@@ -21,7 +21,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 - **Web 框架**: chi/v5
 - **数据库**: PostgreSQL (含 vector 扩展)
 - **缓存/会话**: Redis
-- **AI SDK**: github.com/sashabaranov/go-openai
+- **AI SDK**: github.com/sashabaranov/go-openai (deprecated, use pkg/services/llm)
 - **MCP**: github.com/mark3labs/mcp-go
 - **ORM**: github.com/uptrace/bun
 
@@ -33,7 +33,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 ├── data/                  # 预设数据 (YAML)
 ├── pkg/
 │   ├── models/            # 数据模型 (qas/aigc/mcps/convo)
-│   ├── services/          # 业务服务 (stores/tools/mcputils)
+│   ├── services/          # 业务服务 (stores/tools/llm)
 │   ├── settings/          # 配置管理
 │   └── web/               # HTTP 服务
 │       ├── api/           # API 处理器 (convo/user/convo_gen)
@@ -124,9 +124,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 ### pkg/web/api/handle_convo.go
 
 - 聊天请求处理核心逻辑
-- `postChat`: 处理聊天请求，支持流式 SSE 响应
-- `prepareChatRequest`: 构建聊天请求，包含历史记录和 RAG 检索
-- `postCompletions`: 处理文本补全请求
+- `postChat`: 处理聊天请求，支持流式 SSE 响应和工具调用
 - `getWelcome`: 获取欢迎消息
 - `getHistory`: 获取会话历史
 - `getTools`: 获取可用 MCP 工具列表
