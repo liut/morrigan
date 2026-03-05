@@ -1,10 +1,9 @@
-package mcputils
+package llm
 
 import (
 	"github.com/cupogo/andvari/utils/zlog"
 )
 
-// nolint
 func logger() zlog.Logger {
 	return zlog.Get()
 }

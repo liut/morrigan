@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -14,11 +13,11 @@ import (
 	"github.com/go-chi/render"
 	"github.com/jpillora/eventsource"
 	"github.com/marcsv/go-binder/binder"
-	"github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
 	"github.com/liut/morrigan/pkg/models/cob"
-	"github.com/liut/morrigan/pkg/services/mcputils"
+	"github.com/liut/morrigan/pkg/models/mcps"
+	"github.com/liut/morrigan/pkg/services/llm"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 )
@@ -29,9 +28,6 @@ func init() {
 	})
 	regHI(true, "POST", "/chat-{suffix}", "", func(a *api) http.HandlerFunc {
 		return a.postChat
-	})
-	regHI(true, "POST", "/completions", "", func(a *api) http.HandlerFunc {
-		return a.postCompletions
 	})
 	regHI(true, "GET", "/welcome", "", func(a *api) http.HandlerFunc {
 		return a.getWelcome
@@ -44,9 +40,34 @@ func init() {
 	})
 }
 
-func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatCompletionRequest {
+// chatRequest 内部聊天请求结构
+type chatRequest struct {
+	messages []llm.Message
+	tools    []llm.ToolDefinition
+	isSSE    bool
+	cs       stores.Conversation
+	hi       *aigc.HistoryItem
+}
+
+// convertMCPToolsToLLMTools 将 MCP 工具描述转换为 LLM 工具定义
+func convertMCPToolsToLLMTools(tools []mcps.ToolDescriptor) []llm.ToolDefinition {
+	result := make([]llm.ToolDefinition, 0, len(tools))
+	for _, td := range tools {
+		result = append(result, llm.ToolDefinition{
+			Type: "function",
+			Function: llm.FunctionDefinition{
+				Name:        td.Name,
+				Description: td.Description,
+				Parameters:  td.InputSchema,
+			},
+		})
+	}
+	return result
+}
+
+func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatRequest {
 	cs := stores.NewConversation(ctx, param.GetConversionID())
-	var messages []ChatCompletionMessage
+	var messages []llm.Message
 
 	systemPrompt := dftSystemMsg
 	if len(a.preset.SystemPrompt) > 0 {
@@ -55,12 +76,12 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatC
 	if settings.Current.DateInContext {
 		systemPrompt = systemPrompt + "\n" + thisMoment()
 	}
-	messages = append(messages, ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleSystem,
+	messages = append(messages, llm.Message{
+		Role:    llm.RoleSystem,
 		Content: systemPrompt,
 	})
 
-	if len(a.toolreg.Tools()) == 0 { // 没有工具，使用问答
+	if len(a.toolreg.ToolsFor(ctx)) == 0 { // 没有工具，使用问答
 		docs, err := a.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
@@ -72,8 +93,8 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatC
 				// 知识库未命中，添加明确提示
 				content += "\nPlease honestly state that you don't know rather than making up an answer."
 			}
-			messages = append(messages, ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleSystem,
+			messages = append(messages, llm.Message{
+				Role:    llm.RoleSystem,
 				Content: content,
 			})
 		} else {
@@ -89,12 +110,12 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatC
 		for i, hi := range data {
 			if hi.ChatItem != nil {
 				if len(hi.ChatItem.User) > 0 {
-					messages = append(messages, ChatCompletionMessage{
-						Role: openai.ChatMessageRoleUser, Content: hi.ChatItem.User})
+					messages = append(messages, llm.Message{
+						Role: llm.RoleUser, Content: hi.ChatItem.User})
 				}
 				if len(hi.ChatItem.Assistant) > 0 {
-					messages = append(messages, ChatCompletionMessage{
-						Role: openai.ChatMessageRoleAssistant, Content: hi.ChatItem.Assistant})
+					messages = append(messages, llm.Message{
+						Role: llm.RoleAssistant, Content: hi.ChatItem.Assistant})
 				}
 				// skip the last one
 				if i == len(data)-1 && param.Regenerate {
@@ -103,36 +124,37 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *ChatC
 			}
 		}
 	}
-	ccr := new(ChatCompletionRequest)
-	ccr.Model = a.cmodel
-	ccr.cs = cs
 
-	if len(a.toolreg.Tools()) > 0 {
-		// 为LLM转换工具结构
-		if tools, err := mcputils.MCPToolsToOpenAITools(a.toolreg.ToolsFor(ctx)); err == nil {
-			ccr.Tools = tools
-			toolsPrompt := dftToolsMsg
-			if len(a.preset.ToolsPrompt) > 0 {
-				toolsPrompt = a.preset.ToolsPrompt
-			}
-			messages = append(messages, ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleSystem,
-				Content: toolsPrompt,
-			})
+	var tools []llm.ToolDefinition
+	if len(a.toolreg.ToolsFor(ctx)) > 0 {
+		// 转换 MCP 工具为 LLM 工具定义
+		tools = convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
+		toolsPrompt := dftToolsMsg
+		if len(a.preset.ToolsPrompt) > 0 {
+			toolsPrompt = a.preset.ToolsPrompt
 		}
+		messages = append(messages, llm.Message{
+			Role:    llm.RoleSystem,
+			Content: toolsPrompt,
+		})
 	}
-	ccr.Messages = append(messages, ChatCompletionMessage{
-		Role:    openai.ChatMessageRoleUser,
+
+	messages = append(messages, llm.Message{
+		Role:    llm.RoleUser,
 		Content: param.Prompt,
 	})
-	ccr.hi = &aigc.HistoryItem{
-		Time: time.Now().Unix(),
-		ChatItem: &aigc.HistoryChatItem{
-			User: param.Prompt,
+
+	return &chatRequest{
+		messages: messages,
+		tools:    tools,
+		cs:       cs,
+		hi: &aigc.HistoryItem{
+			Time: time.Now().Unix(),
+			ChatItem: &aigc.HistoryChatItem{
+				User: param.Prompt,
+			},
 		},
 	}
-
-	return ccr
 }
 
 // @Tags 聊天
@@ -157,49 +179,55 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 	isStream := param.Stream || isSSE || isProcess
 	ccr := a.prepareChatRequest(r.Context(), &param)
 
-	ccr.Stream = isStream
-	if settings.Current.AuthRequired {
-		if user, ok := UserFromContext(r.Context()); ok {
-			ccr.User = "mog-uid-" + user.UID
-		}
-	}
-
 	ccr.isSSE = isSSE
 
-	// logger().Infow("chat", "id", csid, "prompt", param.Prompt, "stream", isStream)
-	logger().Infow("chat", "csid", param.GetConversionID(), "msgs", len(ccr.Messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
+	logger().Infow("chat", "csid", param.GetConversionID(), "msgs", len(ccr.messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
-	if ccr.Stream {
+	if isStream {
 		res := a.chatStreamResponse(ccr, w, r)
+		logger().Infow("stream response", "answer_len", len(res.answer), "toolCalls_len", len(res.toolCalls))
 		if len(res.toolCalls) > 0 {
 			var hasToolCall bool
-			ccr.Messages = append(ccr.Messages, openai.ChatCompletionMessage{
-				Role:      openai.ChatMessageRoleAssistant,
+			ccr.messages = append(ccr.messages, llm.Message{
+				Role:      llm.RoleAssistant,
 				ToolCalls: res.toolCalls,
 			})
 			for _, tc := range res.toolCalls {
-				logger().Infow("chat", "toolCall", tc)
+				// 避免直接记录 tc（包含 json.RawMessage），只记录安全字段
+				logger().Infow("chat", "toolCallID", tc.ID, "toolCallType", tc.Type, "toolCallName", tc.Function.Name)
 				if tc.Type == "function" {
-					logger().Infow("chat found function", "toolCall", tc)
+					// 检查 Arguments 是否为有效 JSON（流式响应中可能不完整）
+					args := string(tc.Function.Arguments)
+					if args == "" || args == "{}" {
+						logger().Infow("chat", "toolCallID", tc.ID, "err", "empty arguments")
+						continue
+					}
+					// 尝试解析，失败则跳过
 					var parameters map[string]any
-					if err := json.Unmarshal([]byte(tc.Function.Arguments), &parameters); err != nil {
-						logger().Infow("chat", "toolCall", tc, "err", err)
+					if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
+						logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
 						continue
 					}
 					content, err := a.toolreg.Invoke(r.Context(), tc.Function.Name, parameters)
 					if err != nil {
-						logger().Infow("invokeTool fail", "toolCall", tc, "err", err)
+						logger().Infow("invokeTool fail", "toolCallName", tc.Function.Name, "err", err)
 					} else {
-						logger().Debugw("invokeTool ok", "toolCall", tc, "content", content)
-						ccr.Messages = append(ccr.Messages, mcpContentToChatMessage(tc.ID, content))
+						logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name)
+						ccr.messages = append(ccr.messages, llm.Message{
+							Role:       llm.RoleTool,
+							Content:    formatToolResult(content),
+							ToolCallID: tc.ID,
+						})
 						hasToolCall = true
 					}
 				}
 			}
 			if hasToolCall {
-				// 继续调用
-				ccr.Tools = nil // 清除工具，有时会导致死循环
+				// 继续调用，清除工具以避免死循环
+				tools := ccr.tools
+				ccr.tools = nil
 				res = a.chatStreamResponse(ccr, w, r)
+				ccr.tools = tools
 			}
 		}
 		if len(res.answer) > 0 {
@@ -227,47 +255,43 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := a.oc.CreateChatCompletion(r.Context(), ccr.ChatCompletionRequest)
+	result, err := a.llm.Chat(r.Context(), ccr.messages, ccr.tools)
 	if err != nil {
 		apiFail(w, r, 500, err)
 		return
 	}
-	logger().Infow("chat", "res", &res)
+	logger().Infow("chat", "res", result)
 
 	if param.Full {
 		var cr ConversationResponse
 		cr.ConversationID = ccr.cs.GetID()
-		cr.Detail.Created = res.Created
-		cr.Detail.ID = res.ID
-		cr.Detail.Model = res.Model
-		cr.Detail.Object = res.Object
-		if len(res.Choices) > 0 {
+		cr.Detail.Model = a.cmodel
+		cr.Detail.Object = "chat.completion"
+		if result.Content != "" {
 			cr.Detail.Choices = []ChatCompletionChoice{{
-				FinishReason: string(res.Choices[0].FinishReason),
-				Index:        res.Choices[0].Index,
-				Text:         res.Choices[0].Message.Content,
+				FinishReason: "stop",
+				Index:        0,
+				Text:         result.Content,
 			}}
 		}
-
-		cr.Detail.Usage.CompletionTokens = res.Usage.CompletionTokens
-		cr.Detail.Usage.PromptTokens = res.Usage.PromptTokens
-		cr.Detail.Usage.TotalTokens = res.Usage.TotalTokens
+		cr.Detail.Usage.CompletionTokens = result.Usage.CompletionTokens
+		cr.Detail.Usage.PromptTokens = result.Usage.PromptTokens
+		cr.Detail.Usage.TotalTokens = result.Usage.TotalTokens
 		render.JSON(w, r, &cr)
 		return
 	}
 
 	var cm ChatMessage
 	cm.ID = ccr.cs.GetID()
-	if len(res.Choices) > 0 {
-		cm.Text = res.Choices[0].Message.Content
-		if res.Choices[0].FinishReason != "stop" {
-			cm.FinishReason = string(res.Choices[0].FinishReason)
-		}
+	cm.Text = result.Content
+	if result.HasToolCalls() {
+		cm.FinishReason = "tool_calls"
+		cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
 	}
 	render.JSON(w, r, &cm)
 }
 
-func (a *api) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
+func (a *api) chatStreamResponse(ccr *chatRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
@@ -283,14 +307,13 @@ func (a *api) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWrit
 	}
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
-	logger().Debugw("ccs recv start", "ccr", ccr)
-	ccs, err := a.oc.CreateChatCompletionStream(r.Context(), ccr.ChatCompletionRequest)
+	logger().Debugw("llm stream start", "msgs", len(ccr.messages), "tools", len(ccr.tools))
+	stream, err := a.llm.StreamChat(r.Context(), ccr.messages, ccr.tools)
 	if err != nil {
 		logger().Infow("call chat stream fail", "err", err)
 		apiFail(w, r, 500, err)
 		return
 	}
-	defer ccs.Close()
 
 	var cm ChatMessage
 	if !ccr.isSSE {
@@ -298,75 +321,51 @@ func (a *api) chatStreamResponse(ccr *ChatCompletionRequest, w http.ResponseWrit
 		cm.ConversationID = cm.ID
 	}
 
-	var finishReason string
+	var chunkIdx int
 
-	finalFinishFn := func(reason string) {
-		if ccr.isSSE {
-			_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), esDone)
-			flusher.Flush()
+	for result := range stream {
+		chunkIdx++
+		if result.Error != nil {
+			logger().Infow("stream error", "err", result.Error)
+			break
 		}
-		logger().Debugw("ccs recv done", "reason", reason)
-	}
 
-	for {
-		ccr.chunkIdx++
 		var wrote bool
-		ccsr, err := ccs.Recv()
-		if errors.Is(err, io.EOF) { // choices is nil at the moment
-			logger().Debugw("ccs recv eof", "reason", finishReason)
-			finalFinishFn("EOF")
-			break
-		}
-		if err != nil {
-			logger().Infow("ccs recv fail", "err", err)
-			break
-		}
-		if len(ccsr.Choices) > 0 {
-			cm.ToolCalls = ccsr.Choices[0].Delta.ToolCalls
-			finishReason = string(ccsr.Choices[0].FinishReason)
-			cm.Delta = ccsr.Choices[0].Delta.Content
-			res.answer += cm.Delta
-			if len(cm.ToolCalls) > 0 {
-				if res.toolCalls == nil {
-					res.toolCalls = cm.ToolCalls
-				} else {
-					for i, tc := range cm.ToolCalls {
-						if len(res.toolCalls) <= i {
-							res.toolCalls = append(res.toolCalls, tc)
-						} else {
-							res.toolCalls[i].Function.Arguments += tc.Function.Arguments
-						}
-					}
-				}
-			}
 
-			cm.FinishReason = finishReason
-			if ccr.isSSE {
-				if len(finishReason) > 0 && finishReason == "stop" {
-					cm.ConversationID = ccr.cs.GetID()
-				}
-				if wrote = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
-					break
-				}
+		// 处理内容
+		cm.Delta = result.Delta
+		res.answer += result.Delta
+		// LLM 层已经返回累积的 ToolCalls，直接使用
+		if len(result.ToolCalls) > 0 {
+			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
+		}
+
+		if ccr.isSSE {
+			if result.Done {
+				cm.ConversationID = ccr.cs.GetID()
+				cm.FinishReason = result.FinishReason
+				_ = writeEvent(w, strconv.Itoa(chunkIdx), &cm)
 			} else {
-				cm.Text += cm.Delta
-				if err = json.NewEncoder(w).Encode(&cm); err != nil {
-					logger().Infow("json encode fail", "err", err)
+				if wrote = writeEvent(w, strconv.Itoa(chunkIdx), &cm); !wrote {
 					break
 				}
 			}
-			flusher.Flush()
-			if len(finishReason) > 0 {
-				logger().Infow("stream done", "reason", finishReason, "tc", res.toolCalls, "answer", res.answer)
-				if len(res.toolCalls) == 0 {
-					finalFinishFn(finishReason)
-				}
+		} else {
+			cm.Text += result.Delta
+			if err = json.NewEncoder(w).Encode(&cm); err != nil {
+				logger().Infow("json encode fail", "err", err)
 				break
 			}
 		}
+		flusher.Flush()
+
+		if result.Done {
+			// 保存最终的 toolCalls 供后续处理
+			res.toolCalls = result.ToolCalls
+			break
+		}
 	}
-	logger().Infow("ccs recv done", "answer", len(res.answer))
-	// TODO: 处理工具调用
+	logger().Infow("llm stream done", "answer", len(res.answer))
 	return
 }
 
@@ -393,133 +392,6 @@ func writeEvent(w io.Writer, id string, m any) bool {
 	}
 
 	return true
-}
-
-// @Tags 聊天
-// @Summary 文本补全
-// @Accept json
-// @Produce json
-// @Param token header string false "登录票据凭证"
-// @Param completion body CompletionRequest true "补全请求"
-// @Success 200 {object} Done{result=CompletionMessage}
-// @Failure 400 {object} Failure "请求或参数错误"
-// @Failure 503 {object} Failure "服务端错误"
-// @Router /api/completions [post]
-func (a *api) postCompletions(w http.ResponseWriter, r *http.Request) {
-	var param CompletionRequest
-	if err := binder.BindBody(r, &param); err != nil {
-		apiFail(w, r, 400, err)
-		return
-	}
-
-	param.cs = stores.NewConversation(r.Context(), param.ConversationID)
-
-	header := "Answer the question as truthfully as possible using the provided context."
-
-	if a.preset.Completion != nil {
-		header = a.preset.Completion.Header
-		if !settings.Current.QAEmbedding && len(a.preset.Completion.Model) > 0 {
-			param.Model = a.preset.Completion.Model
-		}
-	}
-	if len(a.preset.Stop) > 0 {
-		param.Stop = a.preset.Stop
-	}
-	var prompt string
-	if s, ok := param.Prompt.(string); ok {
-		prompt = s
-	} else {
-		apiFail(w, r, 400, "invalid prompt")
-		return
-	}
-
-	prompt, err := a.sto.Cob().ConstructPrompt(r.Context(), stores.MatchSpec{
-		Question: prompt,
-	})
-	if err != nil {
-		apiFail(w, r, 503, err)
-		return
-	}
-	param.Prompt = header + "\n\nContext:\n" + prompt
-
-	if len(param.Model) == 0 {
-		param.Model = openai.GPT3Dot5TurboInstruct
-	}
-
-	param.MaxTokens = 1024
-	logger().Infow("completion", "param", &param, "csid", param.cs.GetID())
-	w.Header().Add("Conversation-ID", param.cs.GetID())
-
-	var cm CompletionMessage
-	cm.ID = param.cs.GetID()
-
-	if param.Stream {
-		if _, ok := w.(http.Flusher); !ok {
-			http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-			return
-		}
-		ccs, err := a.oc.CreateCompletionStream(r.Context(), param.CompletionRequest)
-		if err != nil {
-			apiFail(w, r, 400, err)
-			return
-		}
-		w.Header().Set("Content-Type", "text/event-stream")
-
-		var idx int
-		var answer string
-		var finishReason string
-		finishFn := func(reason string) {
-			logger().Infow("finish", "reason", reason, "answer", answer)
-			cm.Text = answer // optional for chatgpt-web
-			_ = writeEvent(w, strconv.Itoa(idx), esDone)
-		}
-		for {
-			idx++
-			var wrote bool
-			ccsr, err := ccs.Recv()
-			if errors.Is(err, io.EOF) {
-				logger().Debugw("ccs recv eof", "reason", finishReason)
-				finishFn("EOF")
-				break
-			}
-
-			if err != nil {
-				logger().Infow("ccs recv fail", "err", err)
-				break
-			}
-
-			if len(ccsr.Choices) > 0 {
-				// logger().Debugw("recv", "cohoices", ccsr.Choices)
-				finishReason = ccsr.Choices[0].FinishReason
-				cm.Delta = ccsr.Choices[0].Text
-				answer += cm.Delta
-				cm.FinishReason = finishReason
-				if wrote = writeEvent(w, strconv.Itoa(idx), &cm); !wrote {
-					break
-				}
-				if len(finishReason) > 0 {
-					finishFn(finishReason)
-					break
-				}
-			}
-		}
-		logger().Infow("ccs recv done", "answer", len(answer))
-		return
-	}
-
-	res, err := a.oc.CreateCompletion(r.Context(), param.CompletionRequest)
-	if err != nil {
-		logger().Infow("completion fail", "err", err)
-		apiFail(w, r, 400, err)
-		return
-	}
-	logger().Infow("completion done", "res", &res)
-	cm = CompletionMessage{Time: res.Created}
-	if len(res.Choices) > 0 {
-		logger().Infow("got choices", "finish_reason", res.Choices[0].FinishReason)
-		cm.Text = strings.TrimSpace(res.Choices[0].Text)
-	}
-	apiOk(w, r, cm, 0)
 }
 
 // @Tags 聊天
@@ -573,18 +445,36 @@ func (a *api) getTools(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, a.toolreg.ToolsFor(r.Context()), 0)
 }
 
-func mcpContentToChatMessage(id string, result map[string]any) ChatCompletionMessage {
-	// 将 map[string]any 转换为 JSON 字符串
-	content := ""
-	if result != nil {
-		if b, err := json.Marshal(result); err == nil {
-			content = string(b)
+// formatToolResult 将工具结果转换为 JSON 字符串
+func formatToolResult(result map[string]any) string {
+	if result == nil {
+		return ""
+	}
+	if b, err := json.Marshal(result); err == nil {
+		return string(b)
+	}
+	return ""
+}
+
+// convertToolCallsForJSON 将 llm.ToolCall 转换为可序列化的 map 格式
+func convertToolCallsForJSON(tcs []llm.ToolCall) []map[string]any {
+	if len(tcs) == 0 {
+		return nil
+	}
+	result := make([]map[string]any, len(tcs))
+	for i, tc := range tcs {
+		args := string(tc.Function.Arguments)
+		if args == "" {
+			args = "{}"
+		}
+		result[i] = map[string]any{
+			"id":   tc.ID,
+			"type": tc.Type,
+			"function": map[string]any{
+				"name":      tc.Function.Name,
+				"arguments": args,
+			},
 		}
 	}
-
-	return ChatCompletionMessage{
-		Role:       openai.ChatMessageRoleTool,
-		Content:    content,
-		ToolCallID: id,
-	}
+	return result
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
-	"github.com/sashabaranov/go-openai"
 	"github.com/ulule/limiter/v3"
 	"github.com/ulule/limiter/v3/drivers/middleware/stdlib"
 	limitRedis "github.com/ulule/limiter/v3/drivers/store/redis"
@@ -15,6 +14,7 @@ import (
 	staffio "github.com/liut/staffio-client"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
+	"github.com/liut/morrigan/pkg/services/llm"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/services/tools"
 	"github.com/liut/morrigan/pkg/settings"
@@ -44,9 +44,9 @@ func regHI(auth bool, method string, path string, rid string, hafn haFunc) {
 type api struct {
 	sto stores.Storage
 
-	cmodel  string // openAI chat model
-	oc      *openai.Client
-	preset  aigc.Preset
+	cmodel string // openAI chat model
+	llm    llm.Client
+	preset aigc.Preset
 	toolreg *tools.Registry
 }
 
@@ -68,7 +68,7 @@ func newapi(sto stores.Storage) *api {
 
 	return &api{
 		sto:     sto,
-		oc:      stores.GetInteractAIClient(),
+		llm:     stores.GetLLMClient(),
 		cmodel:  settings.Current.ChatModel,
 		preset:  preset,
 		toolreg: tools.NewRegistry(sto),

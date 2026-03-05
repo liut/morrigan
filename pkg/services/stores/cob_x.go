@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
-	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/liut/morrigan/pkg/models/cob"
 	"github.com/liut/morrigan/pkg/settings"
@@ -175,17 +174,19 @@ func GetEmbedding(ctx context.Context, text string) (vec cob.Vector, err error) 
 		return
 	}
 
-	res, err := ocEm.CreateEmbeddings(ctx, openai.EmbeddingRequest{
-		Input: []string{text},
-		Model: openai.EmbeddingModel(settings.Current.Embedding.Model),
-	})
+	// 使用 embedding client
+	embedding, err := llmEm.Embedding(ctx, []string{text})
 	if err != nil {
 		logger().Infow("embedding fail", "text", text, "err", err)
 		return
 	}
-	if len(res.Data) > 0 {
-		vec = cob.Vector(res.Data[0].Embedding)
-		logger().Infow("embedding res", "text", text, "vec", len(vec), "usage", &res.Usage)
+	if len(embedding) > 0 {
+		// 转换 []float64 到 []float32
+		vec = make(cob.Vector, len(embedding))
+		for i, v := range embedding {
+			vec[i] = float32(v)
+		}
+		logger().Infow("embedding res", "text", text, "vec", len(vec))
 	} else {
 		logger().Infow("embedding result is empty", "text", text)
 	}
@@ -197,20 +198,14 @@ func GetKeywords(ctx context.Context, text string) (kw string, err error) {
 		err = ErrEmptyParam
 		return
 	}
-	res, err := ocSu.CreateCompletion(ctx, openai.CompletionRequest{
-		Model:  settings.Current.Summarize.Model,
-		Prompt: fmt.Sprintf(tplKeyword, text),
-	})
+	prompt := fmt.Sprintf(tplKeyword, text)
+	result, _, err := llmSu.Generate(ctx, prompt)
 	if err != nil {
 		logger().Infow("summarize fail", "text", text, "err", err)
 		return
 	}
-	if len(res.Choices) > 0 {
-		kw = res.Choices[0].Text
-		logger().Infow("summarize ok", "text", text, "kw", kw, "usage", &res.Usage)
-	} else {
-		logger().Infow("summarize result is empty", "text", text, "res", res)
-	}
+	kw = strings.TrimSpace(result)
+	logger().Infow("summarize ok", "text", text, "kw", kw)
 	return
 }
 
