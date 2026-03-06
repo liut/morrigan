@@ -10,7 +10,7 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 
-	"github.com/liut/morrigan/pkg/models/cob"
+	"github.com/liut/morrigan/pkg/models/corpus"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -63,8 +63,8 @@ type CobStoreX interface {
 	ExportDocs(ctx context.Context, ea ExportArg) error
 	EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
-	MatchDocments(ctx context.Context, ms MatchSpec) (data cob.Documents, err error)
-	MatchVectorWith(ctx context.Context, vec cob.Vector, threshold float32, limit int) (data cob.DocMatches, err error)
+	MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error)
+	MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error)
 }
 
 func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
@@ -94,7 +94,7 @@ func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) er
 			// return fmt.Errorf("invalid csv row #%d: %+v", idx, row)
 			continue
 		}
-		err = s.importLine(ctx, cob.DocumentBasic{
+		err = s.importLine(ctx, corpus.DocumentBasic{
 			Title:   row[0],
 			Heading: row[1],
 			Content: row[2],
@@ -106,8 +106,8 @@ func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) er
 	}
 }
 
-func (s *cobStore) importLine(ctx context.Context, basic cob.DocumentBasic, lw io.Writer) error {
-	doc := new(cob.Document)
+func (s *cobStore) importLine(ctx context.Context, basic corpus.DocumentBasic, lw io.Writer) error {
+	doc := new(corpus.Document)
 	basic.Content = replText.Replace(basic.Content)
 	err := dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", basic.Title, basic.Heading)
 	if err != nil {
@@ -124,7 +124,7 @@ func (s *cobStore) importLine(ctx context.Context, basic cob.DocumentBasic, lw i
 			}
 
 		}
-		err = s.UpdateDocument(ctx, doc.StringID(), cob.DocumentSet{
+		err = s.UpdateDocument(ctx, doc.StringID(), corpus.DocumentSet{
 			Content: &basic.Content,
 		})
 	}
@@ -147,8 +147,8 @@ func diff2(text1, text2 string) string {
 	return text
 }
 
-func (s *cobStore) afterCreatedCobDocument(ctx context.Context, obj *cob.Document) error {
-	dvb := cob.DocVectorBasic{
+func (s *cobStore) afterCreatedCobDocument(ctx context.Context, obj *corpus.Document) error {
+	dvb := corpus.DocVectorBasic{
 		DocID:   obj.ID,
 		Subject: obj.GetSubject(),
 	}
@@ -168,7 +168,7 @@ func (s *cobStore) afterCreatedCobDocument(ctx context.Context, obj *cob.Documen
 	return nil
 }
 
-func GetEmbedding(ctx context.Context, text string) (vec cob.Vector, err error) {
+func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err error) {
 	if len(text) == 0 {
 		err = ErrEmptyParam
 		return
@@ -182,7 +182,7 @@ func GetEmbedding(ctx context.Context, text string) (vec cob.Vector, err error) 
 	}
 	if len(embedding) > 0 {
 		// 转换 []float64 到 []float32
-		vec = make(cob.Vector, len(embedding))
+		vec = make(corpus.Vector, len(embedding))
 		for i, v := range embedding {
 			vec[i] = float32(v)
 		}
@@ -210,7 +210,7 @@ func GetKeywords(ctx context.Context, text string) (kw string, err error) {
 }
 
 func (s *cobStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
-	var docs cob.Documents
+	var docs corpus.Documents
 	docs, err = s.MatchDocments(ctx, ms)
 	if err != nil {
 		return
@@ -222,11 +222,11 @@ func (s *cobStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt st
 	}
 
 	prompt = fmt.Sprintf("%s\n\n%s %s\n%s",
-		strings.Join(sections, ""), cob.PrefixQ, ms.Question, cob.PrefixA)
+		strings.Join(sections, ""), corpus.PrefixQ, ms.Question, corpus.PrefixA)
 
 	return
 }
-func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data cob.Documents, err error) {
+func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error) {
 	ms.setDefaults()
 	var subject string
 	if ms.SkipKeywords {
@@ -242,13 +242,13 @@ func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data cob.Do
 		logger().Infow("empty subject", "spec", ms)
 		return
 	}
-	var vec cob.Vector
+	var vec corpus.Vector
 	vec, err = GetEmbedding(ctx, subject)
 	if err != nil {
 		logger().Infow("GetEmbedding fail", "err", err)
 		return
 	}
-	var ps cob.DocMatches
+	var ps corpus.DocMatches
 	ps, err = s.MatchVectorWith(ctx, vec, ms.Threshold, ms.Limit)
 	logger().Infow("matching", "docs", ps.Subjects(), "err", err)
 	if err != nil || len(ps) == 0 {
@@ -266,16 +266,16 @@ func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data cob.Do
 	return
 }
 
-func (s *cobStore) MatchVectorWith(ctx context.Context, vec cob.Vector, threshold float32, limit int) (data cob.DocMatches, err error) {
-	if len(vec) != cob.VectorLen {
-		logger().Infow("mismatch length of vector", "a", len(vec), "b", cob.VectorLen)
+func (s *cobStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error) {
+	if len(vec) != corpus.VectorLen {
+		logger().Infow("mismatch length of vector", "a", len(vec), "b", corpus.VectorLen)
 		return
 	}
 	logger().Debugw("match with", "vec", vec[0:5])
 	err = s.w.db.NewRaw("SELECT * FROM qa_match_docs_4(?, ?, ?)", vec, threshold, limit).
 		Scan(ctx, &data)
 	// err = s.w.db.NewSelect().
-	// 	Table(cob.DocVectorTable).
+	// 	Table(corpus.DocVectorTable).
 	// 	Column("doc_id", "subject").
 	// 	ColumnExpr("(embedding <=> ?) as similarity", vec).
 	// 	Where("(embedding <=> ?) < ?", vec, threshold).
@@ -303,7 +303,7 @@ func (s *cobStore) ExportDocs(ctx context.Context, ea ExportArg) error {
 	return errors.New("invalid format: " + ea.Format)
 }
 
-func documentsToCSV(data cob.Documents, w io.Writer) error {
+func documentsToCSV(data corpus.Documents, w io.Writer) error {
 
 	head := []string{"doc_id", "title", "heading", "content"}
 	cw := csv.NewWriter(w)
@@ -335,10 +335,10 @@ func (s *cobStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec
 		if err != nil {
 			return err
 		}
-		exist := new(cob.DocVector)
+		exist := new(corpus.DocVector)
 		err = dbGetWithUnique(ctx, s.w.db, exist, "doc_id", doc.ID)
 		if err == nil {
-			exist.SetWith(cob.DocVectorSet{
+			exist.SetWith(corpus.DocVectorSet{
 				Subject: &subject,
 				Vector:  &vec,
 			})
@@ -346,7 +346,7 @@ func (s *cobStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec
 				return err
 			}
 		} else {
-			dv := cob.NewDocVectorWithBasic(cob.DocVectorBasic{
+			dv := corpus.NewDocVectorWithBasic(corpus.DocVectorBasic{
 				DocID:   doc.ID,
 				Subject: subject,
 				Vector:  vec,
@@ -359,7 +359,7 @@ func (s *cobStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec
 	return nil
 }
 
-func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *cob.Document) error {
-	_, err := dbBatchDeleteWithKeyID(ctx, db, cob.DocVectorTable, "doc_id", obj.ID)
+func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *corpus.Document) error {
+	_, err := dbBatchDeleteWithKeyID(ctx, db, corpus.DocVectorTable, "doc_id", obj.ID)
 	return err
 }

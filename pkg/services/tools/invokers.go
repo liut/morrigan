@@ -13,7 +13,7 @@ import (
 	htmd "github.com/JohannesKaufmann/html-to-markdown"
 
 	readeck "codeberg.org/readeck/go-readability/v2"
-	"github.com/liut/morrigan/pkg/models/cob"
+	"github.com/liut/morrigan/pkg/models/corpus"
 	"github.com/liut/morrigan/pkg/models/mcps"
 	"github.com/liut/morrigan/pkg/services/stores"
 )
@@ -72,7 +72,7 @@ func (r *Registry) callKBCreate(ctx context.Context, args map[string]any) (map[s
 		return mcps.BuildToolErrorResult("missing required argument: content"), nil
 	}
 
-	docBasic := cob.DocumentBasic{
+	docBasic := corpus.DocumentBasic{
 		Title:   titleArg.(string),
 		Heading: headingArg.(string),
 		Content: contentArg.(string),

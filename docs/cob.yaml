@@ -2,7 +2,8 @@ depends:
   comm: github.com/cupogo/andvari/models/comm
   oid: github.com/cupogo/andvari/models/oid
 
-modelpkg: cob
+gename: cob
+modelpkg: corpus
 
 models:
   - name: Document
@@ -121,6 +122,5 @@ stores:
     hods:
       - { name: Document, type: LGCUD }
       - { name: DocVector, type: GCD }
-      - name: ChatLog
-        type: CGLD
+      - { name: ChatLog, type: CGLD }
 

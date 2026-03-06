@@ -1,6 +1,6 @@
 // This file is generated - Do Not Edit.
 
-package cob
+package corpus
 
 import (
 	comm "github.com/cupogo/andvari/models/comm"
@@ -12,7 +12,7 @@ const (
 	DocumentTable = "qa_corpus_document"
 	DocumentAlias = "cd"
 	DocumentLabel = "document"
-	DocumentTypID = "cobDocument"
+	DocumentTypID = "corpusDocument"
 )
 
 // Document 文档 语料库
@@ -24,7 +24,7 @@ type Document struct {
 	DocumentBasic
 
 	comm.MetaField
-} // @name cobDocument
+} // @name corpusDocument
 
 type DocumentBasic struct {
 	// 主标题 名称
@@ -35,7 +35,7 @@ type DocumentBasic struct {
 	Content string `bun:",notnull,type:text" extensions:"x-order=C" form:"content" json:"content" pg:",notnull,type:text"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
-} // @name cobDocumentBasic
+} // @name corpusDocumentBasic
 
 type Documents []Document
 
@@ -73,7 +73,7 @@ type DocumentSet struct {
 	Content *string `extensions:"x-order=C" json:"content"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
-} // @name cobDocumentSet
+} // @name corpusDocumentSet
 
 func (z *Document) SetWith(o DocumentSet) {
 	if o.Title != nil && z.Title != *o.Title {
@@ -106,7 +106,7 @@ const (
 	DocVectorTable = "qa_corpus_vector_400"
 	DocVectorAlias = "cv"
 	DocVectorLabel = "docVector"
-	DocVectorTypID = "cobDocVector"
+	DocVectorTypID = "corpusDocVector"
 )
 
 // DocVector 文档向量 400=1024, 600=1536
@@ -121,7 +121,7 @@ type DocVector struct {
 	Similarity float32 `bun:"-" extensions:"x-order=D" json:"similarity,omitempty" pg:"-"`
 
 	comm.MetaField
-} // @name cobDocVector
+} // @name corpusDocVector
 
 type DocVectorBasic struct {
 	// 文档编号
@@ -132,7 +132,7 @@ type DocVectorBasic struct {
 	Vector Vector `bun:"embedding,type:vector(1024)" extensions:"x-order=C" json:"vector,omitempty" pg:"embedding,type:vector(1024)"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
-} // @name cobDocVectorBasic
+} // @name corpusDocVectorBasic
 
 type DocVectors []DocVector
 
@@ -168,7 +168,7 @@ type DocVectorSet struct {
 	Vector *Vector `extensions:"x-order=B" json:"vector,omitempty"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
-} // @name cobDocVectorSet
+} // @name corpusDocVectorSet
 
 func (z *DocVector) SetWith(o DocVectorSet) {
 	if o.Subject != nil && z.Subject != *o.Subject {
@@ -195,7 +195,7 @@ func (in *DocVectorSet) MetaAddKVs(args ...any) *DocVectorSet {
 // consts of DocMatch 提示匹配结果
 const (
 	DocMatchLabel = "docMatch"
-	DocMatchTypID = "cobDocMatch"
+	DocMatchTypID = "corpusDocMatch"
 )
 
 // DocMatch 提示匹配结果
@@ -206,7 +206,7 @@ type DocMatch struct {
 	Subject string `bun:"subject" extensions:"x-order=B" form:"subject" json:"subject"`
 	// 相似度
 	Similarity float32 `bun:"similarity" extensions:"x-order=C" json:"similarity,omitempty"`
-} // @name cobDocMatch
+} // @name corpusDocMatch
 
 type DocMatches []DocMatch
 
@@ -215,7 +215,7 @@ const (
 	ChatLogTable = "qa_chat_log"
 	ChatLogAlias = "cl"
 	ChatLogLabel = "chatLog"
-	ChatLogTypID = "cobChatLog"
+	ChatLogTypID = "corpusChatLog"
 )
 
 // ChatLog 聊天日志
@@ -227,7 +227,7 @@ type ChatLog struct {
 	ChatLogBasic
 
 	comm.MetaField
-} // @name cobChatLog
+} // @name corpusChatLog
 
 type ChatLogBasic struct {
 	// 会话ID
@@ -238,7 +238,7 @@ type ChatLogBasic struct {
 	Answer string `bun:",notnull,type:text" extensions:"x-order=C" form:"response" json:"response" pg:",notnull,type:text"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
-} // @name cobChatLogBasic
+} // @name corpusChatLogBasic
 
 type ChatLogs []ChatLog
 
@@ -274,7 +274,7 @@ type ChatLogSet struct {
 	Answer *string `extensions:"x-order=B" json:"response"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
-} // @name cobChatLogSet
+} // @name corpusChatLogSet
 
 func (z *ChatLog) SetWith(o ChatLogSet) {
 	if o.Question != nil && z.Question != *o.Question {

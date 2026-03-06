@@ -1,4 +1,4 @@
-package cob
+package corpus
 
 import "strings"
 

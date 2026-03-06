@@ -5,35 +5,35 @@ package stores
 import (
 	"context"
 
-	"github.com/liut/morrigan/pkg/models/cob"
+	"github.com/liut/morrigan/pkg/models/corpus"
 )
 
-// type ChatLog = cob.ChatLog
-// type DocMatch = cob.DocMatch
-// type DocMatches = cob.DocMatches
-// type CobDocVector = cob.DocVector
-// type CobDocument = cob.Document
+// type ChatLog = corpus.ChatLog
+// type DocMatch = corpus.DocMatch
+// type DocMatches = corpus.DocMatches
+// type CobDocVector = corpus.DocVector
+// type CobDocument = corpus.Document
 
 func init() {
-	RegisterModel((*cob.Document)(nil), (*cob.DocVector)(nil), (*cob.ChatLog)(nil))
+	RegisterModel((*corpus.Document)(nil), (*corpus.DocVector)(nil), (*corpus.ChatLog)(nil))
 }
 
 type CobStore interface {
 	CobStoreX
 
-	ListDocument(ctx context.Context, spec *CobDocumentSpec) (data cob.Documents, total int, err error)
-	GetDocument(ctx context.Context, id string) (obj *cob.Document, err error)
-	CreateDocument(ctx context.Context, in cob.DocumentBasic) (obj *cob.Document, err error)
-	UpdateDocument(ctx context.Context, id string, in cob.DocumentSet) error
+	ListDocument(ctx context.Context, spec *CobDocumentSpec) (data corpus.Documents, total int, err error)
+	GetDocument(ctx context.Context, id string) (obj *corpus.Document, err error)
+	CreateDocument(ctx context.Context, in corpus.DocumentBasic) (obj *corpus.Document, err error)
+	UpdateDocument(ctx context.Context, id string, in corpus.DocumentSet) error
 	DeleteDocument(ctx context.Context, id string) error
 
-	GetDocVector(ctx context.Context, id string) (obj *cob.DocVector, err error)
-	CreateDocVector(ctx context.Context, in cob.DocVectorBasic) (obj *cob.DocVector, err error)
+	GetDocVector(ctx context.Context, id string) (obj *corpus.DocVector, err error)
+	CreateDocVector(ctx context.Context, in corpus.DocVectorBasic) (obj *corpus.DocVector, err error)
 	DeleteDocVector(ctx context.Context, id string) error
 
-	CreateChatLog(ctx context.Context, in cob.ChatLogBasic) (obj *cob.ChatLog, err error)
-	GetChatLog(ctx context.Context, id string) (obj *cob.ChatLog, err error)
-	ListChatLog(ctx context.Context, spec *ChatLogSpec) (data cob.ChatLogs, total int, err error)
+	CreateChatLog(ctx context.Context, in corpus.ChatLogBasic) (obj *corpus.ChatLog, err error)
+	GetChatLog(ctx context.Context, id string) (obj *corpus.ChatLog, err error)
+	ListChatLog(ctx context.Context, spec *ChatLogSpec) (data corpus.ChatLogs, total int, err error)
 	DeleteChatLog(ctx context.Context, id string) error
 }
 
@@ -85,18 +85,18 @@ type cobStore struct {
 	w *Wrap
 }
 
-func (s *cobStore) ListDocument(ctx context.Context, spec *CobDocumentSpec) (data cob.Documents, total int, err error) {
+func (s *cobStore) ListDocument(ctx context.Context, spec *CobDocumentSpec) (data corpus.Documents, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
 }
-func (s *cobStore) GetDocument(ctx context.Context, id string) (obj *cob.Document, err error) {
-	obj = new(cob.Document)
+func (s *cobStore) GetDocument(ctx context.Context, id string) (obj *corpus.Document, err error) {
+	obj = new(corpus.Document)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *cobStore) CreateDocument(ctx context.Context, in cob.DocumentBasic) (obj *cob.Document, err error) {
-	obj = cob.NewDocumentWithBasic(in)
+func (s *cobStore) CreateDocument(ctx context.Context, in corpus.DocumentBasic) (obj *corpus.Document, err error) {
+	obj = corpus.NewDocumentWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	if err == nil {
@@ -104,8 +104,8 @@ func (s *cobStore) CreateDocument(ctx context.Context, in cob.DocumentBasic) (ob
 	}
 	return
 }
-func (s *cobStore) UpdateDocument(ctx context.Context, id string, in cob.DocumentSet) error {
-	exist := new(cob.Document)
+func (s *cobStore) UpdateDocument(ctx context.Context, id string, in corpus.DocumentSet) error {
+	exist := new(corpus.Document)
 	if err := dbGetWithPKID(ctx, s.w.db, exist, id); err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (s *cobStore) UpdateDocument(ctx context.Context, id string, in cob.Documen
 	return dbUpdate(ctx, s.w.db, exist)
 }
 func (s *cobStore) DeleteDocument(ctx context.Context, id string) error {
-	obj := new(cob.Document)
+	obj := new(corpus.Document)
 	if err := dbGetWithPKID(ctx, s.w.db, obj, id); err != nil {
 		return err
 	}
@@ -128,40 +128,40 @@ func (s *cobStore) DeleteDocument(ctx context.Context, id string) error {
 	})
 }
 
-func (s *cobStore) GetDocVector(ctx context.Context, id string) (obj *cob.DocVector, err error) {
-	obj = new(cob.DocVector)
+func (s *cobStore) GetDocVector(ctx context.Context, id string) (obj *corpus.DocVector, err error) {
+	obj = new(corpus.DocVector)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *cobStore) CreateDocVector(ctx context.Context, in cob.DocVectorBasic) (obj *cob.DocVector, err error) {
-	obj = cob.NewDocVectorWithBasic(in)
+func (s *cobStore) CreateDocVector(ctx context.Context, in corpus.DocVectorBasic) (obj *corpus.DocVector, err error) {
+	obj = corpus.NewDocVectorWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
 func (s *cobStore) DeleteDocVector(ctx context.Context, id string) error {
-	obj := new(cob.DocVector)
+	obj := new(corpus.DocVector)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 
-func (s *cobStore) CreateChatLog(ctx context.Context, in cob.ChatLogBasic) (obj *cob.ChatLog, err error) {
-	obj = cob.NewChatLogWithBasic(in)
+func (s *cobStore) CreateChatLog(ctx context.Context, in corpus.ChatLogBasic) (obj *corpus.ChatLog, err error) {
+	obj = corpus.NewChatLogWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
-func (s *cobStore) GetChatLog(ctx context.Context, id string) (obj *cob.ChatLog, err error) {
-	obj = new(cob.ChatLog)
+func (s *cobStore) GetChatLog(ctx context.Context, id string) (obj *corpus.ChatLog, err error) {
+	obj = new(corpus.ChatLog)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *cobStore) ListChatLog(ctx context.Context, spec *ChatLogSpec) (data cob.ChatLogs, total int, err error) {
+func (s *cobStore) ListChatLog(ctx context.Context, spec *ChatLogSpec) (data corpus.ChatLogs, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
 }
 func (s *cobStore) DeleteChatLog(ctx context.Context, id string) error {
-	obj := new(cob.ChatLog)
+	obj := new(corpus.ChatLog)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }

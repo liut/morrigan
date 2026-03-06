@@ -15,7 +15,7 @@ import (
 	"github.com/marcsv/go-binder/binder"
 
 	"github.com/liut/morrigan/pkg/models/aigc"
-	"github.com/liut/morrigan/pkg/models/cob"
+	"github.com/liut/morrigan/pkg/models/corpus"
 	"github.com/liut/morrigan/pkg/models/mcps"
 	"github.com/liut/morrigan/pkg/services/llm"
 	"github.com/liut/morrigan/pkg/services/stores"
@@ -191,7 +191,7 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
 
 			if settings.Current.QAChatLog {
-				in := cob.ChatLogBasic{
+				in := corpus.ChatLogBasic{
 					ChatID:   ccr.cs.GetOID(),
 					Question: param.Prompt,
 					Answer:   res.answer,
