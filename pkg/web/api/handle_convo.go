@@ -184,52 +184,8 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 	logger().Infow("chat", "csid", param.GetConversionID(), "msgs", len(ccr.messages), "prompt", param.Prompt, "ip", r.RemoteAddr)
 
 	if isStream {
-		res := a.chatStreamResponse(ccr, w, r)
+		res := a.chatStreamResponseLoop(ccr, w, r)
 		logger().Infow("stream response", "answer_len", len(res.answer), "toolCalls_len", len(res.toolCalls))
-		if len(res.toolCalls) > 0 {
-			var hasToolCall bool
-			ccr.messages = append(ccr.messages, llm.Message{
-				Role:      llm.RoleAssistant,
-				ToolCalls: res.toolCalls,
-			})
-			for _, tc := range res.toolCalls {
-				// 避免直接记录 tc（包含 json.RawMessage），只记录安全字段
-				logger().Infow("chat", "toolCallID", tc.ID, "toolCallType", tc.Type, "toolCallName", tc.Function.Name)
-				if tc.Type == "function" {
-					// 检查 Arguments 是否为有效 JSON（流式响应中可能不完整）
-					args := string(tc.Function.Arguments)
-					if args == "" || args == "{}" {
-						logger().Infow("chat", "toolCallID", tc.ID, "err", "empty arguments")
-						continue
-					}
-					// 尝试解析，失败则跳过
-					var parameters map[string]any
-					if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
-						logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
-						continue
-					}
-					content, err := a.toolreg.Invoke(r.Context(), tc.Function.Name, parameters)
-					if err != nil {
-						logger().Infow("invokeTool fail", "toolCallName", tc.Function.Name, "err", err)
-					} else {
-						logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name)
-						ccr.messages = append(ccr.messages, llm.Message{
-							Role:       llm.RoleTool,
-							Content:    formatToolResult(content),
-							ToolCallID: tc.ID,
-						})
-						hasToolCall = true
-					}
-				}
-			}
-			if hasToolCall {
-				// 继续调用，清除工具以避免死循环
-				tools := ccr.tools
-				ccr.tools = nil
-				res = a.chatStreamResponse(ccr, w, r)
-				ccr.tools = tools
-			}
-		}
 		if len(res.answer) > 0 {
 			ccr.hi.ChatItem.Assistant = res.answer
 			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
@@ -255,98 +211,25 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := a.llm.Chat(r.Context(), ccr.messages, ccr.tools)
+	// 非流式场景：使用循环执行工具调用
+	exec := func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error) {
+		result, err := a.llm.Chat(ctx, messages, tools)
+		if err != nil {
+			return "", nil, nil, err
+		}
+		return result.Content, result.ToolCalls, &result.Usage, nil
+	}
+	answer, _, _, err := a.executeToolCallLoop(r.Context(), ccr.messages, ccr.tools, exec)
 	if err != nil {
 		apiFail(w, r, 500, err)
 		return
 	}
-	logger().Infow("chat", "res", result)
+	logger().Infow("chat", "answer", answer)
 
 	var cm ChatMessage
 	cm.ID = ccr.cs.GetID()
-	cm.Text = result.Content
-	if result.HasToolCalls() {
-		cm.FinishReason = "tool_calls"
-		cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
-	}
+	cm.Text = answer
 	render.JSON(w, r, &cm)
-}
-
-func (a *api) chatStreamResponse(ccr *chatRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	if ccr.isSSE {
-		w.Header().Set("Content-Type", "text/event-stream")
-	} else {
-		w.Header().Add("Content-type", "application/octet-stream")
-	}
-	w.Header().Add("Conversation-ID", ccr.cs.GetID())
-
-	stream, err := a.llm.StreamChat(r.Context(), ccr.messages, ccr.tools)
-	if err != nil {
-		logger().Infow("call chat stream fail", "err", err)
-		apiFail(w, r, 500, err)
-		return
-	}
-
-	var cm ChatMessage
-	if !ccr.isSSE {
-		// for github.com/Chanzhaoyu/chatgpt-web chat-process only
-		cm.ConversationID = cm.ID
-	}
-
-	var chunkIdx int
-
-	for result := range stream {
-		chunkIdx++
-		if result.Error != nil {
-			logger().Infow("stream error", "err", result.Error)
-			break
-		}
-
-		var wrote bool
-
-		// 处理内容
-		cm.Delta = result.Delta
-		res.answer += result.Delta
-		// LLM 层已经返回累积的 ToolCalls，直接使用
-		if len(result.ToolCalls) > 0 {
-			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
-		}
-
-		if ccr.isSSE {
-			if result.Done {
-				cm.ConversationID = ccr.cs.GetID()
-				cm.FinishReason = result.FinishReason
-				_ = writeEvent(w, strconv.Itoa(chunkIdx), &cm)
-			} else {
-				if wrote = writeEvent(w, strconv.Itoa(chunkIdx), &cm); !wrote {
-					break
-				}
-			}
-		} else {
-			cm.Text += result.Delta
-			if err = json.NewEncoder(w).Encode(&cm); err != nil {
-				logger().Infow("json encode fail", "err", err)
-				break
-			}
-		}
-		flusher.Flush()
-
-		if result.Done {
-			// 保存最终的 toolCalls 供后续处理
-			res.toolCalls = result.ToolCalls
-			break
-		}
-	}
-	logger().Infow("llm stream done", "answer", len(res.answer))
-	return
 }
 
 // writeEvent write and auto flush
@@ -372,6 +255,165 @@ func writeEvent(w io.Writer, id string, m any) bool {
 	}
 
 	return true
+}
+
+// chatStreamResponseLoop 循环处理流式响应，支持工具调用循环
+func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
+	for {
+		// 调用流式响应处理
+		streamRes := a.doChatStream(ccr, w, r)
+		logger().Infow("stream round done", "answer_len", len(streamRes.answer), "toolCalls_len", len(streamRes.toolCalls))
+
+		// 累积答案
+		res.answer += streamRes.answer
+		if streamRes.usage != nil {
+			res.usage = streamRes.usage
+		}
+
+		// 如果没有工具调用，返回结果
+		if len(streamRes.toolCalls) == 0 {
+			return
+		}
+		logger().Infow("before execute tool calls", "tools", len(streamRes.toolCalls), "msgs", len(ccr.messages))
+
+		var hasToolCall bool
+		// 执行工具调用
+		ccr.messages, hasToolCall = a.doExecuteToolCalls(r.Context(), streamRes.toolCalls, ccr.messages)
+		logger().Infow("executed tool calls", "hasToolCall", hasToolCall, "msgs", len(ccr.messages))
+		if !hasToolCall {
+			// 没有成功执行任何工具，返回当前结果
+			return
+		}
+
+		// 清除工具定义，避免死循环
+		ccr.tools = nil
+		// 循环继续，会再次调用 LLM
+	}
+}
+
+// doChatStream 执行一次流式调用，返回累积的 answer 和 toolCalls
+func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Request) ChatResponse {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return ChatResponse{}
+	}
+
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	if ccr.isSSE {
+		w.Header().Set("Content-Type", "text/event-stream")
+	} else {
+		w.Header().Add("Content-type", "application/octet-stream")
+	}
+	w.Header().Add("Conversation-ID", ccr.cs.GetID())
+
+	stream, err := a.llm.StreamChat(r.Context(), ccr.messages, ccr.tools)
+	if err != nil {
+		logger().Infow("call chat stream fail", "err", err)
+		apiFail(w, r, 500, err)
+		return ChatResponse{}
+	}
+
+	var cm ChatMessage
+	if !ccr.isSSE {
+		cm.ConversationID = cm.ID
+	}
+
+	var chunkIdx int
+	var res ChatResponse
+
+	for result := range stream {
+		chunkIdx++
+		if result.Error != nil {
+			logger().Infow("stream error", "err", result.Error)
+			break
+		}
+
+		var wrote bool
+
+		cm.Delta = result.Delta
+		res.answer += result.Delta
+		if len(result.ToolCalls) > 0 {
+			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
+		}
+
+		if ccr.isSSE {
+			if result.Done {
+				cm.ConversationID = ccr.cs.GetID()
+				cm.FinishReason = result.FinishReason
+				_ = writeEvent(w, strconv.Itoa(chunkIdx), &cm)
+			} else {
+				if wrote = writeEvent(w, strconv.Itoa(chunkIdx), &cm); !wrote {
+					break
+				}
+			}
+		} else {
+			cm.Text += result.Delta
+			if err = json.NewEncoder(w).Encode(&cm); err != nil {
+				logger().Infow("json encode fail", "err", err)
+				break
+			}
+		}
+		flusher.Flush()
+
+		if result.Done {
+			res.toolCalls = result.ToolCalls
+			break
+		}
+	}
+	logger().Infow("llm stream done", "answer", len(res.answer),
+		"ahead", res.answer[0:min(32, len(res.answer))])
+	return res
+}
+
+// doExecuteToolCalls 执行工具调用，返回更新后的 messages 和是否有成功执行的工具
+func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, messages []llm.Message) ([]llm.Message, bool) {
+	if len(toolCalls) == 0 {
+		return messages, false
+	}
+
+	messages = append(messages, llm.Message{
+		Role:      llm.RoleAssistant,
+		ToolCalls: toolCalls,
+	})
+
+	var hasToolCall bool
+	for _, tc := range toolCalls {
+		logger().Infow("chat", "toolCallID", tc.ID, "toolCallType", tc.Type, "toolCallName", tc.Function.Name)
+
+		if tc.Type != "function" {
+			continue
+		}
+
+		args := string(tc.Function.Arguments)
+		if args == "" || args == "{}" {
+			logger().Infow("chat", "toolCallID", tc.ID, "err", "empty arguments")
+			continue
+		}
+
+		var parameters map[string]any
+		if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
+			logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
+			continue
+		}
+
+		content, err := a.toolreg.Invoke(ctx, tc.Function.Name, parameters)
+		if err != nil {
+			logger().Infow("invokeTool fail", "toolCallName", tc.Function.Name, "err", err)
+			continue
+		}
+
+		logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name)
+		messages = append(messages, llm.Message{
+			Role:       llm.RoleTool,
+			Content:    formatToolResult(content),
+			ToolCallID: tc.ID,
+		})
+		hasToolCall = true
+	}
+
+	return messages, hasToolCall
 }
 
 // @Tags 聊天
@@ -425,11 +467,27 @@ func (a *api) getTools(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, a.toolreg.ToolsFor(r.Context()), 0)
 }
 
-// formatToolResult 将工具结果转换为 JSON 字符串
+// formatToolResult 将工具结果转换为文本字符串
+// 优先提取 content 数组中的 text，否则使用 structuredContent
 func formatToolResult(result map[string]any) string {
 	if result == nil {
 		return ""
 	}
+	// 优先提取 content 数组中的 text
+	if content, ok := result["content"].([]any); ok {
+		for _, c := range content {
+			if cMap, ok := c.(map[string]any); ok {
+				if text, ok := cMap["text"].(string); ok && text != "" {
+					return text
+				}
+			}
+		}
+	}
+	// 备选：使用 structuredContent
+	if sc, ok := result["structuredContent"].(string); ok {
+		return sc
+	}
+	// 最后：序列化为 JSON
 	if b, err := json.Marshal(result); err == nil {
 		return string(b)
 	}
@@ -457,4 +515,68 @@ func convertToolCallsForJSON(tcs []llm.ToolCall) []map[string]any {
 		}
 	}
 	return result
+}
+
+// chatExecutor 定义聊天执行函数类型，支持流式/非流式
+type chatExecutor func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error)
+
+// executeToolCallLoop 执行工具调用循环，直到没有 tool calls
+// - messages: 初始消息列表，会被修改
+// - tools: 工具定义
+// - exec: 执行聊天的函数（流式或非流式）
+// 返回最终的 answer、最后的 toolCalls（如果有）、usage
+func (a *api) executeToolCallLoop(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition, exec chatExecutor) (string, []llm.ToolCall, *llm.Usage, error) {
+	for {
+		answer, toolCalls, usage, err := exec(ctx, messages, tools)
+		if err != nil {
+			return "", nil, nil, err
+		}
+
+		if len(toolCalls) == 0 {
+			return answer, nil, usage, nil
+		}
+
+		// 添加 assistant 消息（带 tool calls）
+		messages = append(messages, llm.Message{
+			Role:      llm.RoleAssistant,
+			ToolCalls: toolCalls,
+		})
+
+		// 执行工具调用
+		for _, tc := range toolCalls {
+			logger().Infow("chat", "toolCallID", tc.ID, "toolCallType", tc.Type, "toolCallName", tc.Function.Name)
+
+			if tc.Type != "function" {
+				continue
+			}
+
+			args := string(tc.Function.Arguments)
+			if args == "" || args == "{}" {
+				logger().Infow("chat", "toolCallID", tc.ID, "err", "empty arguments")
+				continue
+			}
+
+			var parameters map[string]any
+			if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
+				logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
+				continue
+			}
+
+			content, err := a.toolreg.Invoke(ctx, tc.Function.Name, parameters)
+			if err != nil {
+				logger().Infow("invokeTool fail", "toolCallName", tc.Function.Name, "err", err)
+				continue
+			}
+
+			logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name)
+			messages = append(messages, llm.Message{
+				Role:       llm.RoleTool,
+				Content:    formatToolResult(content),
+				ToolCallID: tc.ID,
+			})
+		}
+
+		// 清除工具定义，避免死循环
+		tools = nil
+	}
 }

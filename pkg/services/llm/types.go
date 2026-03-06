@@ -7,7 +7,7 @@ import (
 // Message 表示聊天消息
 type Message struct {
 	Role       string     `json:"role"`
-	Content    string     `json:"content,omitempty"`
+	Content    string     `json:"content"` // 不可省略
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"` // only for role=tool
 	Name       string     `json:"name,omitempty"`
@@ -24,6 +24,7 @@ type ToolCall struct {
 type ToolCallFunc struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
+	Results   any             `json:"results,omitempty"`
 }
 
 // MarshalJSON 自定义序列化，将 Arguments 转为字符串（OpenAI API 要求）

@@ -50,6 +50,7 @@ func (p *openAIProvider) Chat(ctx context.Context, cfg *config, messages []Messa
 					Function struct {
 						Name      string          `json:"name"`
 						Arguments json.RawMessage `json:"arguments"`
+						Results   json.RawMessage `json:"results"`
 					} `json:"function"`
 				} `json:"tool_calls"`
 			} `json:"message"`
@@ -93,6 +94,7 @@ func (p *openAIProvider) Chat(ctx context.Context, cfg *config, messages []Messa
 			Function: ToolCallFunc{
 				Name:      tc.Function.Name,
 				Arguments: args,
+				Results:   tc.Function.Results,
 			},
 		})
 	}
@@ -121,7 +123,9 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			Temperature: cfg.temperature,
 			Stream:      true,
 			Tools:       toolsOpt,
-			ToolChoice:  "auto",
+		}
+		if len(toolsOpt) > 0 {
+			reqBody.ToolChoice = "auto"
 		}
 
 		logger().Infow("stream start",
@@ -132,10 +136,12 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			"has_tools", len(tools) > 0,
 			"endpoint", endpoint,
 		)
+		logger().Debugw("stream start", "msgs", messages)
 
 		// 发送流式请求
 		body, err := p.doStreamRequest(ctx, cfg, endpoint, reqBody)
 		if err != nil {
+			logger().Infow("request fail", "err", err, "reqBody", &reqBody)
 			ch <- StreamResult{Error: err}
 			return
 		}
@@ -163,12 +169,14 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			noSpaceLine := bytes.TrimSpace(rawLine)
 			// 跳过非 data: 开头的行
 			if !headerDataRE.Match(noSpaceLine) {
+				// logger().Debugw("noSpaceLine", "rawLine", rawLine)
 				continue
 			}
 
 			// 去除 data: 前缀
 			noPrefixLine := headerDataRE.ReplaceAll(noSpaceLine, nil)
 			if string(noPrefixLine) == "[DONE]" {
+				logger().Infow("stream DONE", "lines", lines)
 				// 流结束
 				ch <- StreamResult{Done: true}
 				return
@@ -185,6 +193,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 							Function struct {
 								Name      string `json:"name"`
 								Arguments string `json:"arguments"`
+								Results   any    `json:"results"`
 							} `json:"function"`
 						} `json:"tool_calls"`
 					} `json:"delta"`
@@ -193,11 +202,13 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			}
 
 			if err := json.Unmarshal(noPrefixLine, &chunk); err != nil {
+				logger().Infow("parse chunk fail", "err", err, "rawLine", rawLine)
 				ch <- StreamResult{Error: fmt.Errorf("parse chunk: %w", err)}
 				return
 			}
 
 			if len(chunk.Choices) == 0 {
+				logger().Debugw("choices is empty", "rawLine", rawLine)
 				continue
 			}
 
@@ -276,6 +287,7 @@ func (p *openAIProvider) doStreamRequest(ctx context.Context, cfg *config, endpo
 
 	resp, err := hc.Do(req)
 	if err != nil {
+		logger().Infow("request fail", "err", err)
 		return nil, err
 	}
 
