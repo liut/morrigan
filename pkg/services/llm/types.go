@@ -6,18 +6,18 @@ import (
 
 // Message 表示聊天消息
 type Message struct {
-	Role       string            `json:"role"`
-	Content    string            `json:"content,omitempty"`
-	ToolCalls  []ToolCall        `json:"tool_calls,omitempty"`
-	ToolCallID string            `json:"tool_call_id,omitempty"`
-	Name       string            `json:"name,omitempty"`
+	Role       string     `json:"role"`
+	Content    string     `json:"content,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"` // only for role=tool
+	Name       string     `json:"name,omitempty"`
 }
 
 // ToolCall 表示工具调用请求
 type ToolCall struct {
-	ID        string          `json:"id"`
-	Type      string          `json:"type"`
-	Function  ToolCallFunc    `json:"function"`
+	ID       string       `json:"id"`
+	Type     string       `json:"type"`
+	Function ToolCallFunc `json:"function"`
 }
 
 // ToolCallFunc 工具调用函数
@@ -46,7 +46,7 @@ func (f ToolCallFunc) MarshalJSON() ([]byte, error) {
 
 // ToolDefinition 工具定义
 type ToolDefinition struct {
-	Type     string           `json:"type"`
+	Type     string             `json:"type"`
 	Function FunctionDefinition `json:"function"`
 }
 
@@ -73,16 +73,16 @@ func (r *ChatResult) HasToolCalls() bool {
 type StreamResult struct {
 	Delta        string
 	ToolCalls    []ToolCall
-	Done         bool
+	Done         bool `json:",omitempty"`
 	FinishReason string
-	Error        error
+	Error        error `json:",omitempty"`
 }
 
 // Usage token 使用统计
 type Usage struct {
 	PromptTokens     int
 	CompletionTokens int
-	TotalTokens     int
+	TotalTokens      int
 }
 
 // Response 完整响应

@@ -146,8 +146,10 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 
 		var currentToolCalls []ToolCall
 		var finishReason string
+		var lines int
 
 		for {
+			lines++
 			rawLine, err := bufReader.ReadBytes('\n')
 			if err != nil {
 				if err == io.EOF {
@@ -230,6 +232,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			shouldEndStream := finishReason != "" || (len(delta.ToolCalls) == 0 && len(currentToolCalls) > 0)
 
 			if shouldEndStream {
+				logger().Debugw("stream should done", "result", &result)
 				result.Done = true
 			}
 			ch <- result
@@ -237,7 +240,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			// 结束流
 			if shouldEndStream {
 				logger().Infow("stream done", "finish_reason", finishReason,
-					"tool_calls_count", len(currentToolCalls))
+					"tool_calls_count", len(currentToolCalls), "lines", lines)
 				return
 			}
 		}

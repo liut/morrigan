@@ -262,25 +262,6 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 	}
 	logger().Infow("chat", "res", result)
 
-	if param.Full {
-		var cr ConversationResponse
-		cr.ConversationID = ccr.cs.GetID()
-		cr.Detail.Model = a.cmodel
-		cr.Detail.Object = "chat.completion"
-		if result.Content != "" {
-			cr.Detail.Choices = []ChatCompletionChoice{{
-				FinishReason: "stop",
-				Index:        0,
-				Text:         result.Content,
-			}}
-		}
-		cr.Detail.Usage.CompletionTokens = result.Usage.CompletionTokens
-		cr.Detail.Usage.PromptTokens = result.Usage.PromptTokens
-		cr.Detail.Usage.TotalTokens = result.Usage.TotalTokens
-		render.JSON(w, r, &cr)
-		return
-	}
-
 	var cm ChatMessage
 	cm.ID = ccr.cs.GetID()
 	cm.Text = result.Content

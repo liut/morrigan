@@ -22,10 +22,9 @@ func thisMoment() string {
 type ChatRequest struct {
 	Prompt          string `json:"prompt"`
 	ConversationID  string `json:"csid"`
-	ParentMessageID string `json:"pmid"`
+	ParentMessageID string `json:"pmid"` // TODO: rename to PreviousMessageID
 	Regenerate      bool   `json:"regen"`
 	Stream          bool   `json:"stream"`
-	Full            bool   `json:"full,omitempty"`
 
 	MCPs []string `json:"mcps,omitempty"`
 
@@ -43,30 +42,6 @@ func (z *ChatRequest) GetConversionID() string {
 		return z.Options.ConversationId
 	}
 	return ""
-}
-
-type ChatCompletionChoice struct {
-	FinishReason string `json:"finishReason,omitempty"`
-	Index        int    `json:"index"`
-	Text         string `json:"text"`
-}
-
-type ConversationResponse struct {
-	ConversationID  string `json:"csid"`
-	ParentMessageID string `json:"pmid"`
-	Detail          struct {
-		Choices []ChatCompletionChoice `json:"choices"`
-
-		Created int64  `json:"created"`
-		ID      string `json:"id"`
-		Model   string `json:"model"`
-		Object  string `json:"object"`
-		Usage   struct {
-			CompletionTokens int `json:"completionTokens"`
-			PromptTokens     int `json:"promptTokens"`
-			TotalTokens      int `json:"totalTokens"`
-		} `json:"usage"`
-	} `json:"detail"`
 }
 
 type ChatMessage struct {
