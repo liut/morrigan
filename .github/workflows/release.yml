@@ -31,76 +31,55 @@ jobs:
   build:
     needs: lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [linux, darwin, windows]
-        goarch: [amd64, arm64]
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.25'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
 
-    - name: Build
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-        TAG: ${{ github.ref_name }}
-      run: |
-        ext=""
-        if [ "$GOOS" = "windows" ]; then
-          ext=".exe"
-        fi
-        FILENAME="morrigan-${GOOS}-${GOARCH}${ext}"
-        LDFLAGS="-X github.com/liut/morrigan/pkg/settings.version=${TAG} -s -w"
-        go build -ldflags="$LDFLAGS" -o "$FILENAME" .
+      - name: Get version
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG" == v* ]]; then
+            VERSION="$TAG"
+          else
+            VERSION="$(git rev-parse --short HEAD)"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-    - name: Create Archive
-      env:
-        GOOS: ${{ matrix.goos }}
-        TAG: ${{ github.ref_name }}
-      run: |
-        ext=""
-        if [ "$GOOS" = "windows" ]; then
-          ext=".exe"
-        fi
-        FILENAME="morrigan-${GOOS}-${GOARCH}${ext}"
-        ARCHIVE_NAME="morrigan-${GOOS}-${GOARCH}-${TAG}"
-        mkdir -p dist
-        if [ "$GOOS" = "windows" ]; then
-          zip -j "dist/${ARCHIVE_NAME}.zip" "$FILENAME"
-        else
-          tar -cvJf "dist/${ARCHIVE_NAME}.tar.xz" -C . "$FILENAME"
-        fi
-        ls -la dist/
+      - name: Build all platforms
+        env:
+          CGO_ENABLED: 0
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          echo "version: $VERSION"
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan .
+          mv morrigan morrigan-linux-amd64
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan .
+          mv morrigan morrigan-darwin-amd64
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan .
+          mv morrigan morrigan-darwin-arm64
+          GOOS=windows GOARCH=amd64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan.exe .
+          mv morrigan.exe morrigan-windows-amd64.exe
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: morrigan-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: dist/*
+      - name: Package
+        run: |
+          tar -cvJf morrigan-linux-amd64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morrigan-linux-amd64
+          tar -cvJf morrigan-darwin-amd64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morrigan-darwin-amd64
+          tar -cvJf morrigan-darwin-arm64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morrigan-darwin-arm64
+          zip morrigan-windows-amd64-${{ steps.version.outputs.VERSION }}.zip morrigan-windows-amd64.exe
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download Artifact
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-        pattern: morrigan-*
-        merge-multiple: false
-
-    - name: List Artifacts
-      run: |
-        find artifacts -type f -ls
-
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v2
-      with:
-        files: artifacts/**/*
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            morrigan-linux-amd64-*.tar.xz
+            morrigan-darwin-amd64-*.tar.xz
+            morrigan-darwin-arm64-*.tar.xz
+            morrigan-windows-amd64-*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
