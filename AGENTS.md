@@ -21,7 +21,7 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 - **Web 框架**: chi/v5
 - **数据库**: PostgreSQL (含 vector 扩展)
 - **缓存/会话**: Redis
-- **AI SDK**: github.com/sashabaranov/go-openai (deprecated, use pkg/services/llm)
+- **LLM**: 自定义实现 (pkg/services/llm)，支持 OpenAI/Anthropic/OpenRouter/Ollama
 - **MCP**: github.com/mark3labs/mcp-go
 - **ORM**: github.com/uptrace/bun
 
@@ -84,8 +84,15 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 
 ### main.go
 
-- 定义 CLI 命令: `initdb`, `import`, `embedding`, `web`, `usage`, `version`
+- 定义 CLI 命令: `initdb`, `import`, `embedding`, `agent`, `web`, `usage`, `version`
 - 启动 Web 服务器逻辑
+
+### pkg/services/llm/
+
+- LLM 统一客户端接口，支持多种 Provider
+- `Client` 接口: `Chat`, `StreamChat`, `Generate`, `Embedding`
+- 支持的 Provider: `openai`, `anthropic`, `openrouter`, `ollama`
+- `anthropic.go`: Anthropic Provider 实现，包含流式响应支持
 
 ### pkg/web/server.go
 

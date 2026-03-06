@@ -189,6 +189,7 @@ COMMANDS:
    import                       import documents from a csv
    export                       export documents to csv/jsonl
    embedding, embedding-prompt  read prompt documents and embedding
+   agent, llm, chat            test LLM agent
    web, run                     run a web server
    version, ver                 show version
    help, h                      Shows a list of commands or help for one command
@@ -197,6 +198,26 @@ GLOBAL OPTIONS:
    --help, -h  show help
 
 ```
+
+#### Agent Command
+
+测试 LLM 功能的命令行工具：
+
+```bash
+# 非流式对话
+forego run go run . agent -m "你好"
+
+# 流式对话
+forego run go run . agent -m "你好" -s
+
+# 显示详细日志
+forego run go run . agent -m "你好" -v
+```
+
+参数：
+- `-m, --message`: 发送的消息 (必填)
+- `-s, --stream`: 启用流式响应
+- `-v, --verbose`: 显示日志 (默认关闭)
 
 
 ### Change settings with environment
@@ -249,7 +270,7 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 #### Provider Configuration (AI Services)
 
-Each provider requires `API_KEY` and `MODEL`, optional `URL` for custom endpoints:
+Each provider requires `API_KEY` and `MODEL`, optional `URL` and `TYPE` for custom endpoints:
 
 | Provider | Purpose | Required Variables |
 |----------|---------|-------------------|
@@ -257,14 +278,24 @@ Each provider requires `API_KEY` and `MODEL`, optional `URL` for custom endpoint
 | `EMBEDDING` | Vector embedding | `API_KEY`, `MODEL` |
 | `SUMMARIZE` | Text summarization | `API_KEY`, `MODEL` |
 
+支持的 Provider Type: `openai`, `anthropic`, `openrouter`, `ollama`
+
 Example:
 ```
+# Interact provider (支持 openai/anthropic/openrouter/ollama)
 MORRIGAN_INTERACT_API_KEY=sk-xxx
 MORRIGAN_INTERACT_MODEL=gpt-4o-mini
+MORRIGAN_INTERACT_TYPE=openai  # 可选，默认 openai
 
+# 使用 Anthropic
+MORRIGAN_INTERACT_TYPE=anthropic
+MORRIGAN_INTERACT_MODEL=claude-3-5-sonnet
+
+# Embedding provider
 MORRIGAN_EMBEDDING_API_KEY=sk-xxx
 MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
 
+# Summarize provider
 MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
 MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 ```
