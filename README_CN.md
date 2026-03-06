@@ -136,8 +136,8 @@ test -e .env || cp .env.example .env
 # 使用 .env 中的环境变量启动服务器
 forego start
 
-# 或直接运行
-go run . web
+# 或直接运行（开发模式）
+forego run go run . web
 
 ```
 
@@ -189,6 +189,7 @@ COMMANDS:
    import                       从 csv 导入文档
    export                       导出文档到 csv/jsonl
    embedding, embedding-prompt  读取提示文档并生成嵌入
+   agent, llm, chat            测试 LLM 功能
    web, run                     运行 Web 服务器
    version, ver                 显示版本
    help, h                      显示命令帮助
@@ -198,11 +199,31 @@ GLOBAL OPTIONS:
 
 ```
 
+#### Agent 命令
+
+测试 LLM 功能的命令行工具：
+
+```bash
+# 非流式对话
+./morrigan agent -m "你好"
+
+# 流式对话
+./morrigan agent -m "你好" -s
+
+# 显示详细日志
+./morrigan agent -m "你好" -v
+```
+
+参数：
+- `-m, --message`: 发送的消息 (必填)
+- `-s, --stream`: 启用流式响应
+- `-v, --verbose`: 显示日志 (默认关闭)
+
 ### 使用环境变量配置
 
 #### 查看所有本地配置
 ```bash
-go run . usage
+./morrigan usage
 ```
 
 示例：
@@ -248,7 +269,7 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 #### Provider 配置（AI 服务）
 
-每个 Provider 需要 `API_KEY` 和 `MODEL`，可选 `URL` 用于自定义端点：
+每个 Provider 需要 `API_KEY` 和 `MODEL`，可选 `URL` 和 `TYPE` 用于自定义端点：
 
 | Provider | 用途 | 必需变量 |
 |----------|------|----------|
@@ -256,10 +277,19 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 | `EMBEDDING` | 向量嵌入 | `API_KEY`, `MODEL` |
 | `SUMMARIZE` | 文本摘要 | `API_KEY`, `MODEL` |
 
+支持的 Provider Type: `openai`, `anthropic`, `openrouter`, `ollama`
+
 示例：
 ```
+# Interact provider (支持 openai/anthropic/openrouter/ollama)
 MORRIGAN_INTERACT_API_KEY=sk-xxx
 MORRIGAN_INTERACT_MODEL=gpt-4o-mini
+MORRIGAN_INTERACT_TYPE=openai  # 可选，默认 openai
+
+# 使用 Anthropic
+MORRIGAN_INTERACT_TYPE=anthropic
+
+MORRIGAN_EMBEDDING_API_KEY=sk-xxx
 
 MORRIGAN_EMBEDDING_API_KEY=sk-xxx
 MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
@@ -268,7 +298,7 @@ MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
 MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 ```
 
-> 提示：运行 `go run . usage` 可查看当前所有配置
+> 提示：运行 `./morrigan usage` 可查看当前所有配置
 
 ## 数据生成步骤
 
@@ -286,9 +316,9 @@ MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 |            |             |                                           |
 
 ```bash
-go run . initdb
-go run . import mycompany.csv
-go run . embedding
+./morrigan initdb
+./morrigan import mycompany.csv
+./morrigan embedding
 ```
 
 ## 挂载前端资源

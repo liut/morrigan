@@ -136,8 +136,8 @@ test -e .env || cp .env.example .env
 # Start server with environment variables from .env
 forego start
 
-# Or directly
-go run . web
+# Or directly (for development)
+forego run go run . web
 
 ```
 
@@ -201,30 +201,30 @@ GLOBAL OPTIONS:
 
 #### Agent Command
 
-测试 LLM 功能的命令行工具：
+Test LLM functionality from command line:
 
 ```bash
-# 非流式对话
-forego run go run . agent -m "你好"
+# Non-streaming chat
+./morrigan agent -m "hello"
 
-# 流式对话
-forego run go run . agent -m "你好" -s
+# Streaming chat
+./morrigan agent -m "hello" -s
 
-# 显示详细日志
-forego run go run . agent -m "你好" -v
+# Show verbose logs
+./morrigan agent -m "hello" -v
 ```
 
-参数：
-- `-m, --message`: 发送的消息 (必填)
-- `-s, --stream`: 启用流式响应
-- `-v, --verbose`: 显示日志 (默认关闭)
+Parameters:
+- `-m, --message`: message to send (required)
+- `-s, --stream`: enable streaming response
+- `-v, --verbose`: show logs (disabled by default)
 
 
 ### Change settings with environment
 
 #### Show all local settings
 ```bash
-go run . usage
+./morrigan usage
 ```
 
 Example:
@@ -278,16 +278,16 @@ Each provider requires `API_KEY` and `MODEL`, optional `URL` and `TYPE` for cust
 | `EMBEDDING` | Vector embedding | `API_KEY`, `MODEL` |
 | `SUMMARIZE` | Text summarization | `API_KEY`, `MODEL` |
 
-支持的 Provider Type: `openai`, `anthropic`, `openrouter`, `ollama`
+Supported Provider Type: `openai`, `anthropic`, `openrouter`, `ollama`
 
 Example:
 ```
-# Interact provider (支持 openai/anthropic/openrouter/ollama)
+# Interact provider (supports openai/anthropic/openrouter/ollama)
 MORRIGAN_INTERACT_API_KEY=sk-xxx
 MORRIGAN_INTERACT_MODEL=gpt-4o-mini
-MORRIGAN_INTERACT_TYPE=openai  # 可选，默认 openai
+MORRIGAN_INTERACT_TYPE=openai  # optional, default openai
 
-# 使用 Anthropic
+# Using Anthropic
 MORRIGAN_INTERACT_TYPE=anthropic
 MORRIGAN_INTERACT_MODEL=claude-3-5-sonnet
 
@@ -300,7 +300,7 @@ MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
 MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 ```
 
-> Tip: Run `go run . usage` to view all current configurations
+> Tip: Run `./morrigan usage` to view all current configurations
 
 ## The operation steps for generating data.
 
@@ -318,9 +318,9 @@ MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 |            |             |                                           |
 
 ```bash
-go run . initdb
-go run . import mycompany.csv
-go run . embedding
+./morrigan initdb
+./morrigan import mycompany.csv
+./morrigan embedding
 ```
 
 
