@@ -1,5 +1,3 @@
-# This workflow will build and release a golang project
-
 name: Release
 
 on:
@@ -11,8 +9,27 @@ permissions:
   contents: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout 5m
 
   build:
+    needs: lint
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,14 +53,34 @@ jobs:
         if [ "$GOOS" = "windows" ]; then
           ext=".exe"
         fi
+        FILENAME="morrigan-${GOOS}-${GOARCH}${ext}"
         LDFLAGS="-X github.com/liut/morrigan/pkg/settings.version=${TAG} -s -w"
-        go build -ldflags="$LDFLAGS" -o morrigan-${GOOS}-${GOARCH}${ext} .
+        go build -ldflags="$LDFLAGS" -o "$FILENAME" .
+
+    - name: Create Archive
+      env:
+        GOOS: ${{ matrix.goos }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        ext=""
+        if [ "$GOOS" = "windows" ]; then
+          ext=".exe"
+        fi
+        FILENAME="morrigan-${GOOS}-${GOARCH}${ext}"
+        ARCHIVE_NAME="morrigan-${GOOS}-${GOARCH}-${TAG}"
+        mkdir -p dist
+        if [ "$GOOS" = "windows" ]; then
+          zip -j "dist/${ARCHIVE_NAME}.zip" "$FILENAME"
+        else
+          tar -cvJf "dist/${ARCHIVE_NAME}.tar.xz" -C . "$FILENAME"
+        fi
+        ls -la dist/
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: morrigan-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: morrigan-*
+        path: dist/*
 
   release:
     needs: build
@@ -53,11 +90,17 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
+        pattern: morrigan-*
+        merge-multiple: false
+
+    - name: List Artifacts
+      run: |
+        find artifacts -type f -ls
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: artifacts/morrigan-*
+        files: artifacts/**/*
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
