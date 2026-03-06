@@ -45,8 +45,7 @@ func NewClient(opts ...Option) (Client, error) {
 	case "", "openai", "openrouter", "ollama":
 		p = newOpenAIProvider()
 	case "anthropic":
-		// TODO: 实现 anthropic provider
-		return nil, fmt.Errorf("%w: anthropic not implemented yet", ErrUnsupportedProvider)
+		p = newAnthropicProvider()
 	case "gemini":
 		// TODO: 实现 gemini provider
 		return nil, fmt.Errorf("%w: gemini not implemented yet", ErrUnsupportedProvider)

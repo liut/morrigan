@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +18,7 @@ import (
 	_ "github.com/liut/morrigan/pkg/web/api"
 
 	"github.com/liut/morrigan/htdocs"
+	"github.com/liut/morrigan/pkg/services/llm"
 	"github.com/liut/morrigan/pkg/services/stores"
 	"github.com/liut/morrigan/pkg/settings"
 	"github.com/liut/morrigan/pkg/web"
@@ -86,6 +89,64 @@ func embeddingDocVector(cc *cli.Context) error {
 	// return nil
 }
 
+func agent(cc *cli.Context) error {
+	message := cc.String("message")
+	stream := cc.Bool("stream")
+	verbose := cc.Bool("verbose")
+
+	// 默认关闭日志，根据 verbose 参数决定是否显示
+	if !verbose {
+		cfg := zap.NewProductionConfig()
+		cfg.Level = zap.NewAtomicLevelAt(zap.ErrorLevel)
+		zlogger, _ := cfg.Build()
+		zlog.Set(zlogger.Sugar())
+	}
+
+	if message == "" {
+		return fmt.Errorf("message is required, use -m flag")
+	}
+
+	client := stores.GetLLMClient()
+	if client == nil {
+		return fmt.Errorf("llm client not initialized")
+	}
+
+	ctx := context.Background()
+	messages := []llm.Message{
+		{Role: llm.RoleUser, Content: message},
+	}
+
+	if stream {
+		ch, err := client.StreamChat(ctx, messages, nil)
+		if err != nil {
+			return fmt.Errorf("stream chat: %w", err)
+		}
+		out := bufio.NewWriter(os.Stdout)
+		for result := range ch {
+			if result.Error != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", result.Error)
+				continue
+			}
+			fmt.Fprint(out, result.Delta)
+			out.Flush()
+			if result.Done {
+				fmt.Fprintln(out)
+				if result.FinishReason != "" {
+					fmt.Fprintf(os.Stderr, "finish_reason: %s\n", result.FinishReason)
+				}
+			}
+		}
+	} else {
+		result, err := client.Chat(ctx, messages, nil)
+		if err != nil {
+			return fmt.Errorf("chat: %w", err)
+		}
+		fmt.Println(result.Content)
+	}
+
+	return nil
+}
+
 func logger() zlog.Logger {
 	return zlog.Get()
 }
@@ -138,6 +199,17 @@ func main() {
 				Usage:   "read prompt documents and embedding",
 				Aliases: []string{"embedding-doc-vec"},
 				Action:  embeddingDocVector,
+			},
+			{
+				Name:    "agent",
+				Usage:   "test LLM agent",
+				Aliases: []string{"llm", "chat"},
+				Action:  agent,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "message", Aliases: []string{"m"}, Usage: "message to send"},
+					&cli.BoolFlag{Name: "stream", Aliases: []string{"s"}, Usage: "enable streaming response"},
+					&cli.BoolFlag{Name: "verbose", Aliases: []string{"v"}, Usage: "show logs"},
+				},
 			},
 			{
 				Name:    "web",

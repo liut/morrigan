@@ -29,9 +29,9 @@ func TestNewClient(t *testing.T) {
 			},
 		},
 		{
-			name:    "anthropic not implemented",
+			name:    "anthropic provider",
 			opts:    []Option{WithProvider("anthropic")},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name:    "gemini not implemented",

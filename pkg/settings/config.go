@@ -42,8 +42,8 @@ type Config struct {
 
 	DateInContext bool `envconfig:"date_in_context"`
 
-	KeeperRole  string   `envconfig:"Keeper_Role" default:"keeper" desc:"role required for write tools"`
-	KeeperUIDs []string  `envconfig:"Keeper_UIDs" desc:"uid list that bypasses role check"`
+	KeeperRole string   `envconfig:"Keeper_Role" default:"keeper" desc:"role required for write tools"`
+	KeeperUIDs []string `envconfig:"Keeper_UIDs" desc:"uid list that bypasses role check"`
 
 	// 相似度阈值 建议范围 0.39 - 0.65
 	VectorThreshold float32 `envconfig:"Vector_Threshold" default:"0.39"`
@@ -59,6 +59,7 @@ type Provider struct {
 	APIKey string `envconfig:"Api_Key" required:"true"`
 	URL    string `envconfig:"url"`
 	Model  string `envconfig:"MODEL" required:"true"`
+	Type   string `envconfig:"type" default:"openai" desc:"provider type: openai, anthropic, openrouter, ollama"`
 }
 
 var (

@@ -18,7 +18,7 @@ func init() {
 
 	// Embedding Client
 	llmEmPtr, err := llm.NewClient(
-		llm.WithProvider("openai"),
+		llm.WithProvider(settings.Current.Embedding.Type),
 		llm.WithAPIKey(settings.Current.Embedding.APIKey),
 		llm.WithBaseURL(settings.Current.Embedding.URL),
 		llm.WithModel(settings.Current.Embedding.Model),
@@ -30,7 +30,7 @@ func init() {
 
 	// Interact Client (chat)
 	llmItPtr, err := llm.NewClient(
-		llm.WithProvider("openai"),
+		llm.WithProvider(settings.Current.Interact.Type),
 		llm.WithAPIKey(settings.Current.Interact.APIKey),
 		llm.WithBaseURL(settings.Current.Interact.URL),
 		llm.WithModel(settings.Current.Interact.Model),
@@ -42,7 +42,7 @@ func init() {
 
 	// Summarize/Completion Client (共用)
 	llmSuPtr, err := llm.NewClient(
-		llm.WithProvider("openai"),
+		llm.WithProvider(settings.Current.Summarize.Type),
 		llm.WithAPIKey(settings.Current.Summarize.APIKey),
 		llm.WithBaseURL(settings.Current.Summarize.URL),
 		llm.WithModel(settings.Current.Summarize.Model),
