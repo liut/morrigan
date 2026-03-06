@@ -125,12 +125,12 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 		}
 
 		logger().Infow("stream start",
-			"endpoint", endpoint,
 			"model", cfg.model,
 			"msgs_count", len(messages),
 			"tools_count", len(tools),
 			"tools", tools,
 			"has_tools", len(tools) > 0,
+			"endpoint", endpoint,
 		)
 
 		// 发送流式请求

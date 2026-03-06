@@ -307,7 +307,6 @@ func (a *api) chatStreamResponse(ccr *chatRequest, w http.ResponseWriter, r *htt
 	}
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
-	logger().Debugw("llm stream start", "msgs", len(ccr.messages), "tools", len(ccr.tools))
 	stream, err := a.llm.StreamChat(r.Context(), ccr.messages, ccr.tools)
 	if err != nil {
 		logger().Infow("call chat stream fail", "err", err)
