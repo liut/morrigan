@@ -131,9 +131,6 @@ func agent(cc *cli.Context) error {
 			out.Flush()
 			if result.Done {
 				fmt.Fprintln(out)
-				if result.FinishReason != "" {
-					fmt.Fprintf(os.Stderr, "finish_reason: %s\n", result.FinishReason)
-				}
 			}
 		}
 	} else {
