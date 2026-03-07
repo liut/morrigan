@@ -29,6 +29,7 @@ type Config struct {
 	CookiePath   string   `envconfig:"Cookie_Path" default:"/" desc:"for oauth client"`
 	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
 	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"for oauth client"`
+	OAuthPathMCP string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
 
 	OpenAIAPIKey string `envconfig:"openAi_Api_Key" desc:"fallback"`
 	OpenAIBase   string `envconfig:"OpenAI_BASE_URL" desc:"fallback"`

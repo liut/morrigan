@@ -44,9 +44,9 @@ func regHI(auth bool, method string, path string, rid string, hafn haFunc) {
 type api struct {
 	sto stores.Storage
 
-	cmodel string // openAI chat model
-	llm    llm.Client
-	preset aigc.Preset
+	cmodel  string // openAI chat model
+	llm     llm.Client
+	preset  aigc.Preset
 	toolreg *tools.Registry
 }
 
@@ -66,12 +66,24 @@ func newapi(sto stores.Storage) *api {
 		logger().Infow("loaded preset", "mcps", len(preset.MCPServers))
 	}
 
+	// 初始化 OAuth MCP 配置
+	var opts = []tools.RegistryOption{
+		tools.WithClientInfo(settings.Current.Name, settings.Version()),
+	}
+
+	if settings.Current.OAuthPathMCP != "" {
+		opts = append(opts, tools.WithOAuthMCP(
+			staffio.GetPrefix()+settings.Current.OAuthPathMCP, OAuthTokenFromContext),
+		)
+	}
+	toolreg := tools.NewRegistry(sto, opts...)
+
 	return &api{
 		sto:     sto,
 		llm:     stores.GetLLMClient(),
 		cmodel:  settings.Current.ChatModel,
 		preset:  preset,
-		toolreg: tools.NewRegistry(sto),
+		toolreg: toolreg,
 	}
 }
 
@@ -103,7 +115,8 @@ func (a *api) Strap(router chi.Router) {
 		}))
 
 	router.Route("/api", func(r chi.Router) {
-		r.Use(middleware.Handler) // 限流
+		r.Use(middleware.Handler)        // 限流
+		r.Use(OAuthTokenMiddleware(nil)) // OAuth token 注入 context
 
 		r.Get("/ping", ping)
 
