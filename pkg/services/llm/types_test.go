@@ -171,17 +171,17 @@ func TestChatResultHasToolCalls(t *testing.T) {
 	tests := []struct {
 		name     string
 		toolCalls []ToolCall
-		expected bool
+		expected  bool
 	}{
 		{
-			name:     "no tool calls",
+			name:      "no tool calls",
 			toolCalls: nil,
-			expected: false,
+			expected:  false,
 		},
 		{
-			name:     "empty tool calls",
+			name:      "empty tool calls",
 			toolCalls: []ToolCall{},
-			expected: false,
+			expected:  false,
 		},
 		{
 			name: "has tool calls",
@@ -219,5 +219,193 @@ func TestStreamResultString(t *testing.T) {
 	result.Done = true
 	if !result.Done {
 		t.Error("expected Done to be true")
+	}
+}
+
+func TestMessagesLogged_String(t *testing.T) {
+	tests := []struct {
+		name     string
+		messages []Message
+		expected string
+	}{
+		{
+			name:     "empty",
+			messages: []Message{},
+			expected: "[]",
+		},
+		{
+			name: "system message",
+			messages: []Message{
+				{Role: RoleSystem, Content: "You are helpful."},
+			},
+			expected: "[S: You are helpful.]",
+		},
+		{
+			name: "user message",
+			messages: []Message{
+				{Role: RoleUser, Content: "Hello world"},
+			},
+			expected: "[U: Hello world]",
+		},
+		{
+			name: "assistant message",
+			messages: []Message{
+				{Role: RoleAssistant, Content: "I can help you."},
+			},
+			expected: "[A: I can help you.]",
+		},
+		{
+			name: "tool message",
+			messages: []Message{
+				{Role: RoleTool, Name: "get_weather", Content: "Sunny, 25C"},
+			},
+			expected: "[T: get_weather: [len=10]]",
+		},
+		{
+			name: "multiple messages",
+			messages: []Message{
+				{Role: RoleSystem, Content: "You are helpful."},
+				{Role: RoleUser, Content: "Hello"},
+				{Role: RoleAssistant, Content: "Hi there!"},
+			},
+			expected: "[S: You are helpful., U: Hello, A: Hi there!]",
+		},
+		{
+			name: "truncate long content",
+			messages: []Message{
+				{Role: RoleUser, Content: "This is a very long message that should be truncated"},
+			},
+			expected: "[U: This is a very long message...]",
+		},
+		{
+			name: "tool calls",
+			messages: []Message{
+				{
+					Role: RoleAssistant,
+					ToolCalls: []ToolCall{
+						{ID: "call_1", Type: "function", Function: ToolCallFunc{Name: "get_weather"}},
+					},
+				},
+			},
+			expected: "[A: [tool_calls: get_weather]]",
+		},
+		{
+			name: "tool result empty content",
+			messages: []Message{
+				{Role: RoleTool, ToolCallID: "call_123", Content: ""},
+			},
+			expected: "[T: : ]",
+		},
+		{
+			name: "unknown role",
+			messages: []Message{
+				{Role: "admin", Content: "some content"},
+			},
+			expected: "[? some content]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logged := MessagesLogged(tt.messages)
+			result := logged.String()
+			if result != tt.expected {
+				t.Errorf("got %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestMessage_previewText(t *testing.T) {
+	tests := []struct {
+		name     string
+		msg      Message
+		n        int
+		expected string
+	}{
+		{
+			name:     "system truncate",
+			msg:      Message{Role: RoleSystem, Content: "This is a very long system message"},
+			n:        15,
+			expected: "S: This is a ve...",
+		},
+		{
+			name:     "user no truncate",
+			msg:      Message{Role: RoleUser, Content: "Hello"},
+			n:        20,
+			expected: "U: Hello",
+		},
+		{
+			name:     "tool with name",
+			msg:      Message{Role: RoleTool, Name: "get_weather", Content: "Result"},
+			n:        50,
+			expected: "T: get_weather: [len=6]",
+		},
+		{
+			name: "assistant tool calls",
+			msg: Message{
+				Role: RoleAssistant,
+				ToolCalls: []ToolCall{
+					{Function: ToolCallFunc{Name: "search"}},
+				},
+			},
+			n:        50,
+			expected: "A: [tool_calls: search]",
+		},
+		{
+			name:     "tool result",
+			msg:      Message{Role: RoleTool, ToolCallID: "call_1", Content: "result data"},
+			n:        50,
+			expected: "T: : [len=11]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.msg.previewText(tt.n)
+			if result != tt.expected {
+				t.Errorf("got %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToolLogs_String(t *testing.T) {
+	tests := []struct {
+		name      string
+		toolCalls []ToolDefinition
+		expected  string
+	}{
+		{
+			name:      "empty",
+			toolCalls: []ToolDefinition{},
+			expected:  "[]",
+		},
+		{
+			name: "single tool",
+			toolCalls: []ToolDefinition{
+				{Type: "function", Function: FunctionDefinition{Name: "get_weather"}},
+			},
+			expected: "[get_weather]",
+		},
+		{
+			name: "multiple tools",
+			toolCalls: []ToolDefinition{
+				{Type: "function", Function: FunctionDefinition{Name: "get_weather"}},
+				{Type: "function", Function: FunctionDefinition{Name: "search"}},
+				{Type: "function", Function: FunctionDefinition{Name: "calculate"}},
+			},
+			expected: "[get_weather, search, calculate]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logged := ToolLogs(tt.toolCalls)
+			result := logged.String()
+			if result != tt.expected {
+				t.Errorf("got %q, want %q", result, tt.expected)
+			}
+		})
 	}
 }

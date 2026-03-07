@@ -2,6 +2,7 @@ package aigc
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 type HistoryChatItem struct {
@@ -81,4 +82,49 @@ func (z HistoryItems) RecentlyWithTokens(size int) (ohi HistoryItems) {
 		ohi = append(HistoryItems{z[i]}, ohi...)
 	}
 	return
+}
+
+// HiLogged 是 HistoryItems 的自定义类型，用于日志输出
+type HiLogged HistoryItems
+
+// String 返回每个记录的前30个字的文本，用于日志记录
+func (z HiLogged) String() string {
+	if len(z) == 0 {
+		return "[]"
+	}
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, item := range z {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		text := item.previewText(30)
+		sb.WriteString(text)
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+// previewText 返回记录的前n个字的文本
+func (z *HistoryItem) previewText(n int) string {
+	var text string
+	if z.ChatItem != nil {
+		hasUser := z.ChatItem.User != ""
+		hasAssistant := z.ChatItem.Assistant != ""
+		if hasUser && hasAssistant {
+			text = "U: " + z.ChatItem.User + " / A: " + z.ChatItem.Assistant
+		} else if hasUser {
+			text = z.ChatItem.User
+		} else if hasAssistant {
+			text = z.ChatItem.Assistant
+		}
+	}
+	if text == "" {
+		text = z.Text
+	}
+	// 截取前 n 个字
+	if len(text) > n {
+		return text[:n] + "..."
+	}
+	return text
 }

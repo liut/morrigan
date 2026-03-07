@@ -2,6 +2,8 @@ package llm
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 )
 
 // Message 表示聊天消息
@@ -101,3 +103,81 @@ const (
 	RoleAssistant = "assistant"
 	RoleTool      = "tool"
 )
+
+// MessagesLogged 是 []Message 的自定义类型，用于日志输出
+type MessagesLogged []Message
+
+// String 返回每条消息的前30个字的文本，用于日志记录
+func (z MessagesLogged) String() string {
+	if len(z) == 0 {
+		return "[]"
+	}
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, msg := range z {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		text := msg.previewText(30)
+		sb.WriteString(text)
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+// previewText 返回消息的前n个字的文本，带角色前缀
+func (z *Message) previewText(n int) string {
+	var prefix string
+	switch z.Role {
+	case RoleSystem:
+		prefix = "S: "
+	case RoleUser:
+		prefix = "U: "
+	case RoleAssistant:
+		prefix = "A: "
+	case RoleTool:
+		prefix = "T: " + z.Name + ": "
+	default:
+		prefix = "? "
+	}
+
+	text := z.Content
+	// 有工具调用时显示工具调用信息
+	if len(z.ToolCalls) > 0 {
+		var tcNames []string
+		for _, tc := range z.ToolCalls {
+			tcNames = append(tcNames, tc.Function.Name)
+		}
+		text = "[tool_calls: " + strings.Join(tcNames, ", ") + "]"
+	}
+	// tool 角色显示 content 长度
+	if z.Role == RoleTool && text != "" {
+		text = fmt.Sprintf("[len=%d]", len(text))
+	}
+
+	full := prefix + text
+	if len(full) > n {
+		return full[:n] + "..."
+	}
+	return full
+}
+
+// ToolLogs 是 []ToolDefinition 的自定义类型，用于日志输出
+type ToolLogs []ToolDefinition
+
+// String 返回工具调用的函数名列表，用于日志记录
+func (z ToolLogs) String() string {
+	if len(z) == 0 {
+		return "[]"
+	}
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, tc := range z {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(tc.Function.Name)
+	}
+	sb.WriteString("]")
+	return sb.String()
+}

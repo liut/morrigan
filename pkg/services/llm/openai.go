@@ -135,8 +135,9 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			"tools", tools,
 			"has_tools", len(tools) > 0,
 			"endpoint", endpoint,
+			"messages", MessagesLogged(messages),
 		)
-		logger().Debugw("stream start", "msgs", messages)
+		// logger().Debugw("stream start", "msgs", messages)
 
 		// 发送流式请求
 		body, err := p.doStreamRequest(ctx, cfg, endpoint, reqBody)

@@ -105,7 +105,7 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 
 	data, err := cs.ListHistory(ctx)
 	if err == nil && len(data) > 0 {
-		logger().Infow("found history", "size", len(data))
+		logger().Infow("found history", "size", len(data), "hist", aigc.HiLogged(data))
 		data = data.RecentlyWithTokens(historyLimitToken)
 		for i, hi := range data {
 			if hi.ChatItem != nil {
@@ -405,7 +405,8 @@ func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, 
 			continue
 		}
 
-		logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name)
+		logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name,
+			"content", content)
 		messages = append(messages, llm.Message{
 			Role:       llm.RoleTool,
 			Content:    formatToolResult(content),
@@ -570,7 +571,8 @@ func (a *api) executeToolCallLoop(ctx context.Context, messages []llm.Message, t
 				continue
 			}
 
-			logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name)
+			logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name,
+				"content", content)
 			messages = append(messages, llm.Message{
 				Role:       llm.RoleTool,
 				Content:    formatToolResult(content),

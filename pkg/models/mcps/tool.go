@@ -162,3 +162,23 @@ func BoolArg(arguments map[string]any, key string) (bool, bool, error) {
 	}
 	return value, true, nil
 }
+
+// ToolNames 是 []ToolDescriptor 的自定义类型，用于日志输出
+type ToolNames []ToolDescriptor
+
+// String 返回工具名称列表，用于日志记录
+func (z ToolNames) String() string {
+	if len(z) == 0 {
+		return "[]"
+	}
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, td := range z {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(td.Name)
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
