@@ -78,3 +78,9 @@ touch-web-api:
 	touch pkg/web/docs.go
 
 gen-apidoc: touch-web-api docs/swagger.json
+
+test-models:
+	go test -v -cover ./pkg/models/...
+
+test-stores:
+	go test -v -tags=integration ./pkg/services/stores/...
