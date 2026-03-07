@@ -386,16 +386,17 @@ func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, 
 			continue
 		}
 
-		args := string(tc.Function.Arguments)
-		if args == "" || args == "{}" {
-			logger().Infow("chat", "toolCallID", tc.ID, "err", "empty arguments")
-			continue
-		}
-
 		var parameters map[string]any
-		if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
-			logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
-			continue
+		args := string(tc.Function.Arguments)
+		if args != "" && args != "{}" {
+			if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
+				logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
+				continue
+			}
+		}
+		// 空参数时使用空 map
+		if parameters == nil {
+			parameters = make(map[string]any)
 		}
 
 		content, err := a.toolreg.Invoke(ctx, tc.Function.Name, parameters)
@@ -550,16 +551,17 @@ func (a *api) executeToolCallLoop(ctx context.Context, messages []llm.Message, t
 				continue
 			}
 
-			args := string(tc.Function.Arguments)
-			if args == "" || args == "{}" {
-				logger().Infow("chat", "toolCallID", tc.ID, "err", "empty arguments")
-				continue
-			}
-
 			var parameters map[string]any
-			if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
-				logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
-				continue
+			args := string(tc.Function.Arguments)
+			if args != "" && args != "{}" {
+				if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
+					logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
+					continue
+				}
+			}
+			// 空参数时使用空 map
+			if parameters == nil {
+				parameters = make(map[string]any)
 			}
 
 			content, err := a.toolreg.Invoke(ctx, tc.Function.Name, parameters)
