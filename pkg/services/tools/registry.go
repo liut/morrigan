@@ -73,11 +73,6 @@ func NewRegistry(sto stores.Storage, opts ...RegistryOption) *Registry {
 	return r
 }
 
-func (r *Registry) Tools() []mcps.ToolDescriptor {
-	// 注意：OAuth MCP 工具列表延迟初始化，工具列表会在 Invoke/ToolsFor 时获取
-	return r.tools
-}
-
 func (r *Registry) Invoke(ctx context.Context, name string, params map[string]any) (map[string]any, error) {
 	if name == "" {
 		return mcps.BuildToolErrorResult("tool name is empty"), nil

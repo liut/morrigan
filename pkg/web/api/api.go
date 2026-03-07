@@ -44,7 +44,6 @@ func regHI(auth bool, method string, path string, rid string, hafn haFunc) {
 type api struct {
 	sto stores.Storage
 
-	cmodel  string // openAI chat model
 	llm     llm.Client
 	preset  aigc.Preset
 	toolreg *tools.Registry
@@ -81,7 +80,6 @@ func newapi(sto stores.Storage) *api {
 	return &api{
 		sto:     sto,
 		llm:     stores.GetLLMClient(),
-		cmodel:  settings.Current.ChatModel,
 		preset:  preset,
 		toolreg: toolreg,
 	}

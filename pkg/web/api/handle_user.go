@@ -49,6 +49,7 @@ func buildTokenCookie(value string) *http.Cookie {
 		Value:    value,
 		HttpOnly: true,
 		Path:     settings.Current.CookiePath,
+		MaxAge:   settings.Current.CookieMaxAge,
 	}
 }
 

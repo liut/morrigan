@@ -28,16 +28,12 @@ type Config struct {
 	CookieName   string   `envconfig:"Cookie_Name" default:"oaic" desc:"for oauth client"`
 	CookiePath   string   `envconfig:"Cookie_Path" default:"/" desc:"for oauth client"`
 	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
-	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"for oauth client"`
+	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"seconds of cookie maxAge"`
 	OAuthPathMCP string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
 
-	OpenAIAPIKey string `envconfig:"openAi_Api_Key" desc:"fallback"`
-	OpenAIBase   string `envconfig:"OpenAI_BASE_URL" desc:"fallback"`
-	ChatModel    string `envconfig:"CHAT_MODEL" default:"gpt-4o-mini"`
-	PresetFile   string `envconfig:"preset_file" desc:"custom welcome and messages"`
-	QAEmbedding  bool   `envconfig:"QA_Embedding" desc:"enable embed QA into prompt"`
-	QAChatLog    bool   `envconfig:"QA_chat_log"`
-	QAFallback   bool   `envconfig:"QA_Fallback"`
+	PresetFile  string `envconfig:"preset_file" desc:"custom welcome and messages"`
+	QAEmbedding bool   `envconfig:"QA_Embedding" desc:"enable embed QA into prompt"`
+	QAChatLog   bool   `envconfig:"QA_chat_log"`
 
 	AskRateLimit string `envconfig:"Ask_Rate_Limit" default:"30-H"`
 
