@@ -203,6 +203,67 @@ Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI
 
 - `pgvector` 向量数据库扩展
 
+## 测试
+
+### 单元测试
+
+项目使用 Go 标准测试框架，测试文件以 `_test.go` 结尾。
+
+```bash
+# 运行 models 包测试
+make test-models
+
+# 运行 stores 包测试（含集成测试）
+make test-stores
+
+# 或手动运行
+go test ./pkg/models/...
+go test -tags=integration ./pkg/services/stores/...
+```
+
+### 集成测试
+
+集成测试使用 build tag `integration` 控制，连接本地 PostgreSQL 数据库：
+
+```bash
+# 运行集成测试
+go test -tags=integration ./pkg/services/stores/...
+```
+
+#### 本地测试前准备
+
+1. **创建测试数据库**:
+   ```bash
+   psql -U morrigan -c "CREATE DATABASE morrigan_test;"
+   ```
+
+2. **安装 vector 扩展**（需要管理员权限）:
+   ```bash
+   psql -U postgres -d morrigan_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+   psql -U postgres -d morrigan_test -c "ALTER EXTENSION vector SET SCHEMA public;"
+   ```
+
+3. **运行集成测试**:
+   ```bash
+   make test-stores
+   ```
+
+#### 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `TEST_DB_DSN` | 完整数据库连接字符串 | - |
+| `TEST_DB_HOST` | 数据库主机 | localhost |
+| `TEST_DB_PORT` | 数据库端口 | 5432 |
+| `TEST_DB_USER` | 数据库用户 | morrigan |
+| `TEST_DB_NAME` | 数据库名 | morrigan_test |
+
+### 测试分类
+
+- **单元测试**: 无外部依赖，可在 CI 和本地运行
+- **集成测试**: 需要 PostgreSQL + Redis，使用 build tag 控制
+- **Embedding 测试**: 需要 `Embedding.APIKey` 配置，自动跳过
+
 ## 注意事项
 
 1. 修改 API 结构体时注意 JSON tag 命名一致
