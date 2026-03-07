@@ -19,6 +19,7 @@ import (
 	"github.com/liut/morrigan/pkg/models/mcps"
 	"github.com/liut/morrigan/pkg/services/llm"
 	"github.com/liut/morrigan/pkg/services/stores"
+	toolsvc "github.com/liut/morrigan/pkg/services/tools"
 	"github.com/liut/morrigan/pkg/settings"
 )
 
@@ -405,8 +406,8 @@ func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, 
 			continue
 		}
 
-		logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name,
-			"content", content)
+		logger().Infow("invokeTool ok", "toolCallName", tc.Function.Name,
+			"content", toolsvc.ResultLogs(content))
 		messages = append(messages, llm.Message{
 			Role:       llm.RoleTool,
 			Content:    formatToolResult(content),
@@ -488,6 +489,13 @@ func formatToolResult(result map[string]any) string {
 	// 备选：使用 structuredContent
 	if sc, ok := result["structuredContent"].(string); ok {
 		return sc
+	}
+	if sc, ok := result["structuredContent"].(map[string]any); ok {
+		for k, v := range sc {
+			if s, ok := v.(string); ok && k == "text" {
+				return s
+			}
+		}
 	}
 	// 最后：序列化为 JSON
 	if b, err := json.Marshal(result); err == nil {
@@ -571,8 +579,8 @@ func (a *api) executeToolCallLoop(ctx context.Context, messages []llm.Message, t
 				continue
 			}
 
-			logger().Debugw("invokeTool ok", "toolCallName", tc.Function.Name,
-				"content", content)
+			logger().Infow("invokeTool ok", "toolCallName", tc.Function.Name,
+				"content", toolsvc.ResultLogs(content))
 			messages = append(messages, llm.Message{
 				Role:       llm.RoleTool,
 				Content:    formatToolResult(content),
