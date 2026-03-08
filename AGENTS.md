@@ -1,8 +1,8 @@
-# AGENTS.md - Morrigan 项目代理指南
+# AGENTS.md - Morign 智能体指南
 
 ## 项目概述
 
-Morrigan 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI 聊天应用。
+Morign 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI 聊天应用。
 
 ### 核心功能
 

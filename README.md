@@ -1,4 +1,4 @@
-# Morrigan
+# Morign
 
 Backend implementation of a knowledge base system for AI chat.
 

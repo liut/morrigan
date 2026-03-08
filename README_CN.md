@@ -1,4 +1,4 @@
-# Morrigan
+# Morign
 
 AI 聊天应用知识库系统的后端实现。
 
