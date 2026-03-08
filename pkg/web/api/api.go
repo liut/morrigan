@@ -112,7 +112,7 @@ func (a *api) Strap(router chi.Router) {
 			logger().Warnw("failed on", "uri", r.RequestURI, "err", err)
 		}))
 
-	router.Route("/api", func(r chi.Router) {
+	router.Route(settings.Current.APIPrefix, func(r chi.Router) {
 		r.Use(middleware.Handler)        // 限流
 		r.Use(OAuthTokenMiddleware(nil)) // OAuth token 注入 context
 

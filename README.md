@@ -26,11 +26,11 @@ Backend implementation of a knowledge base system for AI chat.
 </details>
 
 <details>
- <summary>chatgpt-web based on Vue.js  ⤸</summary>
+ <summary>calisyn based on Vue.js  ⤸</summary>
 
- ![chatgpt-web](./docs/screen-web-s.png)
+ ![calisyn](./docs/screen-web-s.png)
 
-> forked: https://github.com/liut/chatgpt-web
+> forked: https://github.com/liut/calisyn
 
 </details>
 
