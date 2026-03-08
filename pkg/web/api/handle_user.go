@@ -8,7 +8,7 @@ import (
 	staffio "github.com/liut/staffio-client"
 	"github.com/marcsv/go-binder/binder"
 
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/settings"
 )
 
 func init() {

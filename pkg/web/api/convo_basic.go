@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"github.com/liut/morrigan/pkg/services/llm"
+	"github.com/liut/morign/pkg/services/llm"
 )
 
 const (

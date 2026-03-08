@@ -56,30 +56,30 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           echo "version: $VERSION"
-          GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan .
-          mv morrigan morrigan-linux-amd64
-          GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan .
-          mv morrigan morrigan-darwin-amd64
-          GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan .
-          mv morrigan morrigan-darwin-arm64
-          GOOS=windows GOARCH=amd64 go build -ldflags "-X github.com/liut/morrigan/pkg/settings.version=$VERSION -s -w" -o morrigan.exe .
-          mv morrigan.exe morrigan-windows-amd64.exe
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/liut/morign/pkg/settings.version=$VERSION -s -w" -o morign .
+          mv morign morign-linux-amd64
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/liut/morign/pkg/settings.version=$VERSION -s -w" -o morign .
+          mv morign morign-darwin-amd64
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/liut/morign/pkg/settings.version=$VERSION -s -w" -o morign .
+          mv morign morign-darwin-arm64
+          GOOS=windows GOARCH=amd64 go build -ldflags "-X github.com/liut/morign/pkg/settings.version=$VERSION -s -w" -o morign.exe .
+          mv morign.exe morign-windows-amd64.exe
 
       - name: Package
         run: |
-          tar -cvJf morrigan-linux-amd64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morrigan-linux-amd64
-          tar -cvJf morrigan-darwin-amd64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morrigan-darwin-amd64
-          tar -cvJf morrigan-darwin-arm64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morrigan-darwin-arm64
-          zip morrigan-windows-amd64-${{ steps.version.outputs.VERSION }}.zip morrigan-windows-amd64.exe
+          tar -cvJf morign-linux-amd64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morign-linux-amd64
+          tar -cvJf morign-darwin-amd64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morign-darwin-amd64
+          tar -cvJf morign-darwin-arm64-${{ steps.version.outputs.VERSION }}.tar.xz -C . morign-darwin-arm64
+          zip morign-windows-amd64-${{ steps.version.outputs.VERSION }}.zip morign-windows-amd64.exe
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            morrigan-linux-amd64-*.tar.xz
-            morrigan-darwin-amd64-*.tar.xz
-            morrigan-darwin-arm64-*.tar.xz
-            morrigan-windows-amd64-*.zip
+            morign-linux-amd64-*.tar.xz
+            morign-darwin-amd64-*.tar.xz
+            morign-darwin-arm64-*.tar.xz
+            morign-windows-amd64-*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

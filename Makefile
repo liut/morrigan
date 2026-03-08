@@ -1,8 +1,8 @@
 .SILENT :
 .PHONY: docs
 
-NAME:=morrigan
-ROOF:=github.com/liut/morrigan
+NAME:=morign
+ROOF:=github.com/liut/morign
 DATE := $(shell date '+%Y%m%d')
 TAG:=$(shell git describe --tags --always)
 GO=$(shell which go)

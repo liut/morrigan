@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/liut/morrigan/pkg/web/routes"
+	"github.com/liut/morign/pkg/web/routes"
 )
 
 type Service interface {

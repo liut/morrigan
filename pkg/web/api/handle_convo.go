@@ -14,13 +14,13 @@ import (
 	"github.com/jpillora/eventsource"
 	"github.com/marcsv/go-binder/binder"
 
-	"github.com/liut/morrigan/pkg/models/aigc"
-	"github.com/liut/morrigan/pkg/models/corpus"
-	"github.com/liut/morrigan/pkg/models/mcps"
-	"github.com/liut/morrigan/pkg/services/llm"
-	"github.com/liut/morrigan/pkg/services/stores"
-	toolsvc "github.com/liut/morrigan/pkg/services/tools"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/models/aigc"
+	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/services/llm"
+	"github.com/liut/morign/pkg/services/stores"
+	toolsvc "github.com/liut/morign/pkg/services/tools"
+	"github.com/liut/morign/pkg/settings"
 )
 
 func init() {
@@ -476,6 +476,7 @@ func formatToolResult(result map[string]any) string {
 	if result == nil {
 		return ""
 	}
+	logger().Debugw("formatToolResult", "result", result)
 	// 优先提取 content 数组中的 text
 	if content, ok := result["content"].([]any); ok {
 		for _, c := range content {

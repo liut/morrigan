@@ -13,13 +13,13 @@ import (
 
 	staffio "github.com/liut/staffio-client"
 
-	"github.com/liut/morrigan/pkg/models/aigc"
-	"github.com/liut/morrigan/pkg/services/llm"
-	"github.com/liut/morrigan/pkg/services/stores"
-	"github.com/liut/morrigan/pkg/services/tools"
-	"github.com/liut/morrigan/pkg/settings"
-	"github.com/liut/morrigan/pkg/web/resp"
-	"github.com/liut/morrigan/pkg/web/routes"
+	"github.com/liut/morign/pkg/models/aigc"
+	"github.com/liut/morign/pkg/services/llm"
+	"github.com/liut/morign/pkg/services/stores"
+	"github.com/liut/morign/pkg/services/tools"
+	"github.com/liut/morign/pkg/settings"
+	"github.com/liut/morign/pkg/web/resp"
+	"github.com/liut/morign/pkg/web/routes"
 )
 
 var handles = []handleIn{}

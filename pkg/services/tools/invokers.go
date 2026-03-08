@@ -13,9 +13,9 @@ import (
 	htmd "github.com/JohannesKaufmann/html-to-markdown"
 
 	readeck "codeberg.org/readeck/go-readability/v2"
-	"github.com/liut/morrigan/pkg/models/corpus"
-	"github.com/liut/morrigan/pkg/models/mcps"
-	"github.com/liut/morrigan/pkg/services/stores"
+	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/services/stores"
 )
 
 const (

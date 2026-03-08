@@ -8,9 +8,9 @@ import (
 	"github.com/cupogo/andvari/models/oid"
 	"gopkg.in/yaml.v3"
 
-	"github.com/liut/morrigan/pkg/models/aigc"
-	"github.com/liut/morrigan/pkg/models/convo"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/models/aigc"
+	"github.com/liut/morign/pkg/models/convo"
+	"github.com/liut/morign/pkg/settings"
 )
 
 const (

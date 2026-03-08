@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/liut/morrigan/pkg/services/llm"
+	"github.com/liut/morign/pkg/services/llm"
 )
 
 func TestFormatToolResult(t *testing.T) {

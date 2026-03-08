@@ -10,8 +10,8 @@ import (
 	"github.com/mark3labs/mcp-go/client/transport"
 	mcp "github.com/mark3labs/mcp-go/mcp"
 
-	"github.com/liut/morrigan/pkg/models/mcps"
-	"github.com/liut/morrigan/pkg/services/stores"
+	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/services/stores"
 )
 
 type Invoker func(ctx context.Context, params map[string]any) (map[string]any, error)

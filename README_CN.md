@@ -181,7 +181,7 @@ CREATE EXTENSION vector;
 ```plan
 
 USAGE:
-   morrigan [全局选项] 命令 [命令选项] [参数...]
+   morign [全局选项] 命令 [命令选项] [参数...]
 
 COMMANDS:
    usage, env                   显示用法
@@ -205,13 +205,13 @@ GLOBAL OPTIONS:
 
 ```bash
 # 非流式对话
-./morrigan agent -m "你好"
+./morign agent -m "你好"
 
 # 流式对话
-./morrigan agent -m "你好" -s
+./morign agent -m "你好" -s
 
 # 显示详细日志
-./morrigan agent -m "你好" -v
+./morign agent -m "你好" -v
 ```
 
 参数：
@@ -223,32 +223,32 @@ GLOBAL OPTIONS:
 
 #### 查看所有本地配置
 ```bash
-./morrigan usage
+./morign usage
 ```
 
 示例：
 
 ```plan
 # Interact provider（对话）
-MORRIGAN_INTERACT_API_KEY=sk-xxx
-MORRIGAN_INTERACT_MODEL=gpt-4o-mini
-MORRIGAN_INTERACT_URL=https://api.openai.com/v1
+MORIGN_INTERACT_API_KEY=sk-xxx
+MORIGN_INTERACT_MODEL=gpt-4o-mini
+MORIGN_INTERACT_URL=https://api.openai.com/v1
 
 # Embedding provider（向量嵌入）
-MORRIGAN_EMBEDDING_API_KEY=sk-xxx
-MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
+MORIGN_EMBEDDING_API_KEY=sk-xxx
+MORIGN_EMBEDDING_MODEL=text-embedding-3-small
 
 # Summarize provider（可选）
-MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
-MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
+MORIGN_SUMMARIZE_API_KEY=sk-xxx
+MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
 
-MORRIGAN_HTTP_LISTEN=:3002
+MORIGN_HTTP_LISTEN=:3002
 
 # 可选：预设数据
-MORRIGAN_PRESET_FILE=./data/preset.yaml
+MORIGN_PRESET_FILE=./data/preset.yaml
 
 # 可选：OAuth2 登录
-MORRIGAN_AUTH_REQUIRED=true
+MORIGN_AUTH_REQUIRED=true
 OAUTH_PREFIX=https://portal.my-company.xyz
 
 # 可选：代理
@@ -259,13 +259,13 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `MORRIGAN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL 连接串 |
-| `MORRIGAN_REDIS_URI` | redis://localhost:6379/1 | Redis 连接串 |
-| `MORRIGAN_HTTP_LISTEN` | :5001 | HTTP 监听地址 |
-| `MORRIGAN_AUTH_REQUIRED` | false | 是否启用认证 |
-| `MORRIGAN_KEEPER_ROLE` | keeper | 写操作工具需要的角色 |
-| `MORRIGAN_VECTOR_THRESHOLD` | 0.39 | 向量相似度阈值 |
-| `MORRIGAN_VECTOR_LIMIT` | 5 | 向量匹配数量 |
+| `MORIGN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL 连接串 |
+| `MORIGN_REDIS_URI` | redis://localhost:6379/1 | Redis 连接串 |
+| `MORIGN_HTTP_LISTEN` | :5001 | HTTP 监听地址 |
+| `MORIGN_AUTH_REQUIRED` | false | 是否启用认证 |
+| `MORIGN_KEEPER_ROLE` | keeper | 写操作工具需要的角色 |
+| `MORIGN_VECTOR_THRESHOLD` | 0.39 | 向量相似度阈值 |
+| `MORIGN_VECTOR_LIMIT` | 5 | 向量匹配数量 |
 
 #### Provider 配置（AI 服务）
 
@@ -282,23 +282,23 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 示例：
 ```
 # Interact provider (支持 openai/anthropic/openrouter/ollama)
-MORRIGAN_INTERACT_API_KEY=sk-xxx
-MORRIGAN_INTERACT_MODEL=gpt-4o-mini
-MORRIGAN_INTERACT_TYPE=openai  # 可选，默认 openai
+MORIGN_INTERACT_API_KEY=sk-xxx
+MORIGN_INTERACT_MODEL=gpt-4o-mini
+MORIGN_INTERACT_TYPE=openai  # 可选，默认 openai
 
 # 使用 Anthropic
-MORRIGAN_INTERACT_TYPE=anthropic
+MORIGN_INTERACT_TYPE=anthropic
 
-MORRIGAN_EMBEDDING_API_KEY=sk-xxx
+MORIGN_EMBEDDING_API_KEY=sk-xxx
 
-MORRIGAN_EMBEDDING_API_KEY=sk-xxx
-MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
+MORIGN_EMBEDDING_API_KEY=sk-xxx
+MORIGN_EMBEDDING_MODEL=text-embedding-3-small
 
-MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
-MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
+MORIGN_SUMMARIZE_API_KEY=sk-xxx
+MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
 ```
 
-> 提示：运行 `./morrigan usage` 可查看当前所有配置
+> 提示：运行 `./morign usage` 可查看当前所有配置
 
 ## 数据生成步骤
 
@@ -316,9 +316,9 @@ MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 |            |             |                                           |
 
 ```bash
-./morrigan initdb
-./morrigan import mycompany.csv
-./morrigan embedding
+./morign initdb
+./morign import mycompany.csv
+./morign embedding
 ```
 
 ## 挂载前端资源
@@ -332,7 +332,7 @@ MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 ```bash
 cd ../chatgpt-svelte
 npm run build
-rsync -a --delete dist/* ../morrigan/htdocs/
+rsync -a --delete dist/* ../morign/htdocs/
 cd -
 ```
 

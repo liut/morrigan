@@ -10,8 +10,8 @@ import (
 	"github.com/cupogo/andvari/stores/pgx"
 	"github.com/cupogo/andvari/utils"
 
-	"github.com/liut/morrigan/data/schemas"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/data/schemas"
+	"github.com/liut/morign/pkg/settings"
 )
 
 type ormDB = pgx.IDB //nolint

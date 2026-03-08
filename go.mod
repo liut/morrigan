@@ -1,4 +1,4 @@
-module github.com/liut/morrigan
+module github.com/liut/morign
 
 go 1.25.0
 

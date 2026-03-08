@@ -8,7 +8,7 @@ import (
 
 // consts
 const (
-	Name = "Morrigan"
+	Name = "Morign"
 )
 
 // Config ...
@@ -20,9 +20,9 @@ type Config struct {
 	PgQueryDebug bool     `envconfig:"PG_QUERY_DEBUG"`
 	DbAutoInit   bool     `envconfig:"DB_AUTO_INIT"`
 	SentryDSN    string   `envconfig:"SENTRY_DSN" `
-	HTTPListen  string `envconfig:"HTTP_LISTEN" default:":5001" required:"true"`
-	APIPrefix  string `envconfig:"API_PREFIX" default:"/api" desc:"API path prefix"`
-	RedisURI   string `envconfig:"redis_uri" default:"redis://localhost:6379/1" required:"true"`
+	HTTPListen   string   `envconfig:"HTTP_LISTEN" default:":5001" required:"true"`
+	APIPrefix    string   `envconfig:"API_PREFIX" default:"/api" desc:"API path prefix"`
+	RedisURI     string   `envconfig:"redis_uri" default:"redis://localhost:6379/1" required:"true"`
 	AllowOrigins []string `envconfig:"allow_origins" default:"*" desc:"cors"` // CORS: 允许的 Origin 调用来源
 	AuthRequired bool     `envconfig:"Auth_Required"`
 	AuthSecret   string   `envconfig:"Auth_Secret" desc:"for chatgpt-web session only"`
