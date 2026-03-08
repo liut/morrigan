@@ -6,7 +6,7 @@ import (
 
 	redis "github.com/redis/go-redis/v9"
 
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/settings"
 )
 
 type RedisClient = redis.UniversalClient

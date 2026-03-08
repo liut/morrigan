@@ -7,7 +7,7 @@ import (
 	"github.com/go-chi/render"
 	staffio "github.com/liut/staffio-client"
 
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/settings"
 )
 
 var (

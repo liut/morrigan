@@ -1,8 +1,8 @@
 package stores
 
 import (
-	"github.com/liut/morrigan/pkg/services/llm"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/services/llm"
+	"github.com/liut/morign/pkg/settings"
 )
 
 var (

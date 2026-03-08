@@ -5,7 +5,7 @@ package stores
 import (
 	"context"
 
-	"github.com/liut/morrigan/pkg/models/convo"
+	"github.com/liut/morign/pkg/models/convo"
 )
 
 // type ConvoMessage = convo.Message

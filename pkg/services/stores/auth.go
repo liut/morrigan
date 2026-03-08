@@ -7,7 +7,7 @@ import (
 	"github.com/cupogo/andvari/models/comm"
 	"github.com/cupogo/andvari/models/field"
 	"github.com/cupogo/andvari/models/oid"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/settings"
 	auth "github.com/liut/simpauth"
 )
 

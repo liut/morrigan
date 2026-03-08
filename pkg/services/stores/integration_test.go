@@ -31,8 +31,8 @@ import (
 	"testing"
 
 	"github.com/cupogo/andvari/models/oid"
-	"github.com/liut/morrigan/pkg/models/corpus"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/settings"
 )
 
 // getTestDBDSN 构建测试数据库连接字符串

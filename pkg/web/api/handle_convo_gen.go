@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/liut/morrigan/pkg/models/convo"
-	"github.com/liut/morrigan/pkg/services/stores"
+	"github.com/liut/morign/pkg/models/convo"
+	"github.com/liut/morign/pkg/services/stores"
 )
 
 func init() {

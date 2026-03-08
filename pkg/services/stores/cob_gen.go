@@ -5,7 +5,7 @@ package stores
 import (
 	"context"
 
-	"github.com/liut/morrigan/pkg/models/corpus"
+	"github.com/liut/morign/pkg/models/corpus"
 )
 
 // type ChatLog = corpus.ChatLog

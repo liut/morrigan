@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/render"
 
-	"github.com/liut/morrigan/pkg/web/i18n"
+	"github.com/liut/morign/pkg/web/i18n"
 )
 
 // Ok 成功响应 (chi 框架)

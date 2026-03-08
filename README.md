@@ -181,7 +181,7 @@ CREATE EXTENSION vector;
 ```plan
 
 USAGE:
-   morrigan [global options] command [command options] [arguments...]
+   morign [global options] command [command options] [arguments...]
 
 COMMANDS:
    usage, env                   show usage
@@ -205,13 +205,13 @@ Test LLM functionality from command line:
 
 ```bash
 # Non-streaming chat
-./morrigan agent -m "hello"
+./morign agent -m "hello"
 
 # Streaming chat
-./morrigan agent -m "hello" -s
+./morign agent -m "hello" -s
 
 # Show verbose logs
-./morrigan agent -m "hello" -v
+./morign agent -m "hello" -v
 ```
 
 Parameters:
@@ -224,32 +224,32 @@ Parameters:
 
 #### Show all local settings
 ```bash
-./morrigan usage
+./morign usage
 ```
 
 Example:
 
 ```plan
 # Interact provider (chat)
-MORRIGAN_INTERACT_API_KEY=sk-xxx
-MORRIGAN_INTERACT_MODEL=gpt-4o-mini
-MORRIGAN_INTERACT_URL=https://api.openai.com/v1
+MORIGN_INTERACT_API_KEY=sk-xxx
+MORIGN_INTERACT_MODEL=gpt-4o-mini
+MORIGN_INTERACT_URL=https://api.openai.com/v1
 
 # Embedding provider (vector)
-MORRIGAN_EMBEDDING_API_KEY=sk-xxx
-MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
+MORIGN_EMBEDDING_API_KEY=sk-xxx
+MORIGN_EMBEDDING_MODEL=text-embedding-3-small
 
 # Summarize provider (optional)
-MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
-MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
+MORIGN_SUMMARIZE_API_KEY=sk-xxx
+MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
 
-MORRIGAN_HTTP_LISTEN=:3002
+MORIGN_HTTP_LISTEN=:3002
 
 # optional preset data
-MORRIGAN_PRESET_FILE=./data/preset.yaml
+MORIGN_PRESET_FILE=./data/preset.yaml
 
 # optional OAuth2 login
-MORRIGAN_AUTH_REQUIRED=true
+MORIGN_AUTH_REQUIRED=true
 OAUTH_PREFIX=https://portal.my-company.xyz
 
 # optional proxy
@@ -260,13 +260,13 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MORRIGAN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL connection string |
-| `MORRIGAN_REDIS_URI` | redis://localhost:6379/1 | Redis connection string |
-| `MORRIGAN_HTTP_LISTEN` | :5001 | HTTP listen address |
-| `MORRIGAN_AUTH_REQUIRED` | false | Enable authentication |
-| `MORRIGAN_KEEPER_ROLE` | keeper | Role required for write operations |
-| `MORRIGAN_VECTOR_THRESHOLD` | 0.39 | Vector similarity threshold |
-| `MORRIGAN_VECTOR_LIMIT` | 5 | Number of vector matches |
+| `MORIGN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL connection string |
+| `MORIGN_REDIS_URI` | redis://localhost:6379/1 | Redis connection string |
+| `MORIGN_HTTP_LISTEN` | :5001 | HTTP listen address |
+| `MORIGN_AUTH_REQUIRED` | false | Enable authentication |
+| `MORIGN_KEEPER_ROLE` | keeper | Role required for write operations |
+| `MORIGN_VECTOR_THRESHOLD` | 0.39 | Vector similarity threshold |
+| `MORIGN_VECTOR_LIMIT` | 5 | Number of vector matches |
 
 #### Provider Configuration (AI Services)
 
@@ -283,24 +283,24 @@ Supported Provider Type: `openai`, `anthropic`, `openrouter`, `ollama`
 Example:
 ```
 # Interact provider (supports openai/anthropic/openrouter/ollama)
-MORRIGAN_INTERACT_API_KEY=sk-xxx
-MORRIGAN_INTERACT_MODEL=gpt-4o-mini
-MORRIGAN_INTERACT_TYPE=openai  # optional, default openai
+MORIGN_INTERACT_API_KEY=sk-xxx
+MORIGN_INTERACT_MODEL=gpt-4o-mini
+MORIGN_INTERACT_TYPE=openai  # optional, default openai
 
 # Using Anthropic
-MORRIGAN_INTERACT_TYPE=anthropic
-MORRIGAN_INTERACT_MODEL=claude-3-5-sonnet
+MORIGN_INTERACT_TYPE=anthropic
+MORIGN_INTERACT_MODEL=claude-3-5-sonnet
 
 # Embedding provider
-MORRIGAN_EMBEDDING_API_KEY=sk-xxx
-MORRIGAN_EMBEDDING_MODEL=text-embedding-3-small
+MORIGN_EMBEDDING_API_KEY=sk-xxx
+MORIGN_EMBEDDING_MODEL=text-embedding-3-small
 
 # Summarize provider
-MORRIGAN_SUMMARIZE_API_KEY=sk-xxx
-MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
+MORIGN_SUMMARIZE_API_KEY=sk-xxx
+MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
 ```
 
-> Tip: Run `./morrigan usage` to view all current configurations
+> Tip: Run `./morign usage` to view all current configurations
 
 ## The operation steps for generating data.
 
@@ -318,9 +318,9 @@ MORRIGAN_SUMMARIZE_MODEL=gpt-4o-mini
 |            |             |                                           |
 
 ```bash
-./morrigan initdb
-./morrigan import mycompany.csv
-./morrigan embedding
+./morign initdb
+./morign import mycompany.csv
+./morign embedding
 ```
 
 
@@ -335,7 +335,7 @@ Example:
 ```bash
 cd ../chatgpt-svelte
 npm run build
-rsync -a --delete dist/* ../morrigan/htdocs/
+rsync -a --delete dist/* ../morign/htdocs/
 cd -
 ```
 

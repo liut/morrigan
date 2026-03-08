@@ -10,8 +10,8 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 
-	"github.com/liut/morrigan/pkg/models/corpus"
-	"github.com/liut/morrigan/pkg/settings"
+	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/settings"
 )
 
 const (

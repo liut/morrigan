@@ -5,7 +5,7 @@ package stores
 import (
 	"context"
 
-	"github.com/liut/morrigan/pkg/models/mcps"
+	"github.com/liut/morign/pkg/models/mcps"
 )
 
 // type MCPServer = mcps.Server

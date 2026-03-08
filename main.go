@@ -15,13 +15,13 @@ import (
 
 	"github.com/cupogo/andvari/utils/zlog"
 
-	_ "github.com/liut/morrigan/pkg/web/api"
+	_ "github.com/liut/morign/pkg/web/api"
 
-	"github.com/liut/morrigan/htdocs"
-	"github.com/liut/morrigan/pkg/services/llm"
-	"github.com/liut/morrigan/pkg/services/stores"
-	"github.com/liut/morrigan/pkg/settings"
-	"github.com/liut/morrigan/pkg/web"
+	"github.com/liut/morign/htdocs"
+	"github.com/liut/morign/pkg/services/llm"
+	"github.com/liut/morign/pkg/services/stores"
+	"github.com/liut/morign/pkg/settings"
+	"github.com/liut/morign/pkg/web"
 )
 
 func usage(cc *cli.Context) error {
