@@ -29,7 +29,7 @@ func usage(cc *cli.Context) error {
 }
 
 func initdb(cc *cli.Context) error {
-	return stores.InitDB()
+	return stores.InitDB(cc.Context)
 }
 
 func importDocs(cc *cli.Context) error {
@@ -237,6 +237,10 @@ func main() {
 }
 
 func webRun(cc *cli.Context) error {
+	if err := stores.InitDB(cc.Context); err != nil {
+		return err
+	}
+
 	srv := web.New(web.Config{
 		Addr:       cc.String("listen"),
 		Debug:      settings.InDevelop(),

@@ -146,8 +146,8 @@ func (w *Wrap) Close() {
 	_ = w.db.Close()
 }
 
-func InitDB() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+func InitDB(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 	db := SgtDB()
 	if err := db.InitSchemas(ctx, false); err != nil {
