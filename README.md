@@ -21,7 +21,7 @@ Backend implementation of a knowledge base system for AI chat.
 
  ![chatgpt-svelte](./docs/screen-svelte-s.png)
 
-> forked: https://github.com/liut/chatgpt-svelte
+> https://github.com/liut/chatgpt-svelte
 
 </details>
 
@@ -30,7 +30,7 @@ Backend implementation of a knowledge base system for AI chat.
 
  ![calisyn](./docs/screen-web-s.png)
 
-> forked: https://github.com/liut/calisyn
+> https://github.com/liut/calisyn
 
 </details>
 

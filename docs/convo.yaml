@@ -48,7 +48,7 @@ models:
     specNs: convo
 
   - name: Message
-    comment: '会话'
+    comment: '消息'
     tableTag: 'convo_message,alias:cm'
     fields:
       - type: comm.DefaultModel
@@ -79,11 +79,44 @@ models:
     oidcat: message
     specNs: convo
 
+
+  - name: User
+    comment: '用户 来自 OAuth SP 的拷贝'
+    tableTag: 'convo_user,alias:au'
+    fields:
+      - type: comm.DefaultModel
+      - comment: '登录名 唯一'
+        name: Username
+        type: string
+        tags: {json: 'username', pg: 'username,notnull,type:name,unique'}
+        isset: true
+        icse: true
+        query: 'match'
+      - comment: '昵称'
+        name: Nickname
+        type: string
+        tags: {json: 'nickname', pg: "nickname,notnull,type:varchar(45)"}
+        isset: true
+        query: 'match'
+      - comment: '头像路径'
+        name: AvatarPath
+        type: string
+        tags: {json: 'avatar,omitempty', pg: 'avatar,notnull,type:varchar(125)'}
+        isset: true
+
+      - type: comm.MetaField
+
+    oidcat: account
+    specNs: convo
+    export1: true
+
 stores:
   - name: convoStore
+    embed: ConvoStoreX
     hods:
       - { name: Session, type: LGCUD }
       - { name: Message, type: LGCD }
+      - { name: User, type: LGD }
 
 
 webcode: chi
@@ -96,5 +129,8 @@ webapi:
       prefix: '/api/convo'
       ignore: CU
     - model: Message
+      prefix: '/api/convo'
+      ignore: CU
+    - model: User
       prefix: '/api/convo'
       ignore: CU

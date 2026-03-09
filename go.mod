@@ -11,8 +11,8 @@ require (
 	github.com/go-chi/render v1.0.3
 	github.com/jpillora/eventsource v1.2.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/liut/simpauth v0.1.15
-	github.com/liut/staffio-client v0.2.6
+	github.com/liut/simpauth v0.1.16
+	github.com/liut/staffio-client v0.2.7
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/mark3labs/mcp-go v0.45.0
 	github.com/pmezard/go-difflib v1.0.0

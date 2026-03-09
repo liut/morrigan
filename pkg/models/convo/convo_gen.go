@@ -153,7 +153,7 @@ func (in *SessionSet) MetaAddKVs(args ...any) *SessionSet {
 	return in
 }
 
-// consts of Message 会话
+// consts of Message 消息
 const (
 	MessageTable = "convo_message"
 	MessageAlias = "cm"
@@ -161,7 +161,7 @@ const (
 	MessageTypID = "convoMessage"
 )
 
-// Message 会话
+// Message 消息
 type Message struct {
 	comm.BaseModel `bun:"table:convo_message,alias:cm" json:"-"`
 
@@ -253,6 +253,100 @@ func (in *MessageBasic) MetaAddKVs(args ...any) *MessageBasic {
 	return in
 }
 func (in *MessageSet) MetaAddKVs(args ...any) *MessageSet {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+
+// consts of User 用户
+const (
+	UserTable = "convo_user"
+	UserAlias = "au"
+	UserLabel = "user"
+	UserTypID = "convoUser"
+)
+
+// User 用户 来自 OAuth SP 的拷贝
+type User struct {
+	comm.BaseModel `bun:"table:convo_user,alias:au" json:"-"`
+
+	comm.DefaultModel
+
+	UserBasic
+
+	comm.MetaField
+} // @name convoUser
+
+type UserBasic struct {
+	// 登录名 唯一
+	Username string `bun:"username,notnull,type:name,unique" extensions:"x-order=A" form:"username" json:"username" pg:"username,notnull,type:name,unique"`
+	// 昵称
+	Nickname string `bun:"nickname,notnull,type:varchar(45)" extensions:"x-order=B" form:"nickname" json:"nickname" pg:"nickname,notnull,type:varchar(45)"`
+	// 头像路径
+	AvatarPath string `bun:"avatar,notnull,type:varchar(125)" extensions:"x-order=C" form:"avatar" json:"avatar,omitempty" pg:"avatar,notnull,type:varchar(125)"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
+} // @name convoUserBasic
+
+type Users []User
+
+// Creating function call to it's inner fields defined hooks
+func (z *User) Creating() error {
+	if z.IsZeroID() {
+		z.SetID(oid.NewID(oid.OtAccount))
+	}
+
+	return z.DefaultModel.Creating()
+}
+func NewUserWithBasic(in UserBasic) *User {
+	obj := &User{
+		UserBasic: in,
+	}
+	_ = obj.MetaUp(in.MetaDiff)
+	return obj
+}
+func NewUserWithID(id any) *User {
+	obj := new(User)
+	_ = obj.SetID(id)
+	return obj
+}
+func (_ *User) IdentityLabel() string { return UserLabel }
+func (_ *User) IdentityModel() string { return UserTypID }
+func (_ *User) IdentityTable() string { return UserTable }
+func (_ *User) IdentityAlias() string { return UserAlias }
+
+type UserSet struct {
+	// 登录名 唯一
+	Username *string `extensions:"x-order=A" json:"username"`
+	// 昵称
+	Nickname *string `extensions:"x-order=B" json:"nickname"`
+	// 头像路径
+	AvatarPath *string `extensions:"x-order=C" form:"avatar" json:"avatar,omitempty"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
+} // @name convoUserSet
+
+func (z *User) SetWith(o UserSet) {
+	if o.Username != nil && z.Username != *o.Username {
+		z.LogChangeValue("username", z.Username, o.Username)
+		z.Username = *o.Username
+	}
+	if o.Nickname != nil && z.Nickname != *o.Nickname {
+		z.LogChangeValue("nickname", z.Nickname, o.Nickname)
+		z.Nickname = *o.Nickname
+	}
+	if o.AvatarPath != nil && z.AvatarPath != *o.AvatarPath {
+		z.LogChangeValue("avatar", z.AvatarPath, o.AvatarPath)
+		z.AvatarPath = *o.AvatarPath
+	}
+	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
+		z.SetChange("meta")
+	}
+}
+func (in *UserBasic) MetaAddKVs(args ...any) *UserBasic {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+func (in *UserSet) MetaAddKVs(args ...any) *UserSet {
 	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
 	return in
 }

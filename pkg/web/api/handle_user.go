@@ -8,6 +8,8 @@ import (
 	staffio "github.com/liut/staffio-client"
 	"github.com/marcsv/go-binder/binder"
 
+	"github.com/liut/morign/pkg/models/convo"
+	"github.com/liut/morign/pkg/services/stores"
 	"github.com/liut/morign/pkg/settings"
 )
 
@@ -35,13 +37,24 @@ var (
 )
 
 // staffio 认证相关
-const (
-	authLoginPath    = "/api/auth/login"
-	authLogoutPath   = "/api/auth/logout"
-	authCallbackPath = "/api/auth/callback"
+var (
+	authLoginPath    string
+	authLogoutPath   string
+	authCallbackPath string
 
 	tokenCN = "o_token" // from oauth2 provider
 )
+
+func init() {
+	// 基于 APIPrefix 动态生成认证路径
+	apiPrefix := settings.Current.APIPrefix
+	if apiPrefix == "" {
+		apiPrefix = "/api"
+	}
+	authLoginPath = apiPrefix + "/auth/login"
+	authLogoutPath = apiPrefix + "/auth/logout"
+	authCallbackPath = apiPrefix + "/auth/callback"
+}
 
 func buildTokenCookie(value string) *http.Cookie {
 	return &http.Cookie{
@@ -54,10 +67,24 @@ func buildTokenCookie(value string) *http.Cookie {
 }
 
 func handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
+	logger().Debugw("got token", "tokenInfo", it)
 	ot := staffio.TokenFromContext(ctx)
 	if ot != nil {
-		logger().Infow("got token", "it", it, "ot", staffio.TokenFromContext(ctx))
+		logger().Infow("got token", "it", it, "ot", ot)
 		http.SetCookie(w, buildTokenCookie(ot.AccessToken))
+	}
+
+	if auser, uok := it.GetUser(); uok {
+		ctx = staffio.ContextWithUser(ctx, auser)
+		cuser := convo.NewUserWithBasic(convo.UserBasic{
+			Username:   auser.UID,
+			Nickname:   auser.Name,
+			AvatarPath: auser.Avatar,
+		})
+		_ = cuser.SetID(auser.OID)
+		if err := stores.Sgt().Convo().SaveUser(ctx, cuser); err != nil {
+			logger().Warnw("save user failed", "error", err, "uid", auser.UID)
+		}
 	}
 }
 

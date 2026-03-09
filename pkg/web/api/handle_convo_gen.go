@@ -29,6 +29,15 @@ func init() {
 	regHI(true, "DELETE", "/convo/messages/:id", "convo-messages-id-delete", func(a *api) http.HandlerFunc {
 		return a.deleteConvoMessage
 	})
+	regHI(true, "GET", "/convo/users", "", func(a *api) http.HandlerFunc {
+		return a.getConvoUsers
+	})
+	regHI(true, "GET", "/convo/users/:id", "", func(a *api) http.HandlerFunc {
+		return a.getConvoUser
+	})
+	regHI(true, "DELETE", "/convo/users/:id", "convo-users-id-delete", func(a *api) http.HandlerFunc {
+		return a.deleteConvoUser
+	})
 }
 
 // @Tags 默认 文档生成
@@ -110,7 +119,7 @@ func (a *api) deleteConvoSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 列出会话
+// @Summary 列出消息
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -139,7 +148,7 @@ func (a *api) getConvoMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 获取会话
+// @Summary 获取消息
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -165,7 +174,7 @@ func (a *api) getConvoMessage(w http.ResponseWriter, r *http.Request) {
 
 // @Tags 默认 文档生成
 // @ID convo-messages-id-delete
-// @Summary 删除会话 🔑
+// @Summary 删除消息 🔑
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -179,6 +188,84 @@ func (a *api) getConvoMessage(w http.ResponseWriter, r *http.Request) {
 func (a *api) deleteConvoMessage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := a.sto.Convo().DeleteMessage(r.Context(), id)
+	if err != nil {
+		fail(w, r, 503, err)
+		return
+	}
+
+	success(w, r, "ok")
+}
+
+// @Tags 默认 文档生成
+// @Summary 列出用户
+// @Accept json
+// @Produce json
+// @Param token    header   string  true "登录票据凭证"
+// @Param   query  query   stores.ConvoUserSpec  true   "Object"
+// @Success 200 {object} Done{result=ResultData{data=convo.Users}}
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 401 {object} Failure "未登录"
+// @Failure 404 {object} Failure "目标未找到"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/convo/users [get]
+func (a *api) getConvoUsers(w http.ResponseWriter, r *http.Request) {
+	var spec stores.ConvoUserSpec
+	if err := queryBinder.Bind(&spec, r.URL); err != nil {
+		fail(w, r, 400, err)
+		return
+	}
+
+	ctx := r.Context()
+	data, total, err := a.sto.Convo().ListUser(ctx, &spec)
+	if err != nil {
+		fail(w, r, 503, err)
+		return
+	}
+
+	success(w, r, dtResult(data, total))
+}
+
+// @Tags 默认 文档生成
+// @Summary 获取用户
+// @Accept json
+// @Produce json
+// @Param token    header   string  true "登录票据凭证"
+// @Param   id    path   string  true   "编号"
+// @Success 200 {object} Done{result=convo.User}
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 401 {object} Failure "未登录"
+// @Failure 404 {object} Failure "目标未找到"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/convo/users/{id} [get]
+func (a *api) getConvoUser(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var obj *convo.User
+	var err error
+	obj, err = a.sto.Convo().GetUser(r.Context(), id)
+	if err != nil {
+		fail(w, r, 503, err)
+		return
+	}
+
+	success(w, r, obj)
+}
+
+// @Tags 默认 文档生成
+// @ID convo-users-id-delete
+// @Summary 删除用户 🔑
+// @Accept json
+// @Produce json
+// @Param token    header   string  true "登录票据凭证"
+// @Param   id    path   string  true   "编号"
+// @Success 200 {object} Done
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 401 {object} Failure "未登录"
+// @Failure 403 {object} Failure "无权限"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/convo/users/{id} [delete]
+func (a *api) deleteConvoUser(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	err := a.sto.Convo().DeleteUser(r.Context(), id)
 	if err != nil {
 		fail(w, r, 503, err)
 		return

@@ -8,14 +8,18 @@ import (
 	"github.com/liut/morign/pkg/models/convo"
 )
 
+type ConvoUser = convo.User
+
 // type ConvoMessage = convo.Message
 // type ConvoSession = convo.Session
 
 func init() {
-	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil))
+	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.User)(nil))
 }
 
 type ConvoStore interface {
+	ConvoStoreX
+
 	ListSession(ctx context.Context, spec *ConvoSessionSpec) (data convo.Sessions, total int, err error)
 	GetSession(ctx context.Context, id string) (obj *convo.Session, err error)
 	CreateSession(ctx context.Context, in convo.SessionBasic) (obj *convo.Session, err error)
@@ -26,6 +30,10 @@ type ConvoStore interface {
 	GetMessage(ctx context.Context, id string) (obj *convo.Message, err error)
 	CreateMessage(ctx context.Context, in convo.MessageBasic) (obj *convo.Message, err error)
 	DeleteMessage(ctx context.Context, id string) error
+
+	ListUser(ctx context.Context, spec *ConvoUserSpec) (data convo.Users, total int, err error)
+	GetUser(ctx context.Context, id string) (obj *convo.User, err error)
+	DeleteUser(ctx context.Context, id string) error
 }
 
 type ConvoSessionSpec struct {
@@ -68,6 +76,24 @@ func (spec *ConvoMessageSpec) Sift(q *ormQuery) *ormQuery {
 	q, _ = siftOID(q, "session_id", spec.SessionID, false)
 	q, _ = siftMatch(q, "role", spec.Role, false)
 	q, _ = siftEqual(q, "token_count", spec.TokenCount, false)
+
+	return q
+}
+
+type ConvoUserSpec struct {
+	PageSpec
+	ModelSpec
+
+	// 登录名 唯一
+	Username string `extensions:"x-order=A" form:"username" json:"username"`
+	// 昵称
+	Nickname string `extensions:"x-order=B" form:"nickname" json:"nickname"`
+}
+
+func (spec *ConvoUserSpec) Sift(q *ormQuery) *ormQuery {
+	q = spec.ModelSpec.Sift(q)
+	q, _ = siftMatch(q, "username", spec.Username, false)
+	q, _ = siftMatch(q, "nickname", spec.Nickname, false)
 
 	return q
 }
@@ -125,5 +151,22 @@ func (s *convoStore) CreateMessage(ctx context.Context, in convo.MessageBasic) (
 }
 func (s *convoStore) DeleteMessage(ctx context.Context, id string) error {
 	obj := new(convo.Message)
+	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
+func (s *convoStore) ListUser(ctx context.Context, spec *ConvoUserSpec) (data convo.Users, total int, err error) {
+	total, err = s.w.db.ListModel(ctx, spec, &data)
+	return
+}
+func (s *convoStore) GetUser(ctx context.Context, id string) (obj *convo.User, err error) {
+	obj = new(convo.User)
+	if err = dbGetWith(ctx, s.w.db, obj, "username", "ILIKE", id); err != nil && obj.SetID(id) {
+		err = dbGetWithPK(ctx, s.w.db, obj)
+	}
+
+	return
+}
+func (s *convoStore) DeleteUser(ctx context.Context, id string) error {
+	obj := new(convo.User)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
