@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	fmt.Printf("Using test DSN: %s\n", dsn)
 
 	// 初始化数据库（InitSchemas + RunMigrations）
-	if err := InitDB(); err != nil {
+	if err := InitDB(context.Background()); err != nil {
 		fmt.Printf("warning: InitDB failed: %v\n", err)
 	}
 

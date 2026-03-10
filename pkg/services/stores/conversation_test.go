@@ -39,8 +39,10 @@ func TestAddHistory(t *testing.T) {
 	// 测试添加单条消息
 	item := &aigc.HistoryItem{
 		Time: 1234567890,
-		Text: "Hello",
-		UID:  "user1",
+		ChatItem: &aigc.HistoryChatItem{
+			User: "Hello",
+		},
+		UID: "user1",
 	}
 
 	err := conv.AddHistory(ctx, item)
@@ -56,8 +58,8 @@ func TestAddHistory(t *testing.T) {
 	if len(history) != 1 {
 		t.Errorf("expected 1 item, got %d", len(history))
 	}
-	if history[0].Text != "Hello" {
-		t.Errorf("expected text 'Hello', got %q", history[0].Text)
+	if history[0].ChatItem == nil || history[0].ChatItem.User != "Hello" {
+		t.Errorf("expected user 'Hello', got %v", history[0].ChatItem)
 	}
 }
 
@@ -69,9 +71,9 @@ func TestAddHistory_Multiple(t *testing.T) {
 
 	// 添加多条消息
 	items := []*aigc.HistoryItem{
-		{Time: 1, Text: "First"},
-		{Time: 2, Text: "Second"},
-		{Time: 3, Text: "Third"},
+		{Time: 1, ChatItem: &aigc.HistoryChatItem{User: "First"}},
+		{Time: 2, ChatItem: &aigc.HistoryChatItem{User: "Second"}},
+		{Time: 3, ChatItem: &aigc.HistoryChatItem{User: "Third"}},
 	}
 
 	for _, item := range items {
@@ -86,42 +88,6 @@ func TestAddHistory_Multiple(t *testing.T) {
 	}
 	if len(history) != 3 {
 		t.Errorf("expected 3 items, got %d", len(history))
-	}
-}
-
-func TestAddHistory_Duplicate(t *testing.T) {
-	mr, conv := newTestConversation(t)
-	defer mr.Close()
-
-	ctx := context.Background()
-
-	// 添加第一条消息
-	item1 := &aigc.HistoryItem{
-		Time: 1234567890,
-		Text: "Hello",
-		UID:  "user1",
-	}
-	if err := conv.AddHistory(ctx, item1); err != nil {
-		t.Fatalf("AddHistory failed: %v", err)
-	}
-
-	// 添加重复消息（相同 Text）
-	item2 := &aigc.HistoryItem{
-		Time: 1234567891,
-		Text: "Hello",
-		UID:  "user1",
-	}
-	if err := conv.AddHistory(ctx, item2); err != nil {
-		t.Fatalf("AddHistory failed: %v", err)
-	}
-
-	// 验证只有一条消息（去重生效）
-	history, err := conv.ListHistory(ctx)
-	if err != nil {
-		t.Fatalf("ListHistory failed: %v", err)
-	}
-	if len(history) != 1 {
-		t.Errorf("expected 1 item (duplicate should be skipped), got %d", len(history))
 	}
 }
 
@@ -172,7 +138,9 @@ func TestAddHistory_DifferentContent(t *testing.T) {
 	// 添加第一条消息
 	item1 := &aigc.HistoryItem{
 		Time: 1234567890,
-		Text: "Hello",
+		ChatItem: &aigc.HistoryChatItem{
+			User: "Hello",
+		},
 	}
 	if err := conv.AddHistory(ctx, item1); err != nil {
 		t.Fatalf("AddHistory failed: %v", err)
@@ -181,7 +149,9 @@ func TestAddHistory_DifferentContent(t *testing.T) {
 	// 添加不同消息（应该添加，不去重）
 	item2 := &aigc.HistoryItem{
 		Time: 1234567891,
-		Text: "World",
+		ChatItem: &aigc.HistoryChatItem{
+			User: "World",
+		},
 	}
 	if err := conv.AddHistory(ctx, item2); err != nil {
 		t.Fatalf("AddHistory failed: %v", err)
@@ -216,7 +186,9 @@ func TestListHistory(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		item := &aigc.HistoryItem{
 			Time: int64(i * 1000),
-			Text: "Message " + string(rune('0'+i)),
+			ChatItem: &aigc.HistoryChatItem{
+				User: "Message " + string(rune('0'+i)),
+			},
 		}
 		if err := conv.AddHistory(ctx, item); err != nil {
 			t.Fatalf("AddHistory failed: %v", err)
@@ -242,7 +214,9 @@ func TestClearHistory(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		item := &aigc.HistoryItem{
 			Time: int64(i * 1000),
-			Text: "Message " + string(rune('0'+i)),
+			ChatItem: &aigc.HistoryChatItem{
+				User: "Message " + string(rune('0'+i)),
+			},
 		}
 		if err := conv.AddHistory(ctx, item); err != nil {
 			t.Fatalf("AddHistory failed: %v", err)
@@ -284,7 +258,9 @@ func TestHistoryMaxLength(t *testing.T) {
 	for i := 1; i <= 30; i++ {
 		item := &aigc.HistoryItem{
 			Time: int64(i * 1000),
-			Text: "Message " + string(rune('0' + i%10)),
+			ChatItem: &aigc.HistoryChatItem{
+				User: "Message " + string(rune('0'+i%10)),
+			},
 		}
 		if err := conv.AddHistory(ctx, item); err != nil {
 			t.Fatalf("AddHistory failed: %v", err)

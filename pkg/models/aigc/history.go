@@ -13,9 +13,7 @@ type HistoryChatItem struct {
 type HistoryItem struct {
 	Time int64 `json:"ts"`
 
-	// text with stop mark
-	Text string `json:"txt,omitempty"`
-	UID  string `json:"uid,omitempty"`
+	UID string `json:"uid,omitempty"`
 
 	// chat
 	ChatItem *HistoryChatItem `json:"ci"`
@@ -26,7 +24,6 @@ func (z *HistoryItem) calcTokens() (c int) {
 		// TODO: calculate tokens.
 		c += len(z.ChatItem.User) + len(z.ChatItem.Assistant)
 	}
-	c += len(z.Text)
 	return
 }
 
@@ -118,9 +115,6 @@ func (z *HistoryItem) previewText(n int) string {
 		} else if hasAssistant {
 			text = "A: " + z.ChatItem.Assistant
 		}
-	}
-	if text == "" {
-		text = z.Text
 	}
 	// 按 rune（字符）截取前 n 个字，避免截断 UTF-8 多字节字符
 	runes := []rune(text)
