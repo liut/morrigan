@@ -120,19 +120,28 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 	if err == nil && len(data) > 0 {
 		logger().Infow("found history", "size", len(data), "hist", aigc.HiLogged(data))
 		data = data.RecentlyWithTokens(historyLimitToken)
+
 		for i, hi := range data {
 			if hi.ChatItem != nil {
+				isLast := i == len(data)-1
+				isRetry := hi.ChatItem.User == param.Prompt
+
+				// 最后一条特殊处理：如果是重试或 Regenerate，完全跳过这一条历史
+				if isLast && (isRetry || param.Regenerate) {
+					logger().Debugw("skip last history", "retry", isRetry, "regenerate", param.Regenerate)
+					break
+				}
+
+				// 添加 User
 				if len(hi.ChatItem.User) > 0 {
 					messages = append(messages, llm.Message{
 						Role: llm.RoleUser, Content: hi.ChatItem.User})
 				}
+
+				// 添加 Assistant
 				if len(hi.ChatItem.Assistant) > 0 {
 					messages = append(messages, llm.Message{
 						Role: llm.RoleAssistant, Content: hi.ChatItem.Assistant})
-				}
-				// skip the last one
-				if i == len(data)-1 && param.Regenerate {
-					break
 				}
 			}
 		}
@@ -533,6 +542,7 @@ func convertToolCallsForJSON(tcs []llm.ToolCall) []map[string]any {
 	}
 	return result
 }
+
 
 // chatExecutor 定义聊天执行函数类型，支持流式/非流式
 type chatExecutor func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error)

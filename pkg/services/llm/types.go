@@ -156,8 +156,10 @@ func (z *Message) previewText(n int) string {
 	}
 
 	full := prefix + text
-	if len(full) > n {
-		return full[:n] + "..."
+	// 按 rune（字符）截取，避免截断 UTF-8 多字节字符
+	runes := []rune(full)
+	if len(runes) > n {
+		return string(runes[:n]) + "..."
 	}
 	return full
 }

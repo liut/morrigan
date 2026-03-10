@@ -122,9 +122,10 @@ func (z *HistoryItem) previewText(n int) string {
 	if text == "" {
 		text = z.Text
 	}
-	// 截取前 n 个字
-	if len(text) > n {
-		return text[:n] + "..."
+	// 按 rune（字符）截取前 n 个字，避免截断 UTF-8 多字节字符
+	runes := []rune(text)
+	if len(runes) > n {
+		return string(runes[:n]) + "..."
 	}
 	return text
 }
