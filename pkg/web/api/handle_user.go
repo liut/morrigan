@@ -54,6 +54,8 @@ func init() {
 	authLoginPath = apiPrefix + "/auth/login"
 	authLogoutPath = apiPrefix + "/auth/logout"
 	authCallbackPath = apiPrefix + "/auth/callback"
+
+	staffio.SetAdminPath(settings.Current.WebAppPath)
 }
 
 func buildTokenCookie(value string) *http.Cookie {
@@ -130,7 +132,6 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	user, err := staffio.UserFromRequest(r)
 	var res respSession
 	res.Status = "Success"
-	// res.Data.Model = "ChatGPTAPI"
 	logger().Debugw("handle session", "user", user, "err", err)
 	if settings.Current.AuthRequired {
 		if err == nil {

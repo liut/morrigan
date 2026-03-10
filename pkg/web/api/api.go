@@ -88,7 +88,6 @@ func newapi(sto stores.Storage) *api {
 // Strap 注册路由到 chi.Router
 func (a *api) Strap(router chi.Router) {
 	// staffio 认证路由
-	staffio.SetAdminPath("/")
 	router.Get(authLoginPath, staffio.LoginHandler)
 	router.Get(authLogoutPath, staffio.LogoutHandler)
 	router.Method(http.MethodGet, authCallbackPath, (&staffio.CodeCallback{

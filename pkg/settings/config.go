@@ -32,6 +32,8 @@ type Config struct {
 	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"seconds of cookie maxAge"`
 	OAuthPathMCP string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
 
+	WebAppPath string `envconfig:"Web_App_Path" default:"/" desc:"web app path for oauth redirect"`
+
 	PresetFile  string `envconfig:"preset_file" desc:"custom welcome and messages"`
 	QAEmbedding bool   `envconfig:"QA_Embedding" desc:"enable embed QA into prompt"`
 	QAChatLog   bool   `envconfig:"QA_chat_log"`
