@@ -250,11 +250,11 @@ func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corpus
 	}
 	var ps corpus.DocMatches
 	ps, err = s.MatchVectorWith(ctx, vec, ms.Threshold, ms.Limit)
-	logger().Infow("matching", "docs", ps.Subjects(), "err", err)
 	if err != nil || len(ps) == 0 {
 		logger().Infow("no match docs", "subj", subject)
 		return
 	}
+	logger().Infow("matched", "docs", ps.Subjects(), "err", err)
 	spec := &CobDocumentSpec{}
 	spec.IDs = ps.DocumentIDs()
 	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
@@ -284,7 +284,7 @@ func (s *cobStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, thres
 	if err != nil {
 		logger().Infow("match vector fail", "threshold", threshold, "limit", limit, "err", err)
 	} else {
-		logger().Infow("match vector ok", "threshold", threshold, "limit", limit, "data", data)
+		logger().Debugw("match vector ok", "threshold", threshold, "limit", limit, "data", data)
 	}
 	return
 }

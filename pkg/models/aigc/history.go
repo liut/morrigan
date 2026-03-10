@@ -114,9 +114,9 @@ func (z *HistoryItem) previewText(n int) string {
 		if hasUser && hasAssistant {
 			text = "U: " + z.ChatItem.User + " / A: " + z.ChatItem.Assistant
 		} else if hasUser {
-			text = z.ChatItem.User
+			text = "U: " + z.ChatItem.User
 		} else if hasAssistant {
-			text = z.ChatItem.Assistant
+			text = "A: " + z.ChatItem.Assistant
 		}
 	}
 	if text == "" {
