@@ -21,7 +21,7 @@ func TestHiLogged_String(t *testing.T) {
 			items: HistoryItems{
 				{ChatItem: &HistoryChatItem{User: "Hello world how are you today?"}},
 			},
-			expected: "[Hello world how are you today?]",
+			expected: "[U: Hello world how are you tod...]",
 		},
 		{
 			name: "multiple items",
@@ -30,7 +30,7 @@ func TestHiLogged_String(t *testing.T) {
 				{ChatItem: &HistoryChatItem{User: "Second message"}},
 				{ChatItem: &HistoryChatItem{User: "Third message"}},
 			},
-			expected: "[First message, Second message, Third message]",
+			expected: "[U: First message, U: Second message, U: Third message]",
 		},
 		{
 			name: "empty text",
@@ -44,7 +44,7 @@ func TestHiLogged_String(t *testing.T) {
 			items: HistoryItems{
 				{ChatItem: &HistoryChatItem{User: "User message"}, Text: "Text message"},
 			},
-			expected: "[User message]",
+			expected: "[U: User message]",
 		},
 	}
 
@@ -71,8 +71,8 @@ func TestHistoryItem_previewText(t *testing.T) {
 			item: HistoryItem{
 				ChatItem: &HistoryChatItem{User: "This is a very long message that should be truncated"},
 			},
-			n:        10,
-			expected: "This is a ...",
+			n:        13,
+			expected: "U: This is a ...",
 		},
 		{
 			name: "no truncate needed",
@@ -80,15 +80,15 @@ func TestHistoryItem_previewText(t *testing.T) {
 				ChatItem: &HistoryChatItem{User: "Short"},
 			},
 			n:        10,
-			expected: "Short",
+			expected: "U: Short",
 		},
 		{
 			name: "exact length",
 			item: HistoryItem{
 				ChatItem: &HistoryChatItem{User: "1234567890"},
 			},
-			n:        10,
-			expected: "1234567890",
+			n:        13,
+			expected: "U: 1234567890",
 		},
 		{
 			name: "empty all",
@@ -104,8 +104,8 @@ func TestHistoryItem_previewText(t *testing.T) {
 				ChatItem: &HistoryChatItem{User: "User text"},
 				Text:     "Text field",
 			},
-			n:        10,
-			expected: "User text",
+			n:        13,
+			expected: "U: User text",
 		},
 		{
 			name: "assistant fallback",
@@ -113,8 +113,8 @@ func TestHistoryItem_previewText(t *testing.T) {
 				ChatItem: &HistoryChatItem{User: "", Assistant: "Assistant text"},
 				Text:     "Text field",
 			},
-			n:        10,
-			expected: "Assistant ...",
+			n:        16,
+			expected: "A: Assistant tex...",
 		},
 		{
 			name: "both user and assistant",

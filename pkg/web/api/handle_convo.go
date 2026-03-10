@@ -82,7 +82,19 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 		Content: systemPrompt,
 	})
 
-	if len(a.toolreg.ToolsFor(ctx)) == 0 { // 没有工具，使用问答
+	var tools []llm.ToolDefinition
+	if len(a.toolreg.ToolsFor(ctx)) > 0 {
+		// 转换 MCP 工具为 LLM 工具定义
+		tools = convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
+		toolsPrompt := dftToolsMsg
+		if len(a.preset.ToolsPrompt) > 0 {
+			toolsPrompt = a.preset.ToolsPrompt
+		}
+		messages = append(messages, llm.Message{
+			Role:    llm.RoleSystem,
+			Content: toolsPrompt,
+		})
+	} else { // 没有工具，使用问答
 		docs, err := a.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 			Question: param.Prompt,
 			Limit:    5,
@@ -108,36 +120,31 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 	if err == nil && len(data) > 0 {
 		logger().Infow("found history", "size", len(data), "hist", aigc.HiLogged(data))
 		data = data.RecentlyWithTokens(historyLimitToken)
+
 		for i, hi := range data {
 			if hi.ChatItem != nil {
+				isLast := i == len(data)-1
+				isRetry := hi.ChatItem.User == param.Prompt
+
+				// 最后一条特殊处理：如果是重试或 Regenerate，完全跳过这一条历史
+				if isLast && (isRetry || param.Regenerate) {
+					logger().Debugw("skip last history", "retry", isRetry, "regenerate", param.Regenerate)
+					break
+				}
+
+				// 添加 User
 				if len(hi.ChatItem.User) > 0 {
 					messages = append(messages, llm.Message{
 						Role: llm.RoleUser, Content: hi.ChatItem.User})
 				}
+
+				// 添加 Assistant
 				if len(hi.ChatItem.Assistant) > 0 {
 					messages = append(messages, llm.Message{
 						Role: llm.RoleAssistant, Content: hi.ChatItem.Assistant})
 				}
-				// skip the last one
-				if i == len(data)-1 && param.Regenerate {
-					break
-				}
 			}
 		}
-	}
-
-	var tools []llm.ToolDefinition
-	if len(a.toolreg.ToolsFor(ctx)) > 0 {
-		// 转换 MCP 工具为 LLM 工具定义
-		tools = convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
-		toolsPrompt := dftToolsMsg
-		if len(a.preset.ToolsPrompt) > 0 {
-			toolsPrompt = a.preset.ToolsPrompt
-		}
-		messages = append(messages, llm.Message{
-			Role:    llm.RoleSystem,
-			Content: toolsPrompt,
-		})
 	}
 
 	messages = append(messages, llm.Message{
@@ -323,6 +330,7 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 
 	var chunkIdx int
 	var res ChatResponse
+	var lastWriteEmpty bool // 标记上一次是否写入了空消息
 
 	for result := range stream {
 		chunkIdx++
@@ -345,9 +353,16 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 				cm.FinishReason = result.FinishReason
 				_ = writeEvent(w, strconv.Itoa(chunkIdx), &cm)
 			} else {
-				if wrote = writeEvent(w, strconv.Itoa(chunkIdx), &cm); !wrote {
-					break
+				// 判断当前是否为空消息
+				isEmpty := result.Delta == "" && len(cm.ToolCalls) == 0
+				if !isEmpty || !lastWriteEmpty {
+					// 有内容，或者上一次不是空的，则输出
+					if wrote = writeEvent(w, strconv.Itoa(chunkIdx), &cm); !wrote {
+						break
+					}
+					lastWriteEmpty = isEmpty
 				}
+				// 如果当前是空的且上一次也是空的，跳过（连续空消息只保留第一个）
 			}
 		} else {
 			cm.Text += result.Delta
@@ -527,6 +542,7 @@ func convertToolCallsForJSON(tcs []llm.ToolCall) []map[string]any {
 	}
 	return result
 }
+
 
 // chatExecutor 定义聊天执行函数类型，支持流式/非流式
 type chatExecutor func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error)

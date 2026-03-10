@@ -114,17 +114,18 @@ func (z *HistoryItem) previewText(n int) string {
 		if hasUser && hasAssistant {
 			text = "U: " + z.ChatItem.User + " / A: " + z.ChatItem.Assistant
 		} else if hasUser {
-			text = z.ChatItem.User
+			text = "U: " + z.ChatItem.User
 		} else if hasAssistant {
-			text = z.ChatItem.Assistant
+			text = "A: " + z.ChatItem.Assistant
 		}
 	}
 	if text == "" {
 		text = z.Text
 	}
-	// 截取前 n 个字
-	if len(text) > n {
-		return text[:n] + "..."
+	// 按 rune（字符）截取前 n 个字，避免截断 UTF-8 多字节字符
+	runes := []rune(text)
+	if len(runes) > n {
+		return string(runes[:n]) + "..."
 	}
 	return text
 }
