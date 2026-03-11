@@ -15,12 +15,9 @@ import (
 )
 
 const (
-	Separator  = "\n* "
-	AnswerStop = " END"
+	Separator = "\n* "
 
-	tplKeyword  = "总结下面的文字内容，提炼出关键字句，如果是疑问句，则忽略问话的形式，只罗列出重点关键词，去除疑问形式，不考虑疑问表达，也不要返回多余内容，只关注最重要的词语，例如如果文字内容是问“什么”“为什么”“有什么”“怎么样”等等类似的语句，这些问话形式一律忽略，只返回关键字句，如果关键字句不成语句，则以关键字列表的形式返回，且用空格分隔，仅占一行，不要多行:\n\n%s\n\n"
-	tplQaCtx    = "根据以下文本编写尽可能多一些的问题及回答:  \n\n文本:\n%s\n\n"
-	maxQaTokens = 1024
+	tplKeyword = "总结下面的文字内容，提炼出关键字句，如果是疑问句，则忽略问话的形式，只罗列出重点关键词，去除疑问形式，不考虑疑问表达，也不要返回多余内容，只关注最重要的词语，例如如果文字内容是问“什么”“为什么”“有什么”“怎么样”等等类似的语句，这些问话形式一律忽略，只返回关键字句，如果关键字句不成语句，则以关键字列表的形式返回，且用空格分隔，仅占一行，不要多行:\n\n%s\n\n"
 )
 
 var (
@@ -190,22 +187,6 @@ func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err erro
 	} else {
 		logger().Infow("embedding result is empty", "text", text)
 	}
-	return
-}
-
-func GetKeywords(ctx context.Context, text string) (kw string, err error) {
-	if len(text) == 0 {
-		err = ErrEmptyParam
-		return
-	}
-	prompt := fmt.Sprintf(tplKeyword, text)
-	result, _, err := llmSu.Generate(ctx, prompt)
-	if err != nil {
-		logger().Infow("summarize fail", "text", text, "err", err)
-		return
-	}
-	kw = strings.TrimSpace(result)
-	logger().Infow("summarize ok", "text", text, "kw", kw)
 	return
 }
 

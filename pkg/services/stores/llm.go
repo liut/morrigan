@@ -1,6 +1,10 @@
 package stores
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/settings"
 )
@@ -66,4 +70,42 @@ func GetLLMEmbeddingClient() llm.Client {
 // GetLLMSummarizeClient 获取 Summarize/Completion 用 LLM Client
 func GetLLMSummarizeClient() llm.Client {
 	return llmSu
+}
+
+func GetKeywords(ctx context.Context, text string) (kw string, err error) {
+	if len(text) == 0 {
+		err = ErrEmptyParam
+		return
+	}
+	prompt := fmt.Sprintf(tplKeyword, text)
+	result, _, err := llmSu.Generate(ctx, prompt)
+	if err != nil {
+		logger().Infow("summarize fail", "text", text, "err", err)
+		return
+	}
+	kw = strings.TrimSpace(result)
+	logger().Infow("summarize ok", "text", text, "kw", kw)
+	return
+}
+
+// GetSummary 生成聊天记录的简短标题
+// text 参数为聊天记录文本，tips 参数为自定义提示内容（可选）
+func GetSummary(ctx context.Context, text, tips string) (summary string, err error) {
+	if len(text) == 0 {
+		err = ErrEmptyParam
+		return
+	}
+	// 使用自定义提示或默认提示
+	if tips == "" {
+		tips = "请根据以下聊天记录生成一个简短的标题（不超过10个字），这个标题只针对聊天的主题，且只返回标题，不要其他内容:"
+	}
+	prompt := fmt.Sprintf("%s\n\n%s\n\n标题:", tips, text)
+	result, _, err := llmSu.Generate(ctx, prompt)
+	if err != nil {
+		logger().Infow("summary fail", "text", text, "err", err)
+		return
+	}
+	summary = strings.TrimSpace(result)
+	logger().Infow("summary ok", "text", text, "summary", summary)
+	return
 }

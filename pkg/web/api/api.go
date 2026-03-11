@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -105,11 +106,20 @@ func (a *api) Strap(router chi.Router) {
 	if err != nil {
 		logger().Fatalw("limiter with redis option failed", "err", err)
 	}
+	replLK := strings.NewReplacer("/", "")
 	instance := limiter.New(store, rate)
 	middleware := stdlib.NewMiddleware(instance,
 		stdlib.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
 			logger().Warnw("failed on", "uri", r.RequestURI, "err", err)
-		}))
+		}),
+		stdlib.WithKeyGetter(func(r *http.Request) string {
+			return fmt.Sprintf("%s:%s",
+				limiter.GetIPWithMask(r, limiter.Options{
+					TrustForwardHeader: true,
+				}).String(),
+				replLK.Replace(r.RequestURI))
+		}),
+	)
 
 	router.Route(settings.Current.APIPrefix, func(r chi.Router) {
 		r.Use(middleware.Handler)        // 限流

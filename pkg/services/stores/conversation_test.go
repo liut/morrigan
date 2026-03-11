@@ -276,3 +276,43 @@ func TestHistoryMaxLength(t *testing.T) {
 		t.Errorf("expected %d items, got %d", historyMaxLength, len(history))
 	}
 }
+
+func TestCountHistory(t *testing.T) {
+	mr, conv := newTestConversation(t)
+	defer mr.Close()
+
+	ctx := context.Background()
+
+	// 空列表计数
+	count := conv.CountHistory(ctx)
+	if count != 0 {
+		t.Errorf("expected 0, got %d", count)
+	}
+
+	// 添加消息后计数
+	items := []*aigc.HistoryItem{
+		{Time: 1, ChatItem: &aigc.HistoryChatItem{User: "First"}},
+		{Time: 2, ChatItem: &aigc.HistoryChatItem{User: "Second"}},
+		{Time: 3, ChatItem: &aigc.HistoryChatItem{User: "Third"}},
+	}
+	for _, item := range items {
+		if err := conv.AddHistory(ctx, item); err != nil {
+			t.Fatalf("AddHistory failed: %v", err)
+		}
+	}
+
+	count = conv.CountHistory(ctx)
+	if count != 3 {
+		t.Errorf("expected 3, got %d", count)
+	}
+
+	// 清除后计数
+	err := conv.ClearHistory(ctx)
+	if err != nil {
+		t.Fatalf("ClearHistory failed: %v", err)
+	}
+	count = conv.CountHistory(ctx)
+	if count != 0 {
+		t.Errorf("expected 0 after clear, got %d", count)
+	}
+}

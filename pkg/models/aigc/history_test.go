@@ -334,3 +334,70 @@ func TestHiAscend(t *testing.T) {
 		t.Errorf("Len got %d, want 3", ha.Len())
 	}
 }
+
+func TestHistoryItems_ToText(t *testing.T) {
+	tests := []struct {
+		name     string
+		items    HistoryItems
+		expected string
+	}{
+		{
+			name:     "empty",
+			items:    HistoryItems{},
+			expected: "",
+		},
+		{
+			name: "only user message",
+			items: HistoryItems{
+				{ChatItem: &HistoryChatItem{User: "Hello"}},
+			},
+			expected: "用户: Hello\n",
+		},
+		{
+			name: "only assistant message",
+			items: HistoryItems{
+				{ChatItem: &HistoryChatItem{Assistant: "Hi there"}},
+			},
+			expected: "助手: Hi there\n",
+		},
+		{
+			name: "user and assistant",
+			items: HistoryItems{
+				{ChatItem: &HistoryChatItem{User: "Hello", Assistant: "Hi there"}},
+			},
+			expected: "用户: Hello\n助手: Hi there\n",
+		},
+		{
+			name: "multiple messages",
+			items: HistoryItems{
+				{ChatItem: &HistoryChatItem{User: "First question"}},
+				{ChatItem: &HistoryChatItem{Assistant: "First answer"}},
+				{ChatItem: &HistoryChatItem{User: "Second question"}},
+			},
+			expected: "用户: First question\n助手: First answer\n用户: Second question\n",
+		},
+		{
+			name: "nil chat item",
+			items: HistoryItems{
+				{},
+			},
+			expected: "",
+		},
+		{
+			name: "empty chat item",
+			items: HistoryItems{
+				{ChatItem: &HistoryChatItem{}},
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.items.ToText()
+			if result != tt.expected {
+				t.Errorf("got %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}

@@ -71,6 +71,16 @@ type FunctionDefinition struct {
 	Parameters  any    `json:"parameters,omitempty"`
 }
 
+type Tools []ToolDefinition
+
+func (z Tools) Names() []string {
+	out := make([]string, len(z))
+	for i := range z {
+		out[i] = z[i].Function.Name
+	}
+	return out
+}
+
 // ChatResult 聊天结果
 type ChatResult struct {
 	Content   string
