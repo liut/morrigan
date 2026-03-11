@@ -28,9 +28,9 @@ variables:
   PG_EXTENSIONS: 'btree_gin btree_gist pg_trgm vector'
   MORIGN_PG_STORE_DSN: postgres://morrigan:develop@morrigandb:5432/morrigantest?sslmode=disable
   MORIGN_REDIS_URI: 'redis://redis:6379/0'
-  TEST_DB_HOST: morrigandb
-  TEST_DB_NAME: morrigantest
-  TEST_DB_PASSWORD: develop
+  M_TEST_DB_HOST: morrigandb
+  M_TEST_DB_NAME: morrigantest
+  M_TEST_DB_PASSWORD: develop
 
 before_script:
   # SSH
@@ -62,7 +62,7 @@ test-stores:
   stage: test
   script:
     - grep morrigandb /etc/hosts || echo "not found db host"
-    - go test -v -cover ./pkg/services/stores
+    - go test -tags=integration -v -cover ./pkg/services/stores
   coverage: '/coverage: \d+.\d+% of statements/'
 
 test-initdb:

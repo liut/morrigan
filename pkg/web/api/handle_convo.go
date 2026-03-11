@@ -205,7 +205,11 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		logger().Infow("stream response", "answer_len", len(res.answer), "toolCalls_len", len(res.toolCalls))
 		if len(res.answer) > 0 {
 			ccr.hi.ChatItem.Assistant = res.answer
-			_ = ccr.cs.AddHistory(r.Context(), ccr.hi)
+			if err := ccr.cs.AddHistory(r.Context(), ccr.hi); err == nil {
+				if err = ccr.cs.Save(r.Context()); err != nil {
+					logger().Infow("save convo fail", "err", err)
+				}
+			}
 
 			if settings.Current.QAChatLog {
 				in := corpus.ChatLogBasic{

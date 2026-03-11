@@ -136,7 +136,7 @@ func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) e
 		return err
 	}
 
-	return s.Save(ctx)
+	return nil
 }
 
 // getLastUserMessage 获取列表中最后一条消息

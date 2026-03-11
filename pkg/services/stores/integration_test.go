@@ -16,12 +16,12 @@
 //
 // 环境变量:
 //
-//	TEST_DB_DSN      - 完整连接字符串 (优先级最高)
-//	TEST_DB_HOST     - 数据库主机 (默认 localhost)
-//	TEST_DB_PORT     - 数据库端口 (默认 5432)
-//	TEST_DB_USER     - 数据库用户 (默认 morrigan)
-//	TEST_DB_PASSWORD - 数据库密码
-//	TEST_DB_NAME     - 数据库名 (默认 morrigan_test)
+//	M_TEST_DB_DSN      - 完整连接字符串 (优先级最高)
+//	M_TEST_DB_HOST     - 数据库主机 (默认 localhost)
+//	M_TEST_DB_PORT     - 数据库端口 (默认 5432)
+//	M_TEST_DB_USER     - 数据库用户 (默认 morrigan)
+//	M_TEST_DB_PASSWORD - 数据库密码
+//	M_TEST_DB_NAME     - 数据库名 (默认 morrigan_test)
 package stores
 
 import (
@@ -37,16 +37,16 @@ import (
 
 // getTestDBDSN 构建测试数据库连接字符串
 func getTestDBDSN() string {
-	dsn := os.Getenv("TEST_DB_DSN")
+	dsn := os.Getenv("M_TEST_DB_DSN")
 	if dsn != "" {
 		return dsn
 	}
 
-	host := getEnvOrDefault("TEST_DB_HOST", "localhost")
-	port := getEnvOrDefault("TEST_DB_PORT", "5432")
-	user := getEnvOrDefault("TEST_DB_USER", "morrigan")
-	password := getEnvOrDefault("TEST_DB_PASSWORD", "")
-	dbname := getEnvOrDefault("TEST_DB_NAME", "morrigan_test")
+	host := getEnvOrDefault("M_TEST_DB_HOST", "localhost")
+	port := getEnvOrDefault("M_TEST_DB_PORT", "5432")
+	user := getEnvOrDefault("M_TEST_DB_USER", "morrigan")
+	password := getEnvOrDefault("M_TEST_DB_PASSWORD", "")
+	dbname := getEnvOrDefault("M_TEST_DB_NAME", "morrigan_test")
 
 	if password != "" {
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)

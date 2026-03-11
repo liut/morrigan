@@ -6,9 +6,11 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/liut/morign/pkg/models/aigc"
+	"github.com/liut/morign/pkg/models/convo"
 	"github.com/redis/go-redis/v9"
 )
 
+// newTestConversation 创建用于测试的 Conversation（不依赖数据库）
 func newTestConversation(t *testing.T) (*miniredis.Miniredis, Conversation) {
 	t.Helper()
 
@@ -23,9 +25,14 @@ func newTestConversation(t *testing.T) (*miniredis.Miniredis, Conversation) {
 		Addr: mr.Addr(),
 	})
 
-	// 创建 conversation（使用注入的 Redis 客户端）
-	cid := "test-session-id"
-	conv := newConversation(context.Background(), cid, rc)
+	// 直接创建 conversation 结构，跳过数据库
+	sess := convo.NewSessionWithID("test-" + t.Name())
+	conv := &conversation{
+		id:   sess.ID,
+		rc:   rc,
+		sess: sess,
+		sto:  nil, // 测试不依赖数据库
+	}
 
 	return mr, conv
 }
