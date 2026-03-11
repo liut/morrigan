@@ -57,7 +57,8 @@ func validHead(rec []string) bool {
 	}
 	// 支持小写和首字母大写格式
 	for i, expected := range qaHeads {
-		if rec[i] != strings.ToLower(expected) {
+		if strings.ToLower(rec[i]) != expected {
+			logger().Infow("mismatch", "a", rec[i], "b", expected)
 			return false
 		}
 	}
