@@ -31,6 +31,9 @@ type HistoryItems []HistoryItem
 
 // ToText 将历史记录转换为纯文本格式
 func (z HistoryItems) ToText() string {
+	if len(z) == 0 {
+		return ""
+	}
 	var sb strings.Builder
 	for _, item := range z {
 		if item.ChatItem != nil {

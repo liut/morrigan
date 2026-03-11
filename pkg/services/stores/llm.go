@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/liut/morign/pkg/models/aigc"
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/settings"
 )
@@ -106,6 +107,15 @@ func GetSummary(ctx context.Context, text, tips string) (summary string, err err
 		return
 	}
 	summary = strings.TrimSpace(result)
-	logger().Infow("summary ok", "text", text, "summary", summary)
+	logger().Infow("summary ok", "text", len(text), "summary", summary)
+	return
+}
+
+func GetHistorySummary(ctx context.Context, history aigc.HistoryItems, tips string) (summary string, err error) {
+	summary, err = GetSummary(ctx, history.ToText(), tips)
+	if err != nil {
+		return
+	}
+	logger().Infow("history summary ok", "history", aigc.HiLogged(history))
 	return
 }

@@ -52,7 +52,7 @@ func importDocs(cc *cli.Context) error {
 	} else {
 		lw = os.Stderr
 	}
-	err = stores.Sgt().Cob().ImportDocs(context.Background(), file, lw)
+	err = stores.Sgt().Cob().ImportDocs(cc.Context, file, lw)
 	if err != nil {
 		logger().Warnw("import fail", "input", input, "err", err)
 		return err

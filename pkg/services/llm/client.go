@@ -24,7 +24,7 @@ type Client interface {
 
 // client LLM 客户端默认实现
 type client struct {
-	cfg     *config
+	cfg      *config
 	provider provider
 }
 
@@ -53,8 +53,12 @@ func NewClient(opts ...Option) (Client, error) {
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedProvider, cfg.provider)
 	}
 
+	if strings.HasPrefix(cfg.model, "kimi") {
+		cfg.temperature = 0
+	}
+
 	return &client{
-		cfg:     cfg,
+		cfg:      cfg,
 		provider: p,
 	}, nil
 }

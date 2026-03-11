@@ -531,15 +531,8 @@ func (a *api) patchConversationTitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 将历史记录转换为文本
-	text := history.ToText()
-	if text == "" {
-		fail(w, r, 400, "no valid chat content")
-		return
-	}
-
 	// 调用 GetSummary 生成标题
-	summary, err := stores.GetSummary(r.Context(), text, "")
+	summary, err := stores.GetHistorySummary(r.Context(), history, "")
 	if err != nil {
 		fail(w, r, 500, err)
 		return

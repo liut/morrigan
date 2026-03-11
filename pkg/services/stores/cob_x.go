@@ -52,7 +52,16 @@ type ExportArg struct {
 }
 
 func validHead(rec []string) bool {
-	return len(rec) >= len(qaHeads) && rec[0] == qaHeads[0] && rec[1] == qaHeads[1] && rec[2] == qaHeads[2]
+	if len(rec) < len(qaHeads) {
+		return false
+	}
+	// 支持小写和首字母大写格式
+	for i, expected := range qaHeads {
+		if rec[i] != strings.ToLower(expected) {
+			return false
+		}
+	}
+	return true
 }
 
 type CobStoreX interface {
@@ -68,6 +77,7 @@ func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) er
 	rd := csv.NewReader(r)
 	rec, err := rd.Read()
 	if err != nil {
+		logger().Infow("read fail", "err", err)
 		return err
 	}
 	if !validHead(rec) {
