@@ -13,10 +13,10 @@ import (
 type TransType int8
 
 const (
-	TransTypeStdIO    TransType = 1 + iota //  1 标准IO
-	TransTypeSSE                           //  2 SSE
-	TransTypeHTTP                          //  3 HTTP
-	TransTypeInMemory                      //  4 内部运行
+	TransTypeStdIO      TransType = 1 + iota //  1 标准IO
+	TransTypeSSE                             //  2 SSE
+	TransTypeStreamable                      //  3 Streamable
+	TransTypeInMemory                        //  4 内部运行
 )
 
 func (z *TransType) Decode(s string) error {
@@ -25,8 +25,8 @@ func (z *TransType) Decode(s string) error {
 		*z = TransTypeStdIO
 	case "2", "sse", "SSE":
 		*z = TransTypeSSE
-	case "3", "http", "HTTP":
-		*z = TransTypeHTTP
+	case "3", "streamable", "Streamable", "http", "HTTP":
+		*z = TransTypeStreamable
 	case "4", "inMemory", "InMemory":
 		*z = TransTypeInMemory
 	default:
@@ -43,8 +43,8 @@ func (z TransType) String() string {
 		return "stdIO"
 	case TransTypeSSE:
 		return "sse"
-	case TransTypeHTTP:
-		return "http"
+	case TransTypeStreamable:
+		return "streamable"
 	case TransTypeInMemory:
 		return "inMemory"
 	default:
@@ -107,23 +107,22 @@ type Server struct {
 
 	ServerBasic
 
-	// 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
-	URL string `bson:"url" bun:",notnull" extensions:"x-order=D" form:"url" json:"url" pg:",notnull"`
-
 	comm.MetaField
 } // @name mcpsServer
 
 type ServerBasic struct {
 	// 名称
-	Name string `binding:"required" bson:"name" bun:",notnull" extensions:"x-order=A" form:"name" json:"name" pg:",notnull"`
+	Name string `binding:"required" bson:"name" bun:",notnull,unique,type:name" extensions:"x-order=A" form:"name" json:"name" pg:",notnull,unique,type:name"`
 	// 传输类型
 	//  * `stdIO` - 标准IO
 	//  * `sse`
-	//  * `http`
+	//  * `streamable`
 	//  * `inMemory` - 内部运行
-	TransType TransType `bson:"transType" bun:",notnull,type:smallint" enums:"stdIO,sse,http,inMemory" extensions:"x-order=B" form:"transType" json:"transType" pg:",notnull,type:smallint" swaggertype:"string"`
+	TransType TransType `bson:"transType" bun:",notnull,type:smallint" enums:"stdIO,sse,streamable,inMemory" extensions:"x-order=B" form:"transType" json:"transType" pg:",notnull,type:smallint" swaggertype:"string"`
 	// 指令 仅对 TransType 为 StdIO 时有效
 	Command string `bson:"command" bun:",notnull" extensions:"x-order=C" form:"command" json:"command" pg:",notnull"`
+	// 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
+	URL string `bson:"url" bun:",notnull" extensions:"x-order=D" form:"url" json:"url" pg:",notnull"`
 	// 状态
 	//  * `stopped` - 已停止
 	//  * `running` - 运行中
@@ -167,17 +166,19 @@ type ServerSet struct {
 	// 传输类型
 	//  * `stdIO` - 标准IO
 	//  * `sse`
-	//  * `http`
+	//  * `streamable`
 	//  * `inMemory` - 内部运行
-	TransType *TransType `enums:"stdIO,sse,http,inMemory" extensions:"x-order=B" json:"transType" swaggertype:"string"`
+	TransType *TransType `enums:"stdIO,sse,streamable,inMemory" extensions:"x-order=B" json:"transType" swaggertype:"string"`
 	// 指令 仅对 TransType 为 StdIO 时有效
 	Command *string `extensions:"x-order=C" json:"command"`
+	// 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
+	URL *string `extensions:"x-order=D" json:"url"`
 	// 状态
 	//  * `stopped` - 已停止
 	//  * `running` - 运行中
-	Status *Status `enums:"stopped,running" extensions:"x-order=D" json:"status" swaggertype:"string"`
+	Status *Status `enums:"stopped,running" extensions:"x-order=E" json:"status" swaggertype:"string"`
 	// 备注
-	Remark *string `extensions:"x-order=E" json:"remark"`
+	Remark *string `extensions:"x-order=F" json:"remark"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name mcpsServerSet
@@ -194,6 +195,10 @@ func (z *Server) SetWith(o ServerSet) {
 	if o.Command != nil && z.Command != *o.Command {
 		z.LogChangeValue("command", z.Command, o.Command)
 		z.Command = *o.Command
+	}
+	if o.URL != nil && z.URL != *o.URL {
+		z.LogChangeValue("url", z.URL, o.URL)
+		z.URL = *o.URL
 	}
 	if o.Status != nil && z.Status != *o.Status {
 		z.LogChangeValue("status", z.Status, o.Status)

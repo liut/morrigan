@@ -350,8 +350,6 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 			break
 		}
 
-		var wrote bool
-
 		cm.Delta = result.Delta
 		res.answer += result.Delta
 		if len(result.ToolCalls) > 0 && result.FinishReason == llm.FinishReasonToolCalls {
@@ -370,7 +368,7 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 				if !isEmpty || !lastWriteEmpty {
 					// 有内容，或者上一次不是空的，则输出
 					ccr.chunkIdx++
-					if wrote = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
+					if wrote := writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
 						break
 					}
 					lastWriteEmpty = isEmpty

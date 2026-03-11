@@ -31,7 +31,7 @@ type MCPServerSpec struct {
 	// 传输类型 (支持混合解码)
 	//  * `stdIO` - 标准IO
 	//  * `sse`
-	//  * `http`
+	//  * `streamable`
 	//  * `inMemory` - 内部运行
 	TransType string `extensions:"x-order=B" form:"transType" json:"transType" swaggertype:"string"`
 	// 状态
@@ -46,7 +46,7 @@ func (spec *MCPServerSpec) Sift(q *ormQuery) *ormQuery {
 	if len(spec.TransType) > 0 {
 		var v mcps.TransType
 		if err := v.Decode(spec.TransType); err == nil {
-			q = q.Where("trans_type = ?", v)
+			q = q.Where("?TableAlias.trans_type = ?", v)
 		}
 	}
 	q, _ = siftEqual(q, "status", spec.Status, false)
@@ -64,14 +64,20 @@ func (s *mcpStore) ListServer(ctx context.Context, spec *MCPServerSpec) (data mc
 }
 func (s *mcpStore) GetServer(ctx context.Context, id string) (obj *mcps.Server, err error) {
 	obj = new(mcps.Server)
-	err = dbGetWithPKID(ctx, s.w.db, obj, id)
+	if err = dbGetWith(ctx, s.w.db, obj, "name", "=", id); err != nil && obj.SetID(id) {
+		err = dbGetWithPK(ctx, s.w.db, obj)
+	}
 
 	return
 }
 func (s *mcpStore) CreateServer(ctx context.Context, in mcps.ServerBasic) (obj *mcps.Server, err error) {
 	obj = mcps.NewServerWithBasic(in)
+	if obj.Name == "" {
+		err = ErrEmptyKey
+		return
+	}
 	dbMetaUp(ctx, s.w.db, obj)
-	err = dbInsert(ctx, s.w.db, obj)
+	err = dbInsert(ctx, s.w.db, obj, "name")
 	return
 }
 func (s *mcpStore) UpdateServer(ctx context.Context, id string, in mcps.ServerSet) error {

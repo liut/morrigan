@@ -14,8 +14,9 @@ enums:
         suffix: StdIO
       - label: SSE
         suffix: SSE
-      - label: HTTP
-        suffix: HTTP
+      - label: Streamable
+        suffix: Streamable
+        alias: [http,HTTP]
       - label: 内部运行
         suffix: InMemory
     stringer: true
@@ -51,7 +52,7 @@ models:
       - comment: 名称
         name: Name
         type: string
-        tags: {bson: 'name', json: 'name', pg: ',notnull', binding: 'required'}
+        tags: {bson: 'name', json: 'name', pg: ',notnull,unique,type:name', binding: 'required'}
         isset: true
         query: 'match'
       - comment: 传输类型
@@ -69,6 +70,7 @@ models:
         name: URL
         type: string
         tags: {bson: 'url', json: 'url', pg: ',notnull'}
+        isset: true
       - comment: '状态'
         name: Status
         type: Status
