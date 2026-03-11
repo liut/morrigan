@@ -43,11 +43,12 @@ func init() {
 
 // chatRequest 内部聊天请求结构
 type chatRequest struct {
-	messages []llm.Message
-	tools    []llm.ToolDefinition
-	isSSE    bool
-	cs       stores.Conversation
-	hi       *aigc.HistoryItem
+	messages  []llm.Message
+	tools     []llm.ToolDefinition
+	isSSE     bool
+	cs        stores.Conversation
+	hi        *aigc.HistoryItem
+	chunkIdx  int  // 全局 chunk 计数器，用于 SSE 事件序号
 }
 
 // convertMCPToolsToLLMTools 将 MCP 工具描述转换为 LLM 工具定义
@@ -235,7 +236,7 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 	logger().Infow("chat", "answer", answer)
 
 	var cm ChatMessage
-	cm.ID = ccr.cs.GetID()
+	cm.ID = ccr.cs.GetID() // TODO: deprecated by new message id
 	cm.Text = answer
 	render.JSON(w, r, &cm)
 }
@@ -267,6 +268,21 @@ func writeEvent(w io.Writer, id string, m any) bool {
 
 // chatStreamResponseLoop 循环处理流式响应，支持工具调用循环
 func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
+	// 预先设置 HTTP 头信息（只设置一次）
+	if _, ok := w.(http.Flusher); !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return ChatResponse{}
+	}
+
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	if ccr.isSSE {
+		w.Header().Set("Content-Type", "text/event-stream")
+	} else {
+		w.Header().Add("Content-type", "application/octet-stream")
+	}
+	w.Header().Add("Conversation-ID", ccr.cs.GetID())
+
 	for {
 		// 调用流式响应处理
 		streamRes := a.doChatStream(ccr, w, r)
@@ -301,21 +317,6 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 
 // doChatStream 执行一次流式调用，返回累积的 answer 和 toolCalls
 func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Request) ChatResponse {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-		return ChatResponse{}
-	}
-
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	if ccr.isSSE {
-		w.Header().Set("Content-Type", "text/event-stream")
-	} else {
-		w.Header().Add("Content-type", "application/octet-stream")
-	}
-	w.Header().Add("Conversation-ID", ccr.cs.GetID())
-
 	stream, err := a.llm.StreamChat(r.Context(), ccr.messages, ccr.tools)
 	if err != nil {
 		logger().Infow("call chat stream fail", "err", err)
@@ -325,15 +326,13 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 
 	var cm ChatMessage
 	if !ccr.isSSE {
-		cm.ConversationID = cm.ID
+		cm.ConversationID = ccr.cs.GetID()
 	}
 
-	var chunkIdx int
 	var res ChatResponse
 	var lastWriteEmpty bool // 标记上一次是否写入了空消息
 
 	for result := range stream {
-		chunkIdx++
 		if result.Error != nil {
 			logger().Infow("stream error", "err", result.Error)
 			break
@@ -343,21 +342,23 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 
 		cm.Delta = result.Delta
 		res.answer += result.Delta
-		if len(result.ToolCalls) > 0 {
+		if len(result.ToolCalls) > 0 && result.FinishReason == llm.FinishReasonToolCalls {
 			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
 		}
 
 		if ccr.isSSE {
 			if result.Done {
+				ccr.chunkIdx++
 				cm.ConversationID = ccr.cs.GetID()
-				cm.FinishReason = result.FinishReason
-				_ = writeEvent(w, strconv.Itoa(chunkIdx), &cm)
+				cm.FinishReason = string(result.FinishReason)
+				_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
 			} else {
 				// 判断当前是否为空消息
 				isEmpty := result.Delta == "" && len(cm.ToolCalls) == 0
 				if !isEmpty || !lastWriteEmpty {
 					// 有内容，或者上一次不是空的，则输出
-					if wrote = writeEvent(w, strconv.Itoa(chunkIdx), &cm); !wrote {
+					ccr.chunkIdx++
+					if wrote = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
 						break
 					}
 					lastWriteEmpty = isEmpty
@@ -365,13 +366,14 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 				// 如果当前是空的且上一次也是空的，跳过（连续空消息只保留第一个）
 			}
 		} else {
+			ccr.chunkIdx++
 			cm.Text += result.Delta
 			if err = json.NewEncoder(w).Encode(&cm); err != nil {
 				logger().Infow("json encode fail", "err", err)
 				break
 			}
 		}
-		flusher.Flush()
+		w.(http.Flusher).Flush()
 
 		if result.Done {
 			res.toolCalls = result.ToolCalls
@@ -542,7 +544,6 @@ func convertToolCallsForJSON(tcs []llm.ToolCall) []map[string]any {
 	}
 	return result
 }
-
 
 // chatExecutor 定义聊天执行函数类型，支持流式/非流式
 type chatExecutor func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error)

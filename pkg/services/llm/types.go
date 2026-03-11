@@ -6,6 +6,17 @@ import (
 	"strings"
 )
 
+type FinishReason string
+
+const (
+	FinishReasonStop          FinishReason = "stop"
+	FinishReasonLength        FinishReason = "length"
+	FinishReasonFunctionCall  FinishReason = "function_call"
+	FinishReasonToolCalls     FinishReason = "tool_calls"
+	FinishReasonContentFilter FinishReason = "content_filter"
+	FinishReasonNull          FinishReason = "null"
+)
+
 // Message 表示聊天消息
 type Message struct {
 	Role       string     `json:"role"`
@@ -77,7 +88,7 @@ type StreamResult struct {
 	Delta        string
 	ToolCalls    []ToolCall
 	Done         bool `json:",omitempty"`
-	FinishReason string
+	FinishReason FinishReason
 	Error        error `json:",omitempty"`
 }
 
