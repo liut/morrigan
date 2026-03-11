@@ -39,6 +39,8 @@ var (
 	dbGet           = pgx.Get
 	dbFirst         = pgx.First
 	dbLast          = pgx.Last
+	dbEnsureID      = pgx.EnsureID
+	dbExists        = pgx.Exists
 	queryOne        = pgx.QueryOne
 	queryList       = pgx.QueryList
 	queryPager      = pgx.QueryPager

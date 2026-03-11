@@ -32,15 +32,26 @@ models:
       - comment: 标题
         name: Title
         type: string
-        tags: {bson: 'title', json: 'title', pg: ',notnull', binding: 'required'}
+        tags: {bson: 'title', json: 'title', pg: ',notnull'}
         isset: true
         query: 'match'
+      - comment: 消息数
+        name: MessageCount
+        type: int
+        tags: {bson: 'msgCount', json: 'msgCount', pg: 'msg_count,notnull,type:smallint'}
+        isset: true
       - comment: '状态'
         name: Status
         type: SessionStatus
         tags: {bson: 'status', json: 'status', pg: ',notnull,type:smallint'}
         isset: true
         query: 'equal'
+      - comment: 工具
+        name: Tools
+        type: '[]string'
+        tags: {bson: 'tools', json: 'tools', pg: ",notnull,default:'[]'"}
+        isset: true
+
       - type: comm.MetaField
       - type: comm.OwnerField
     oidcat: event

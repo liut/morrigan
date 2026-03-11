@@ -8,7 +8,24 @@ import (
 )
 
 type ConvoStoreX interface {
+	SaveSession(ctx context.Context, sess *convo.Session) error
 	SaveUser(ctx context.Context, user *ConvoUser) error
+}
+
+func (s convoStore) SaveSession(ctx context.Context, obj *convo.Session) error {
+	if !obj.IsZeroID() {
+		exist := new(convo.Session)
+		if err := dbGetWithPKID(ctx, s.w.db, exist, obj.ID); err == nil {
+			exist.SetIsUpdate(true)
+			exist.SetWith(convo.SessionSet{
+				MessageCount: &obj.MessageCount,
+			})
+			dbMetaUp(ctx, s.w.db, exist)
+			return dbUpdate(ctx, s.w.db, obj)
+		}
+	}
+	dbMetaUp(ctx, s.w.db, obj)
+	return dbInsert(ctx, s.w.db, obj)
 }
 
 func (s *convoStore) SaveUser(ctx context.Context, user *convo.User) error {

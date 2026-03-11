@@ -29,6 +29,26 @@ func (z *HistoryItem) calcTokens() (c int) {
 
 type HistoryItems []HistoryItem
 
+// ToText 将历史记录转换为纯文本格式
+func (z HistoryItems) ToText() string {
+	var sb strings.Builder
+	for _, item := range z {
+		if item.ChatItem != nil {
+			if item.ChatItem.User != "" {
+				sb.WriteString("用户: ")
+				sb.WriteString(item.ChatItem.User)
+				sb.WriteString("\n")
+			}
+			if item.ChatItem.Assistant != "" {
+				sb.WriteString("助手: ")
+				sb.WriteString(item.ChatItem.Assistant)
+				sb.WriteString("\n")
+			}
+		}
+	}
+	return sb.String()
+}
+
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (z *HistoryItem) MarshalBinary() (data []byte, err error) {
 	data, err = json.Marshal(z)

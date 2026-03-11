@@ -72,11 +72,15 @@ type Session struct {
 
 type SessionBasic struct {
 	// 标题
-	Title string `binding:"required" bson:"title" bun:",notnull" extensions:"x-order=A" form:"title" json:"title" pg:",notnull"`
+	Title string `bson:"title" bun:",notnull" extensions:"x-order=A" form:"title" json:"title" pg:",notnull"`
+	// 消息数
+	MessageCount int `bson:"msgCount" bun:"msg_count,notnull,type:smallint" extensions:"x-order=B" form:"msgCount" json:"msgCount" pg:"msg_count,notnull,type:smallint"`
 	// 状态
 	//  * `open` - 开启
 	//  * `closed` - 关闭
-	Status SessionStatus `bson:"status" bun:",notnull,type:smallint" enums:"open,closed" extensions:"x-order=B" form:"status" json:"status" pg:",notnull,type:smallint" swaggertype:"string"`
+	Status SessionStatus `bson:"status" bun:",notnull,type:smallint" enums:"open,closed" extensions:"x-order=C" form:"status" json:"status" pg:",notnull,type:smallint" swaggertype:"string"`
+	// 工具
+	Tools []string `bson:"tools" bun:",notnull,default:'[]'" extensions:"x-order=D" json:"tools" pg:",notnull,default:'[]'"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name convoSessionBasic
@@ -115,14 +119,18 @@ func (_ *Session) IdentityAlias() string { return SessionAlias }
 type SessionSet struct {
 	// 标题
 	Title *string `extensions:"x-order=A" json:"title"`
+	// 消息数
+	MessageCount *int `extensions:"x-order=B" json:"msgCount"`
 	// 状态
 	//  * `open` - 开启
 	//  * `closed` - 关闭
-	Status *SessionStatus `enums:"open,closed" extensions:"x-order=B" json:"status" swaggertype:"string"`
+	Status *SessionStatus `enums:"open,closed" extensions:"x-order=C" json:"status" swaggertype:"string"`
+	// 工具
+	Tools *[]string `extensions:"x-order=D" json:"tools"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 	// 仅用于更新所有者(负责人)
-	OwnerID *string `extensions:"x-order=C" json:"ownerID,omitempty"`
+	OwnerID *string `extensions:"x-order=E" json:"ownerID,omitempty"`
 } // @name convoSessionSet
 
 func (z *Session) SetWith(o SessionSet) {
@@ -130,9 +138,17 @@ func (z *Session) SetWith(o SessionSet) {
 		z.LogChangeValue("title", z.Title, o.Title)
 		z.Title = *o.Title
 	}
+	if o.MessageCount != nil && z.MessageCount != *o.MessageCount {
+		z.LogChangeValue("msg_count", z.MessageCount, o.MessageCount)
+		z.MessageCount = *o.MessageCount
+	}
 	if o.Status != nil && z.Status != *o.Status {
 		z.LogChangeValue("status", z.Status, o.Status)
 		z.Status = *o.Status
+	}
+	if o.Tools != nil {
+		z.LogChangeValue("tools", z.Tools, o.Tools)
+		z.Tools = *o.Tools
 	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")

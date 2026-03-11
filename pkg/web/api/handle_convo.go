@@ -15,6 +15,7 @@ import (
 	"github.com/marcsv/go-binder/binder"
 
 	"github.com/liut/morign/pkg/models/aigc"
+	"github.com/liut/morign/pkg/models/convo"
 	"github.com/liut/morign/pkg/models/corpus"
 	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/services/llm"
@@ -39,16 +40,22 @@ func init() {
 	regHI(true, "GET", "/tools", "", func(a *api) http.HandlerFunc {
 		return a.getTools
 	})
+	regHI(true, "POST", "/summary", "", func(a *api) http.HandlerFunc {
+		return a.postSummary
+	})
+	regHI(true, "PATCH", "/conversation/{csid}/title", "", func(a *api) http.HandlerFunc {
+		return a.patchConversationTitle
+	})
 }
 
 // chatRequest 内部聊天请求结构
 type chatRequest struct {
-	messages  []llm.Message
-	tools     []llm.ToolDefinition
-	isSSE     bool
-	cs        stores.Conversation
-	hi        *aigc.HistoryItem
-	chunkIdx  int  // 全局 chunk 计数器，用于 SSE 事件序号
+	messages []llm.Message
+	tools    []llm.ToolDefinition
+	isSSE    bool
+	cs       stores.Conversation
+	hi       *aigc.HistoryItem
+	chunkIdx int // 全局 chunk 计数器，用于 SSE 事件序号
 }
 
 // convertMCPToolsToLLMTools 将 MCP 工具描述转换为 LLM 工具定义
@@ -95,6 +102,7 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 			Role:    llm.RoleSystem,
 			Content: toolsPrompt,
 		})
+		cs.SetTools(llm.Tools(tools).Names()...)
 	} else { // 没有工具，使用问答
 		docs, err := a.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
 			Question: param.Prompt,
@@ -454,6 +462,94 @@ func (a *api) getWelcome(w http.ResponseWriter, r *http.Request) {
 	cs := stores.NewConversation(r.Context(), "")
 	msg.ID = cs.GetID()
 	apiOk(w, r, msg)
+}
+
+// SummaryRequest 摘要请求
+type SummaryRequest struct {
+	Tips string `json:"tips,omitempty"`
+	Text string `json:"text"`
+}
+
+// @Summary 生成聊天记录摘要
+// @Description 根据聊天记录生成简短标题
+// @Accept json
+// @Produce json
+// @Param request body SummaryRequest true "请求参数"
+// @Success 200 {object} resp.Done
+// @Router /api/summary [post]
+func (a *api) postSummary(w http.ResponseWriter, r *http.Request) {
+	var req SummaryRequest
+	if err := render.DecodeJSON(r.Body, &req); err != nil {
+		fail(w, r, 400, "invalid request body")
+		return
+	}
+	if req.Text == "" {
+		fail(w, r, 400, "text is required")
+		return
+	}
+
+	summary, err := stores.GetSummary(r.Context(), req.Text, req.Tips)
+	if err != nil {
+		fail(w, r, 500, err)
+		return
+	}
+
+	apiOk(w, r, summary)
+}
+
+// @Tags 聊天
+// @Summary 生成会话标题
+// @Accept json
+// @Produce json
+// @Param token header string false "登录票据凭证"
+// @Param csid path string true "会话ID"
+// @Success 200 {object} Done{result=string}
+// @Failure 400 {object} Failure "请求错误"
+// @Failure 500 {object} Failure "服务端错误"
+// @Router /api/conversation/{csid}/title [patch]
+func (a *api) patchConversationTitle(w http.ResponseWriter, r *http.Request) {
+	csid := chi.URLParam(r, "csid")
+	if csid == "" {
+		fail(w, r, 400, "csid is required")
+		return
+	}
+
+	// 获取会话历史
+	cs := stores.NewConversation(r.Context(), csid)
+	history, err := cs.ListHistory(r.Context())
+	if err != nil {
+		fail(w, r, 500, err)
+		return
+	}
+
+	if len(history) == 0 {
+		fail(w, r, 400, "no history found")
+		return
+	}
+
+	// 将历史记录转换为文本
+	text := history.ToText()
+	if text == "" {
+		fail(w, r, 400, "no valid chat content")
+		return
+	}
+
+	// 调用 GetSummary 生成标题
+	summary, err := stores.GetSummary(r.Context(), text, "")
+	if err != nil {
+		fail(w, r, 500, err)
+		return
+	}
+
+	// 更新会话标题
+	title := summary
+	err = a.sto.Convo().UpdateSession(r.Context(), csid, convo.SessionSet{Title: &title})
+	if err != nil {
+		fail(w, r, 500, err)
+		return
+	}
+
+	apiOk(w, r, M{"title": summary})
 }
 
 // @Tags 聊天

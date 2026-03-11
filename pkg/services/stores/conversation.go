@@ -21,6 +21,9 @@ const (
 type Conversation interface {
 	GetID() string
 	GetOID() oid.OID
+	SetTools(names ...string)
+	Save(ctx context.Context) error
+	CountHistory(ctx context.Context) int
 	AddHistory(ctx context.Context, item *aigc.HistoryItem) error
 	ListHistory(ctx context.Context) (aigc.HistoryItems, error)
 	ClearHistory(ctx context.Context) error
@@ -71,7 +74,30 @@ func (s *conversation) GetOID() oid.OID {
 	return s.id
 }
 
-// TODO: AddMessages(), Summary()
+func (s *conversation) SetTools(names ...string) {
+	if len(names) > 0 {
+		s.sess.Tools = names
+	}
+}
+
+// 保存聊天会话
+func (s *conversation) Save(ctx context.Context) error {
+	count := s.CountHistory(ctx)
+	s.sess.MessageCount = count
+	return s.sto.Convo().SaveSession(ctx, s.sess)
+}
+
+func (s *conversation) CountHistory(ctx context.Context) int {
+	key := s.getKey()
+	n, err := s.rc.LLen(ctx, key).Result()
+	if err != nil {
+		logger().Infow("llen fail", "key", key, "err", err)
+		return 0
+	}
+	return int(n)
+}
+
+// TODO: AddMessages()
 
 func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) error {
 	key := s.getKey()
@@ -107,8 +133,10 @@ func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) e
 	}
 	if err != nil {
 		logger().Infow("add history fail", "key", key, "err", err)
+		return err
 	}
-	return err
+
+	return s.Save(ctx)
 }
 
 // getLastUserMessage 获取列表中最后一条消息
