@@ -57,7 +57,7 @@ type Config struct {
 
 type Provider struct {
 	APIKey string `envconfig:"Api_Key" required:"true"`
-	URL    string `envconfig:"url"`
+	URL    string `envconfig:"url" required:"true"`
 	Model  string `envconfig:"MODEL" required:"true"`
 	Type   string `envconfig:"type" default:"openai" desc:"provider type: openai, anthropic, openrouter, ollama"`
 }

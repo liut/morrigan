@@ -152,7 +152,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 		bufReader := bufio.NewReaderSize(body, 1024)
 
 		var currentToolCalls []ToolCall
-		var finishReason string
+		var finishReason FinishReason
 		var lines int
 
 		for {
@@ -198,7 +198,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 							} `json:"function"`
 						} `json:"tool_calls"`
 					} `json:"delta"`
-					FinishReason string `json:"finish_reason"`
+					FinishReason FinishReason `json:"finish_reason"`
 				} `json:"choices"`
 			}
 
