@@ -55,20 +55,23 @@ func (z TransType) MarshalText() ([]byte, error) {
 	return []byte(z.String()), nil
 }
 
-// 状态
+// 状态 用于表示连接
 type Status int8
 
 const (
-	StatusStopped Status = 0 + iota //  0 已停止
-	StatusRunning                   //  1 运行中
+	StatusDisconnected Status = 0 + iota //  0 断开 初始默认
+	StatusConnecting                     //  1 连接中
+	StatusConnected                      //  2 已连接
 )
 
 func (z *Status) Decode(s string) error {
 	switch s {
-	case "0", "stopped", "Stopped":
-		*z = StatusStopped
-	case "1", "running", "Running":
-		*z = StatusRunning
+	case "0", "disconnected", "Disconnected":
+		*z = StatusDisconnected
+	case "1", "connecting", "Connecting":
+		*z = StatusConnecting
+	case "2", "connected", "Connected":
+		*z = StatusConnected
 	default:
 		return fmt.Errorf("invalid status: %q", s)
 	}
@@ -79,10 +82,12 @@ func (z *Status) UnmarshalText(b []byte) error {
 }
 func (z Status) String() string {
 	switch z {
-	case StatusStopped:
-		return "stopped"
-	case StatusRunning:
-		return "running"
+	case StatusDisconnected:
+		return "disconnected"
+	case StatusConnecting:
+		return "connecting"
+	case StatusConnected:
+		return "connected"
 	default:
 		return fmt.Sprintf("status %d", int8(z))
 	}
@@ -93,15 +98,15 @@ func (z Status) MarshalText() ([]byte, error) {
 
 // consts of Server 服务器
 const (
-	ServerTable = "qa_mcp_server"
-	ServerAlias = "s"
+	ServerTable = "mcp_server"
+	ServerAlias = "ms"
 	ServerLabel = "server"
 	ServerTypID = "mcpsServer"
 )
 
 // Server 服务器
 type Server struct {
-	comm.BaseModel `bun:"table:qa_mcp_server,alias:s" json:"-"`
+	comm.BaseModel `bun:"table:mcp_server,alias:ms" json:"-"`
 
 	comm.DefaultModel
 
@@ -123,12 +128,15 @@ type ServerBasic struct {
 	Command string `bson:"command" bun:",notnull" extensions:"x-order=C" form:"command" json:"command" pg:",notnull"`
 	// 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
 	URL string `bson:"url" bun:",notnull" extensions:"x-order=D" form:"url" json:"url" pg:",notnull"`
-	// 状态
-	//  * `stopped` - 已停止
-	//  * `running` - 运行中
-	Status Status `bson:"status" bun:",notnull,type:smallint" enums:"stopped,running" extensions:"x-order=E" form:"status" json:"status" pg:",notnull,type:smallint" swaggertype:"string"`
+	// 是否激活
+	IsActive bool `bson:"isActive" bun:",notnull" extensions:"x-order=E" form:"isActive" json:"isActive" pg:",notnull"`
+	// 连接状态
+	//  * `disconnected` - 断开
+	//  * `connecting` - 连接中
+	//  * `connected` - 已连接
+	Status Status `bson:"status" bun:",notnull,type:smallint" enums:"disconnected,connecting,connected" extensions:"x-order=F" form:"status" json:"status" pg:",notnull,type:smallint" swaggertype:"string"`
 	// 备注
-	Remark string `bson:"remark" bun:",notnull" extensions:"x-order=F" form:"remark" json:"remark" pg:",notnull"`
+	Remark string `bson:"remark" bun:",notnull" extensions:"x-order=G" form:"remark" json:"remark" pg:",notnull"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name mcpsServerBasic
@@ -173,12 +181,15 @@ type ServerSet struct {
 	Command *string `extensions:"x-order=C" json:"command"`
 	// 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
 	URL *string `extensions:"x-order=D" json:"url"`
-	// 状态
-	//  * `stopped` - 已停止
-	//  * `running` - 运行中
-	Status *Status `enums:"stopped,running" extensions:"x-order=E" json:"status" swaggertype:"string"`
+	// 是否激活
+	IsActive *bool `extensions:"x-order=E" json:"isActive"`
+	// 连接状态
+	//  * `disconnected` - 断开
+	//  * `connecting` - 连接中
+	//  * `connected` - 已连接
+	Status *Status `enums:"disconnected,connecting,connected" extensions:"x-order=F" json:"status" swaggertype:"string"`
 	// 备注
-	Remark *string `extensions:"x-order=F" json:"remark"`
+	Remark *string `extensions:"x-order=G" json:"remark"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name mcpsServerSet
@@ -199,6 +210,10 @@ func (z *Server) SetWith(o ServerSet) {
 	if o.URL != nil && z.URL != *o.URL {
 		z.LogChangeValue("url", z.URL, o.URL)
 		z.URL = *o.URL
+	}
+	if o.IsActive != nil && z.IsActive != *o.IsActive {
+		z.LogChangeValue("is_active", z.IsActive, o.IsActive)
+		z.IsActive = *o.IsActive
 	}
 	if o.Status != nil && z.Status != *o.Status {
 		z.LogChangeValue("status", z.Status, o.Status)

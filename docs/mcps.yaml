@@ -24,15 +24,17 @@ enums:
     textMarshaler: true
     textUnmarshaler: true
 
-  - comment: 状态
+  - comment: 状态 用于表示连接
     name: Status
     start: 0
     type: int8
     values:
-      - label: 已停止
-        suffix: Stopped
-      - label: 运行中
-        suffix: Running
+      - label: 断开 初始默认
+        suffix: Disconnected
+      - label: 连接中
+        suffix: Connecting
+      - label: 已连接
+        suffix: Connected
     stringer: true
     decodable: true
     textMarshaler: true
@@ -46,7 +48,7 @@ models:
 
   - name: Server
     comment: '服务器'
-    tableTag: 'qa_mcp_server,alias:s'
+    tableTag: 'mcp_server,alias:ms'
     fields:
       - type: comm.DefaultModel
       - comment: 名称
@@ -71,7 +73,13 @@ models:
         type: string
         tags: {bson: 'url', json: 'url', pg: ',notnull'}
         isset: true
-      - comment: '状态'
+      - comment: '是否激活'
+        name: IsActive
+        type: bool
+        tags: {bson: 'isActive', json: 'isActive', pg: ',notnull'}
+        isset: true
+        query: 'equal'
+      - comment: '连接状态'
         name: Status
         type: Status
         tags: {bson: 'status', json: 'status', pg: ',notnull,type:smallint'}
@@ -92,3 +100,14 @@ stores:
     siname: MCP
     hods:
       - { name: Server, type: LGCUD }
+
+
+webcode: chi
+webapi:
+  formTag: form
+  pkg: api
+  needAuth: true
+  needPerm: true
+  uris:
+    - model: Server
+      prefix: '/api/mcp'

@@ -295,10 +295,13 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 	}
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
+	var iter int
 	for {
+		iter++
 		// 调用流式响应处理
 		streamRes := a.doChatStream(ccr, w, r)
-		logger().Infow("stream round done", "answer_len", len(streamRes.answer), "toolCalls_len", len(streamRes.toolCalls))
+		logger().Infow("stream round done", "iter", iter, "answer_len", len(streamRes.answer),
+			"toolCalls_len", len(streamRes.toolCalls))
 
 		// 累积答案
 		res.answer += streamRes.answer
@@ -481,7 +484,7 @@ type SummaryRequest struct {
 // @Router /api/summary [post]
 func (a *api) postSummary(w http.ResponseWriter, r *http.Request) {
 	var req SummaryRequest
-	if err := render.DecodeJSON(r.Body, &req); err != nil {
+	if err := binder.BindBody(r, &req); err != nil {
 		fail(w, r, 400, "invalid request body")
 		return
 	}

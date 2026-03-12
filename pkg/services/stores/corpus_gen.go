@@ -81,21 +81,21 @@ func (spec *ChatLogSpec) Sift(q *ormQuery) *ormQuery {
 	return q
 }
 
-type cobStore struct {
+type corpuStore struct {
 	w *Wrap
 }
 
-func (s *cobStore) ListDocument(ctx context.Context, spec *CobDocumentSpec) (data corpus.Documents, total int, err error) {
+func (s *corpuStore) ListDocument(ctx context.Context, spec *CobDocumentSpec) (data corpus.Documents, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
 }
-func (s *cobStore) GetDocument(ctx context.Context, id string) (obj *corpus.Document, err error) {
+func (s *corpuStore) GetDocument(ctx context.Context, id string) (obj *corpus.Document, err error) {
 	obj = new(corpus.Document)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *cobStore) CreateDocument(ctx context.Context, in corpus.DocumentBasic) (obj *corpus.Document, err error) {
+func (s *corpuStore) CreateDocument(ctx context.Context, in corpus.DocumentBasic) (obj *corpus.Document, err error) {
 	obj = corpus.NewDocumentWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
@@ -104,7 +104,7 @@ func (s *cobStore) CreateDocument(ctx context.Context, in corpus.DocumentBasic) 
 	}
 	return
 }
-func (s *cobStore) UpdateDocument(ctx context.Context, id string, in corpus.DocumentSet) error {
+func (s *corpuStore) UpdateDocument(ctx context.Context, id string, in corpus.DocumentSet) error {
 	exist := new(corpus.Document)
 	if err := dbGetWithPKID(ctx, s.w.db, exist, id); err != nil {
 		return err
@@ -114,7 +114,7 @@ func (s *cobStore) UpdateDocument(ctx context.Context, id string, in corpus.Docu
 	dbMetaUp(ctx, s.w.db, exist)
 	return dbUpdate(ctx, s.w.db, exist)
 }
-func (s *cobStore) DeleteDocument(ctx context.Context, id string) error {
+func (s *corpuStore) DeleteDocument(ctx context.Context, id string) error {
 	obj := new(corpus.Document)
 	if err := dbGetWithPKID(ctx, s.w.db, obj, id); err != nil {
 		return err
@@ -128,40 +128,40 @@ func (s *cobStore) DeleteDocument(ctx context.Context, id string) error {
 	})
 }
 
-func (s *cobStore) GetDocVector(ctx context.Context, id string) (obj *corpus.DocVector, err error) {
+func (s *corpuStore) GetDocVector(ctx context.Context, id string) (obj *corpus.DocVector, err error) {
 	obj = new(corpus.DocVector)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *cobStore) CreateDocVector(ctx context.Context, in corpus.DocVectorBasic) (obj *corpus.DocVector, err error) {
+func (s *corpuStore) CreateDocVector(ctx context.Context, in corpus.DocVectorBasic) (obj *corpus.DocVector, err error) {
 	obj = corpus.NewDocVectorWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
-func (s *cobStore) DeleteDocVector(ctx context.Context, id string) error {
+func (s *corpuStore) DeleteDocVector(ctx context.Context, id string) error {
 	obj := new(corpus.DocVector)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 
-func (s *cobStore) CreateChatLog(ctx context.Context, in corpus.ChatLogBasic) (obj *corpus.ChatLog, err error) {
+func (s *corpuStore) CreateChatLog(ctx context.Context, in corpus.ChatLogBasic) (obj *corpus.ChatLog, err error) {
 	obj = corpus.NewChatLogWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
-func (s *cobStore) GetChatLog(ctx context.Context, id string) (obj *corpus.ChatLog, err error) {
+func (s *corpuStore) GetChatLog(ctx context.Context, id string) (obj *corpus.ChatLog, err error) {
 	obj = new(corpus.ChatLog)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *cobStore) ListChatLog(ctx context.Context, spec *ChatLogSpec) (data corpus.ChatLogs, total int, err error) {
+func (s *corpuStore) ListChatLog(ctx context.Context, spec *ChatLogSpec) (data corpus.ChatLogs, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
 }
-func (s *cobStore) DeleteChatLog(ctx context.Context, id string) error {
+func (s *corpuStore) DeleteChatLog(ctx context.Context, id string) error {
 	obj := new(corpus.ChatLog)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }

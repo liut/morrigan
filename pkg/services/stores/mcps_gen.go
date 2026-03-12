@@ -34,10 +34,13 @@ type MCPServerSpec struct {
 	//  * `streamable`
 	//  * `inMemory` - 内部运行
 	TransType string `extensions:"x-order=B" form:"transType" json:"transType" swaggertype:"string"`
-	// 状态
-	//  * `stopped` - 已停止
-	//  * `running` - 运行中
-	Status mcps.Status `extensions:"x-order=C" form:"status" json:"status" swaggertype:"string"`
+	// 是否激活
+	IsActive string `extensions:"x-order=C" form:"isActive" json:"isActive"`
+	// 连接状态
+	//  * `disconnected` - 断开
+	//  * `connecting` - 连接中
+	//  * `connected` - 已连接
+	Status mcps.Status `extensions:"x-order=D" form:"status" json:"status" swaggertype:"string"`
 }
 
 func (spec *MCPServerSpec) Sift(q *ormQuery) *ormQuery {
@@ -49,6 +52,7 @@ func (spec *MCPServerSpec) Sift(q *ormQuery) *ormQuery {
 			q = q.Where("?TableAlias.trans_type = ?", v)
 		}
 	}
+	q, _ = siftEqual(q, "is_active", spec.IsActive, false)
 	q, _ = siftEqual(q, "status", spec.Status, false)
 
 	return q

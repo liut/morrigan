@@ -11,6 +11,7 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/settings"
 )
 
@@ -72,9 +73,11 @@ type CobStoreX interface {
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error)
 	MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error)
+	InvokerForSearch() mcps.Invoker
+	InvokerForCreate() mcps.Invoker
 }
 
-func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
+func (s *corpuStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
 	rd := csv.NewReader(r)
 	rec, err := rd.Read()
 	if err != nil {
@@ -114,7 +117,7 @@ func (s *cobStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) er
 	}
 }
 
-func (s *cobStore) importLine(ctx context.Context, basic corpus.DocumentBasic, lw io.Writer) error {
+func (s *corpuStore) importLine(ctx context.Context, basic corpus.DocumentBasic, lw io.Writer) error {
 	doc := new(corpus.Document)
 	basic.Content = replText.Replace(basic.Content)
 	err := dbGet(ctx, s.w.db, doc, "title = ? AND heading = ?", basic.Title, basic.Heading)
@@ -155,7 +158,7 @@ func diff2(text1, text2 string) string {
 	return text
 }
 
-func (s *cobStore) afterCreatedCobDocument(ctx context.Context, obj *corpus.Document) error {
+func (s *corpuStore) afterCreatedCobDocument(ctx context.Context, obj *corpus.Document) error {
 	dvb := corpus.DocVectorBasic{
 		DocID:   obj.ID,
 		Subject: obj.GetSubject(),
@@ -201,7 +204,7 @@ func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err erro
 	return
 }
 
-func (s *cobStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
+func (s *corpuStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
 	var docs corpus.Documents
 	docs, err = s.MatchDocments(ctx, ms)
 	if err != nil {
@@ -218,7 +221,7 @@ func (s *cobStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt st
 
 	return
 }
-func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error) {
+func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error) {
 	ms.setDefaults()
 	var subject string
 	if ms.SkipKeywords {
@@ -258,7 +261,7 @@ func (s *cobStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corpus
 	return
 }
 
-func (s *cobStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error) {
+func (s *corpuStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error) {
 	if len(vec) != corpus.VectorLen {
 		logger().Infow("mismatch length of vector", "a", len(vec), "b", corpus.VectorLen)
 		return
@@ -281,7 +284,7 @@ func (s *cobStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, thres
 	return
 }
 
-func (s *cobStore) ExportDocs(ctx context.Context, ea ExportArg) error {
+func (s *corpuStore) ExportDocs(ctx context.Context, ea ExportArg) error {
 	data, _, err := s.ListDocument(ctx, ea.Spec)
 	if err != nil {
 		return err
@@ -315,7 +318,7 @@ func documentsToCSV(data corpus.Documents, w io.Writer) error {
 	return cw.Error()
 }
 
-func (s *cobStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error {
+func (s *corpuStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error {
 	data, _, err := s.ListDocument(ctx, spec)
 	if err != nil {
 		return err
@@ -354,4 +357,75 @@ func (s *cobStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec
 func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *corpus.Document) error {
 	_, err := dbBatchDeleteWithKeyID(ctx, db, corpus.DocVectorTable, "doc_id", obj.ID)
 	return err
+}
+
+// InvokerForSearch 返回一个搜索知识库文档的 invoker
+func (s *corpuStore) InvokerForSearch() mcps.Invoker {
+	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
+		keywordArg, ok := args["keyword"]
+		if !ok {
+			return mcps.BuildToolErrorResult("missing required argument: keyword"), nil
+		}
+		keyword, ok := keywordArg.(string)
+		if !ok {
+			return mcps.BuildToolErrorResult("keyword argument must be a string"), nil
+		}
+
+		// 参考 callKBSearch，使用 MatchSpec
+		docs, err := s.MatchDocments(ctx, MatchSpec{
+			Question:     keyword,
+			Limit:        5,
+			SkipKeywords: true,
+		})
+		if err != nil {
+			return mcps.BuildToolErrorResult(err.Error()), nil
+		}
+
+		if len(docs) == 0 {
+			return mcps.BuildToolSuccessResult("No relevant information found"), nil
+		}
+
+		return mcps.BuildToolSuccessResult(docs.MarkdownText()), nil
+	}
+}
+
+// InvokerForCreate 返回一个创建知识库文档的 invoker
+func (s *corpuStore) InvokerForCreate() mcps.Invoker {
+	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
+		if !IsKeeper(ctx) {
+			return mcps.BuildToolErrorResult("permission denied: keeper role required"), nil
+		}
+
+		user, _ := UserFromContext(ctx)
+		logger().Infow("mcp call qa create", "args", args, "user", user)
+
+		titleArg, ok := args["title"]
+		if !ok {
+			return mcps.BuildToolErrorResult("missing required argument: title"), nil
+		}
+		headingArg, ok := args["heading"]
+		if !ok {
+			return mcps.BuildToolErrorResult("missing required argument: heading"), nil
+		}
+		contentArg, ok := args["content"]
+		if !ok {
+			return mcps.BuildToolErrorResult("missing required argument: content"), nil
+		}
+
+		docBasic := corpus.DocumentBasic{
+			Title:   titleArg.(string),
+			Heading: headingArg.(string),
+			Content: contentArg.(string),
+		}
+		docBasic.MetaAddKVs("creator", user.Name)
+
+		obj, err := s.CreateDocument(ctx, docBasic)
+		if err != nil {
+			logger().Infow("create document fail", "title", docBasic.Title, "heading", docBasic.Heading,
+				"content", len(docBasic.Content), "err", err)
+			return mcps.BuildToolSuccessResult("Create KB document failed: " + err.Error()), nil
+		}
+
+		return mcps.BuildToolSuccessResult("Created KB document with ID " + obj.StringID()), nil
+	}
 }

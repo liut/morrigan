@@ -96,7 +96,7 @@ var (
 type Wrap struct {
 	db *pgx.DB
 
-	cobStore   *cobStore   // gened
+	corpuStore *corpuStore // gened
 	mcpStore   *mcpStore   // gened
 	convoStore *convoStore // gened
 }
@@ -107,7 +107,7 @@ func NewWithDB(db *pgx.DB) *Wrap {
 		db: db,
 	}
 
-	w.cobStore = &cobStore{w: w}     // gened
+	w.corpuStore = &corpuStore{w: w} // gened
 	w.mcpStore = &mcpStore{w: w}     // gened
 	w.convoStore = &convoStore{w: w} // gened
 
@@ -165,7 +165,7 @@ func InitDB(ctx context.Context) error {
 	return nil
 }
 
-func (w *Wrap) Cob() CobStore     { return w.cobStore }   // Cob gened
-func (w *Wrap) Qa() CobStore      { return w.cobStore }   // Deprecated: by Cob
+func (w *Wrap) Cob() CobStore     { return w.corpuStore } // Cob gened
+func (w *Wrap) KB() CobStore      { return w.corpuStore } // Deprecated: by Cob
 func (w *Wrap) MCP() MCPStore     { return w.mcpStore }   // MCP gened
 func (w *Wrap) Convo() ConvoStore { return w.convoStore } // Convo gened

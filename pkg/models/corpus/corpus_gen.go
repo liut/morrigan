@@ -9,7 +9,7 @@ import (
 
 // consts of Document 文档
 const (
-	DocumentTable = "qa_corpus_document"
+	DocumentTable = "corpus_document"
 	DocumentAlias = "cd"
 	DocumentLabel = "document"
 	DocumentTypID = "corpusDocument"
@@ -17,7 +17,7 @@ const (
 
 // Document 文档 语料库
 type Document struct {
-	comm.BaseModel `bun:"table:qa_corpus_document,alias:cd" json:"-"`
+	comm.BaseModel `bun:"table:corpus_document,alias:cd" json:"-"`
 
 	comm.DefaultModel
 
@@ -103,7 +103,7 @@ func (in *DocumentSet) MetaAddKVs(args ...any) *DocumentSet {
 
 // consts of DocVector 文档向量
 const (
-	DocVectorTable = "qa_corpus_vector_400"
+	DocVectorTable = "corpus_vector_400"
 	DocVectorAlias = "cv"
 	DocVectorLabel = "docVector"
 	DocVectorTypID = "corpusDocVector"
@@ -111,7 +111,7 @@ const (
 
 // DocVector 文档向量 400=1024, 600=1536
 type DocVector struct {
-	comm.BaseModel `bun:"table:qa_corpus_vector_400,alias:cv" json:"-"`
+	comm.BaseModel `bun:"table:corpus_vector_400,alias:cv" json:"-"`
 
 	comm.DefaultModel
 
@@ -218,7 +218,7 @@ const (
 	ChatLogTypID = "corpusChatLog"
 )
 
-// ChatLog 聊天日志
+// ChatLog 聊天日志 Deprecated
 type ChatLog struct {
 	comm.BaseModel `bun:"table:qa_chat_log,alias:cl" json:"-"`
 
