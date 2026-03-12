@@ -128,7 +128,6 @@ func (a *api) Strap(router chi.Router) {
 	)
 
 	router.Route(settings.Current.APIPrefix, func(r chi.Router) {
-		r.Use(middleware.Handler)        // 限流
 		r.Use(OAuthTokenMiddleware(nil)) // OAuth token 注入 context
 
 		r.Get("/ping", ping)
@@ -146,6 +145,10 @@ func (a *api) Strap(router chi.Router) {
 				r.Method(hi.method, hi.path, hi.hafn(a))
 			}
 		}
+		// 限流
+		limited := pr.With(middleware.Handler)
+		limited.Post("/chat", a.postChat)
+		limited.Post("/chat-{suffix}", a.postChat)
 	})
 }
 

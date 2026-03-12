@@ -25,12 +25,7 @@ import (
 )
 
 func init() {
-	regHI(true, "POST", "/chat", "", func(a *api) http.HandlerFunc {
-		return a.postChat
-	})
-	regHI(true, "POST", "/chat-{suffix}", "", func(a *api) http.HandlerFunc {
-		return a.postChat
-	})
+
 	regHI(true, "GET", "/welcome", "", func(a *api) http.HandlerFunc {
 		return a.getWelcome
 	})
