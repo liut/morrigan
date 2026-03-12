@@ -256,7 +256,7 @@ func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corp
 	if err != nil {
 		logger().Infow("list docs fail", "spec", spec, "err", err)
 	} else {
-		logger().Infow("list docs", "matches", data.Headings())
+		logger().Infow("list docs", "ids", spec.IDs, "matches", data.Headings())
 	}
 	return
 }
@@ -267,7 +267,7 @@ func (s *corpuStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, thr
 		return
 	}
 	logger().Debugw("match with", "vec", vec[0:5])
-	err = s.w.db.NewRaw("SELECT * FROM qa_match_docs_4(?, ?, ?)", vec, threshold, limit).
+	err = s.w.db.NewRaw("SELECT * FROM vector_match_docs_4(?, ?, ?)", vec, threshold, limit).
 		Scan(ctx, &data)
 	// err = s.w.db.NewSelect().
 	// 	Table(corpus.DocVectorTable).
@@ -362,30 +362,31 @@ func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *corpus.Documen
 // InvokerForSearch 返回一个搜索知识库文档的 invoker
 func (s *corpuStore) InvokerForSearch() mcps.Invoker {
 	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
-		keywordArg, ok := args["keyword"]
+		logger().Infow("mcp call qa search", "args", args)
+		subjectArg, ok := args["subject"]
 		if !ok {
-			return mcps.BuildToolErrorResult("missing required argument: keyword"), nil
+			return mcps.BuildToolErrorResult("missing required argument: subject"), nil
 		}
-		keyword, ok := keywordArg.(string)
+		subject, ok := subjectArg.(string)
 		if !ok {
-			return mcps.BuildToolErrorResult("keyword argument must be a string"), nil
+			return mcps.BuildToolErrorResult("subject argument must be a string"), nil
 		}
 
-		// 参考 callKBSearch，使用 MatchSpec
 		docs, err := s.MatchDocments(ctx, MatchSpec{
-			Question:     keyword,
+			Question:     subject,
 			Limit:        5,
 			SkipKeywords: true,
 		})
 		if err != nil {
 			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
-
+		logger().Infow("matched", "docs", len(docs))
 		if len(docs) == 0 {
 			return mcps.BuildToolSuccessResult("No relevant information found"), nil
 		}
 
 		return mcps.BuildToolSuccessResult(docs.MarkdownText()), nil
+
 	}
 }
 
@@ -418,14 +419,13 @@ func (s *corpuStore) InvokerForCreate() mcps.Invoker {
 			Content: contentArg.(string),
 		}
 		docBasic.MetaAddKVs("creator", user.Name)
-
 		obj, err := s.CreateDocument(ctx, docBasic)
 		if err != nil {
 			logger().Infow("create document fail", "title", docBasic.Title, "heading", docBasic.Heading,
 				"content", len(docBasic.Content), "err", err)
-			return mcps.BuildToolSuccessResult("Create KB document failed: " + err.Error()), nil
+			return mcps.BuildToolSuccessResult(fmt.Sprintf(
+				"Create KB document with title %q and heading %q is failed, %s", docBasic.Title, docBasic.Heading, err)), nil
 		}
-
-		return mcps.BuildToolSuccessResult("Created KB document with ID " + obj.StringID()), nil
+		return mcps.BuildToolSuccessResult(fmt.Sprintf("Created KB document with ID %s", obj.StringID())), nil
 	}
 }
