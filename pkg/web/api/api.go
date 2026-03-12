@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -77,6 +78,11 @@ func newapi(sto stores.Storage) *api {
 		)
 	}
 	toolreg := tools.NewRegistry(sto, opts...)
+
+	// 加载已激活的 MCP Servers
+	if err := toolreg.LoadServers(context.Background(), sto); err != nil {
+		logger().Warnw("failed to load MCP servers", "err", err)
+	}
 
 	return &api{
 		sto:     sto,
@@ -215,6 +221,11 @@ func apiOk(w http.ResponseWriter, r *http.Request, args ...any) {
 	}
 
 	render.JSON(w, r, res)
+}
+
+// nolint
+func idResult(id any) *resp.ResultID {
+	return &resp.ResultID{ID: id}
 }
 
 type Done = resp.Done

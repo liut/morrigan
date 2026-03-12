@@ -2,13 +2,13 @@ depends:
   comm: github.com/cupogo/andvari/models/comm
   oid: github.com/cupogo/andvari/models/oid
 
-gename: cob
+gename: corpus
 modelpkg: corpus
 
 models:
   - name: Document
     comment: '文档 语料库'
-    tableTag: 'qa_corpus_document,alias:cd'
+    tableTag: 'corpus_document,alias:cd'
     fields:
       - name: comm.DefaultModel
       - comment: 主标题 名称
@@ -41,7 +41,7 @@ models:
 
   - name: DocVector
     comment: '文档向量 400=1024, 600=1536'
-    tableTag: 'qa_corpus_vector_400,alias:cv'
+    tableTag: 'corpus_vector_400,alias:cv'
     fields:
       - name: comm.DefaultModel
       - comment: 文档编号
@@ -93,7 +93,7 @@ models:
     # export2: true
 
   - name: ChatLog
-    comment: '聊天日志'
+    comment: '聊天日志 Deprecated'
     tableTag: 'qa_chat_log,alias:cl'
     fields:
       - name: comm.DefaultModel

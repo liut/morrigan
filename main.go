@@ -85,7 +85,7 @@ func embeddingDocVector(cc *cli.Context) error {
 	spec := &stores.CobDocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
-	return stores.Sgt().Qa().EmbeddingDocVector(ctx, spec)
+	return stores.Sgt().KB().EmbeddingDocVector(ctx, spec)
 	// return nil
 }
 

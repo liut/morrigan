@@ -1,11 +1,14 @@
 package mcps
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
 )
+
+type Invoker func(ctx context.Context, params map[string]any) (map[string]any, error)
 
 // ToolDescriptor 是工具的描述符，用于 MCP 工具列表
 type ToolDescriptor struct {
