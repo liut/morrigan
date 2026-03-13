@@ -265,7 +265,9 @@ func writeEvent(w io.Writer, id string, m any) bool {
 		logger().Infow("eventsource write fail", "err", err)
 		return false
 	}
-
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
 	return true
 }
 
@@ -281,6 +283,8 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
+
+	w.(http.Flusher).Flush()
 
 	var iter int
 	maxLoopIterations := settings.Current.MaxLoopIterations
@@ -354,7 +358,6 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 	}
 
 	_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
-	w.(http.Flusher).Flush()
 
 	// 发送完成事件（最后）
 	ccr.chunkIdx++
@@ -387,15 +390,15 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		res.answer += result.Delta
 		if len(result.ToolCalls) > 0 && result.FinishReason == llm.FinishReasonToolCalls {
 			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
+			ccr.chunkIdx++
+			cm.ConversationID = ccr.cs.GetID()
+			cm.FinishReason = string(result.FinishReason)
+			_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
 		}
 
 		if result.Done {
 			logger().Infow("result done", "finish", result.FinishReason)
 			res.finish = result.FinishReason
-			// ccr.chunkIdx++
-			// cm.ConversationID = ccr.cs.GetID()
-			// cm.FinishReason = string(result.FinishReason)
-			// _ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
 		} else {
 			// 判断当前是否为空消息
 			isEmpty := result.Delta == "" && len(cm.ToolCalls) == 0
@@ -405,11 +408,9 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 				if wrote := writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
 					break
 				}
-				lastWriteEmpty = isEmpty
 			}
 			// 如果当前是空的且上一次也是空的，跳过（连续空消息只保留第一个）
 		}
-		w.(http.Flusher).Flush()
 
 		if result.Done { // 只使用最后拼接的完整信息
 			res.toolCalls = result.ToolCalls
