@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/liut/morign/pkg/services/llm"
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 const (
@@ -71,7 +72,6 @@ type ChatResponse struct {
 	finish    llm.FinishReason
 }
 
-func cutTxt(s string, n int) string {
-	runes := []rune(s)
-	return string(runes[0:min(n, len(runes))])
+func cutTxt(s string, n int, opts ...string) string {
+	return textutil.TakeHead(s, n, opts...)
 }

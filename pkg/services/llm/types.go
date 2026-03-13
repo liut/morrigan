@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 type FinishReason string
@@ -176,13 +178,7 @@ func (z *Message) previewText(n int) string {
 		text = fmt.Sprintf("[len=%d]", len(text))
 	}
 
-	full := prefix + text
-	// 按 rune（字符）截取，避免截断 UTF-8 多字节字符
-	runes := []rune(full)
-	if len(runes) > n {
-		return string(runes[:n]) + "..."
-	}
-	return full
+	return textutil.TakeHead(prefix+text, n, "...")
 }
 
 // ToolLogs 是 []ToolDefinition 的自定义类型，用于日志输出

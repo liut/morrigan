@@ -3,6 +3,8 @@ package aigc
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 type HistoryChatItem struct {
@@ -139,10 +141,5 @@ func (z *HistoryItem) previewText(n int) string {
 			text = "A: " + z.ChatItem.Assistant
 		}
 	}
-	// 按 rune（字符）截取前 n 个字，避免截断 UTF-8 多字节字符
-	runes := []rune(text)
-	if len(runes) > n {
-		return string(runes[:n]) + "..."
-	}
-	return text
+	return textutil.TakeHead(text, n, "...")
 }
