@@ -144,22 +144,27 @@ forego run go run . web
 ### Prepare preset data file in YAML
 
 ```yaml
+# Simple preset
+welcome: "Hello, I am your virtual assistant. How can I help you?"
+systemPrompt: "You are a helpful assistant."
+toolsPrompt: "You will select the appropriate tool based on the user's question and call the tool to solve the problem."
 
-welcome:
-  content: Hello, I am your virtual assistant. How can I help you?
-  role: assistant
-
-messages:
-  - content: You are a helpful assistant.
-    role: system
-  - content: When is my birthday?
-    role: user
-  - content: How would I know?
-    role: assistant
-
- # more messages
-
+# Or with custom tool descriptions
+welcome: "Hello, I am your virtual assistant. How can I help you?"
+systemPrompt: "You are a helpful assistant."
+toolsPrompt: "You will select the appropriate tool based on the user's question and call the tool to solve the problem."
+tools:
+  kb_search: "Search documents in knowledge base with subject. When faced with unknown or uncertain issues, prioritize consulting the knowledge base."
+  kb_create: "Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it."
+  fetch: "Fetches a URL from the internet and optionally extracts its contents as markdown"
 ```
+
+- `welcome`: Welcome message displayed to users
+- `systemPrompt`: System prompt for AI conversation
+- `toolsPrompt`: Instructions for tool usage (used when MCP tools are available)
+- `tools`: Custom tool descriptions (optional, overrides built-in defaults)
+
+See [data/preset.yaml](./data/preset.yaml) for a complete example.
 
 ### Prepare database
 
