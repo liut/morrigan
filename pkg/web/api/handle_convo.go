@@ -115,8 +115,12 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 				Content: content,
 			})
 		} else {
-			logger().Infow("match fail", "err", err)
-			// TODO: err ?
+			logger().Warnw("match fail", "err", err)
+			// 查询失败时，添加系统消息告知用户
+			messages = append(messages, llm.Message{
+				Role:    llm.RoleSystem,
+				Content: "知识库查询服务暂时不可用，请稍后再试或联系管理员。",
+			})
 		}
 	}
 
@@ -186,9 +190,8 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		apiFail(w, r, 400, err)
 		return
 	}
-	isProcess := strings.HasSuffix(r.URL.Path, "-process")
 	isSSE := param.Stream || strings.HasSuffix(r.URL.Path, "-sse")
-	isStream := param.Stream || isSSE || isProcess
+	isStream := param.Stream || isSSE
 	ccr := a.prepareChatRequest(r.Context(), &param)
 
 	ccr.isSSE = isSSE
@@ -199,12 +202,6 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		res := a.chatStreamResponseLoop(ccr, w, r)
 		logger().Infow("stream response", "answer_len", len(res.answer), "toolCalls_len", len(res.toolCalls))
 		if len(res.answer) > 0 {
-			ccr.hi.ChatItem.Assistant = res.answer
-			if err := ccr.cs.AddHistory(r.Context(), ccr.hi); err == nil {
-				if err = ccr.cs.Save(r.Context()); err != nil {
-					logger().Infow("save convo fail", "err", err)
-				}
-			}
 
 			if settings.Current.QAChatLog {
 				in := corpus.ChatLogBasic{
@@ -243,7 +240,6 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 	logger().Infow("chat", "answer", answer)
 
 	var cm ChatMessage
-	cm.ID = ccr.cs.GetID() // TODO: deprecated by new message id
 	cm.Text = answer
 	render.JSON(w, r, &cm)
 }
@@ -283,11 +279,7 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	if ccr.isSSE {
-		w.Header().Set("Content-Type", "text/event-stream")
-	} else {
-		w.Header().Add("Content-type", "application/octet-stream")
-	}
+	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
 	var iter int
@@ -304,9 +296,10 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 			res.usage = streamRes.usage
 		}
 
-		// 如果没有工具调用，返回结果
+		// 如果没有工具调用，跳出循环
 		if len(streamRes.toolCalls) == 0 {
-			return
+			res.finish = streamRes.finish
+			break
 		}
 		logger().Infow("before execute tool calls", "tools", len(streamRes.toolCalls), "msgs", len(ccr.messages))
 
@@ -315,14 +308,49 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 		ccr.messages, hasToolCall = a.doExecuteToolCalls(r.Context(), streamRes.toolCalls, ccr.messages)
 		logger().Infow("executed tool calls", "hasToolCall", hasToolCall, "msgs", len(ccr.messages))
 		if !hasToolCall {
-			// 没有成功执行任何工具，返回当前结果
-			return
+			// 没有成功执行任何工具，跳出循环
+			res.finish = streamRes.finish
+			break
 		}
 
 		// 清除工具定义，避免死循环
 		ccr.tools = nil
-		// 循环继续，会再次调用 LLM
 	}
+
+	if len(res.answer) > 0 {
+		ccr.hi.ChatItem.Assistant = res.answer
+		if err := ccr.cs.AddHistory(r.Context(), ccr.hi); err == nil {
+			if err = ccr.cs.Save(r.Context()); err != nil {
+				logger().Infow("save convo fail", "err", err)
+			}
+		}
+	}
+
+	// 请求完成处理：生成标题（限时同步执行）
+	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
+	defer cancel()
+
+	var cm ChatMessage
+	ccr.chunkIdx++
+	cm.ConversationID = ccr.cs.GetID()
+	cm.FinishReason = string(res.finish)
+
+	history, err := ccr.cs.ListHistory(ctx)
+	if err == nil && len(history) > 0 {
+		title, err := stores.GetHistorySummary(ctx, history, "")
+		if err == nil {
+			cm.Title = title
+		}
+	}
+
+	_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
+	w.(http.Flusher).Flush()
+
+	// 发送完成事件（最后）
+	ccr.chunkIdx++
+	w.Write([]byte(esDone)) //nolint
+	w.(http.Flusher).Flush()
+	return res
 }
 
 // doChatStream 执行一次流式调用，返回累积的 answer 和 toolCalls
@@ -335,9 +363,6 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 	}
 
 	var cm ChatMessage
-	if !ccr.isSSE {
-		cm.ConversationID = ccr.cs.GetID()
-	}
 
 	var res ChatResponse
 	var lastWriteEmpty bool // 标记上一次是否写入了空消息
@@ -354,42 +379,35 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
 		}
 
-		if ccr.isSSE {
-			if result.Done {
-				ccr.chunkIdx++
-				cm.ConversationID = ccr.cs.GetID()
-				cm.FinishReason = string(result.FinishReason)
-				_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
-			} else {
-				// 判断当前是否为空消息
-				isEmpty := result.Delta == "" && len(cm.ToolCalls) == 0
-				if !isEmpty || !lastWriteEmpty {
-					// 有内容，或者上一次不是空的，则输出
-					ccr.chunkIdx++
-					if wrote := writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
-						break
-					}
-					lastWriteEmpty = isEmpty
-				}
-				// 如果当前是空的且上一次也是空的，跳过（连续空消息只保留第一个）
-			}
+		if result.Done {
+			logger().Infow("result done", "finish", result.FinishReason)
+			res.finish = result.FinishReason
+			// ccr.chunkIdx++
+			// cm.ConversationID = ccr.cs.GetID()
+			// cm.FinishReason = string(result.FinishReason)
+			// _ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
 		} else {
-			ccr.chunkIdx++
-			cm.Text += result.Delta
-			if err = json.NewEncoder(w).Encode(&cm); err != nil {
-				logger().Infow("json encode fail", "err", err)
-				break
+			// 判断当前是否为空消息
+			isEmpty := result.Delta == "" && len(cm.ToolCalls) == 0
+			if !isEmpty || !lastWriteEmpty {
+				// 有内容，或者上一次不是空的，则输出
+				ccr.chunkIdx++
+				if wrote := writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm); !wrote {
+					break
+				}
+				lastWriteEmpty = isEmpty
 			}
+			// 如果当前是空的且上一次也是空的，跳过（连续空消息只保留第一个）
 		}
 		w.(http.Flusher).Flush()
 
-		if result.Done {
+		if result.Done { // 只使用最后拼接的完整信息
 			res.toolCalls = result.ToolCalls
 			break
 		}
 	}
-	logger().Infow("llm stream done", "answer", len(res.answer),
-		"ahead", res.answer[0:min(32, len(res.answer))])
+	logger().Infow("chat stream done", "finish", res.finish, "answer", len(res.answer),
+		"ahead", cutTxt(res.answer, 20))
 	return res
 }
 
@@ -527,7 +545,7 @@ func (a *api) patchConversationTitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 调用 GetSummary 生成标题
+	// 调用 GetHistorySummary 生成标题
 	summary, err := stores.GetHistorySummary(r.Context(), history, "")
 	if err != nil {
 		fail(w, r, 500, err)

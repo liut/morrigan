@@ -60,10 +60,18 @@ type ChatMessage struct {
 	FinishReason string `json:"finishReason,omitempty"`
 
 	ConversationID string `json:"csid,omitempty"`
+
+	Title string `json:"title,omitempty"`
 }
 
 type ChatResponse struct {
 	answer    string
 	toolCalls []llm.ToolCall
 	usage     *llm.Usage
+	finish    llm.FinishReason
+}
+
+func cutTxt(s string, n int) string {
+	runes := []rune(s)
+	return string(runes[0:min(n, len(runes))])
 }
