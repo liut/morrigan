@@ -169,20 +169,24 @@ func (s *conversation) getKey() string {
 }
 
 func LoadPreset() (doc aigc.Preset, err error) {
-	if len(settings.Current.PresetFile) > 0 {
-		var yf *os.File
-		yf, err = os.Open(settings.Current.PresetFile)
-		if err != nil {
-			logger().Infow("load preset fail", "file", settings.Current.PresetFile, "err", err)
-			return
-		}
-		defer yf.Close()
-		err = yaml.NewDecoder(yf).Decode(&doc)
-		if err != nil {
-			logger().Infow("decode preset fail", "err", err)
-			return
-		}
+	if len(settings.Current.PresetFile) == 0 {
+		logger().Infow("preset file is not set")
+		return
 	}
+
+	var yf *os.File
+	yf, err = os.Open(settings.Current.PresetFile)
+	if err != nil {
+		logger().Infow("load preset fail", "file", settings.Current.PresetFile, "err", err)
+		return
+	}
+	defer yf.Close()
+	err = yaml.NewDecoder(yf).Decode(&doc)
+	if err != nil {
+		logger().Infow("decode preset fail", "err", err)
+		return
+	}
+	logger().Debugw("loaded preset", "name", settings.Current.PresetFile, "doc", doc)
 
 	return
 }

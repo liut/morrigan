@@ -73,5 +73,5 @@ type ChatResponse struct {
 }
 
 func cutTxt(s string, n int, opts ...string) string {
-	return textutil.TakeHead(s, n, opts...)
+	return words.TakeHead(s, n, opts...)
 }

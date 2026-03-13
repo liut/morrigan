@@ -141,5 +141,5 @@ func (z *HistoryItem) previewText(n int) string {
 			text = "A: " + z.ChatItem.Assistant
 		}
 	}
-	return textutil.TakeHead(text, n, "...")
+	return words.TakeHead(text, n, "...")
 }

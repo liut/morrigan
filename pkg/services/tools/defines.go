@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 const (
@@ -99,10 +100,10 @@ func formatValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		maxLen := len(val)
-		if maxLen > 30 {
-			maxLen = 30
+		if maxLen > 50 {
+			maxLen = 50
 		}
-		return val[:maxLen]
+		return words.TakeHead(val, maxLen, "..")
 	case []any:
 		if len(val) == 0 {
 			return ""

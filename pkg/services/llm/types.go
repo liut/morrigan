@@ -178,7 +178,7 @@ func (z *Message) previewText(n int) string {
 		text = fmt.Sprintf("[len=%d]", len(text))
 	}
 
-	return textutil.TakeHead(prefix+text, n, "...")
+	return words.TakeHead(prefix+text, n, "...")
 }
 
 // ToolLogs 是 []ToolDefinition 的自定义类型，用于日志输出

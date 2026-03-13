@@ -327,8 +327,6 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 			break
 		}
 
-		// 清除工具定义，避免死循环
-		ccr.tools = nil
 	}
 
 	if len(res.answer) > 0 {
@@ -375,12 +373,12 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		return ChatResponse{}
 	}
 
-	var cm ChatMessage
-
 	var res ChatResponse
 	var lastWriteEmpty bool // 标记上一次是否写入了空消息
 
 	for result := range stream {
+		var cm ChatMessage
+
 		if result.Error != nil {
 			logger().Infow("stream error", "err", result.Error)
 			break
@@ -607,7 +605,7 @@ func formatToolResult(result map[string]any) string {
 	if result == nil {
 		return ""
 	}
-	logger().Debugw("formatToolResult", "result", result)
+	// logger().Debugw("formatToolResult", "result", result)
 	// 优先提取 content 数组中的 text
 	if content, ok := result["content"].([]any); ok {
 		for _, c := range content {

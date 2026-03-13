@@ -1,4 +1,4 @@
-package textutil
+package words
 
 // TakeHead 按 rune（字符）取字符串前 n 个字符，避免截断 UTF-8 多字节字符
 // ellipsis 指定省略号内容，如 "..."、"…"，为空时不添加省略号
