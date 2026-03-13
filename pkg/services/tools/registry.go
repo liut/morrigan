@@ -142,6 +142,28 @@ func (r *Registry) initTools(sto stores.Storage) {
 	logger().Debugw("init tools", "tools", r.tools, "priv", len(r.privTools))
 }
 
+// ApplyToolDescriptions 应用 preset 中的自定义工具描述
+// descriptions: toolName -> description
+func (r *Registry) ApplyToolDescriptions(descriptions map[string]string) {
+	if len(descriptions) == 0 {
+		return
+	}
+
+	// 更新内置工具描述
+	for i := range r.tools {
+		if desc, ok := descriptions[r.tools[i].Name]; ok && len(desc) > len(r.tools[i].Name) {
+			r.tools[i].Description = desc
+		}
+	}
+	for i := range r.privTools {
+		if desc, ok := descriptions[r.privTools[i].Name]; ok && len(desc) > len(r.privTools[i].Name) {
+			r.privTools[i].Description = desc
+		}
+	}
+
+	logger().Infow("applied custom tool descriptions", "count", len(descriptions))
+}
+
 // ToolsFor 返回适合当前上下文的工具列表
 // 如果用户有 keeper 角色，返回所有工具；否则只返回公开工具
 func (r *Registry) ToolsFor(ctx context.Context) []mcps.ToolDescriptor {

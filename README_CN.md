@@ -144,22 +144,27 @@ forego run go run . web
 ### 准备 YAML 预设数据文件
 
 ```yaml
+# 简单配置
+welcome: "你好，我是你的虚拟助手。有什么可以帮助你的吗？"
+systemPrompt: "你是一个有帮助的助手。"
+toolsPrompt: "根据用户问题选择合适的工具并调用来解决问题。"
 
-welcome:
-  content: 你好，我是你的虚拟助手。有什么可以帮助你的吗？
-  role: assistant
-
-messages:
-  - content: 你是一个有用的助手。
-    role: system
-  - content: 我的生日是什么时候？
-    role: user
-  - content: 我怎么会知道？
-    role: assistant
-
- # 更多消息
-
+# 或配置自定义工具描述
+welcome: "你好，我是你的虚拟助手。有什么可以帮助你的吗？"
+systemPrompt: "你是一个有帮助的助手。"
+toolsPrompt: "根据用户问题选择合适的工具并调用来解决问题。"
+tools:
+  kb_search: "在知识库中搜索相关内容。当遇到未知或不确定的问题时，优先查阅知识库。"
+  kb_create: "创建新的知识库文档，所有参数必填。注意：除非用户明确要求补充内容，否则不要调用。"
+  fetch: "从互联网获取 URL 内容并可选地提取为 markdown 格式"
 ```
+
+- `welcome`: 显示给用户的欢迎消息
+- `systemPrompt`: AI 对话的系统提示
+- `toolsPrompt`: 工具使用说明（当 MCP 工具可用时使用）
+- `tools`: 自定义工具描述（可选，覆盖内置默认值）
+
+完整示例请参考 [data/preset.yaml](./data/preset.yaml)
 
 ### 准备数据库
 

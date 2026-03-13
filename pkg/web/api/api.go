@@ -75,6 +75,7 @@ func newapi(sto stores.Storage) *api {
 		)
 	}
 	toolreg := tools.NewRegistry(sto, opts...)
+	toolreg.ApplyToolDescriptions(preset.Tools)
 
 	// 加载已激活的 MCP Servers
 	if err := toolreg.LoadServers(context.Background(), sto); err != nil {
