@@ -164,7 +164,7 @@ tools:
 - `toolsPrompt`: Instructions for tool usage (used when MCP tools are available)
 - `tools`: Custom tool descriptions (optional, overrides built-in defaults)
 
-See [data/preset.yaml](./data/preset.yaml) for a complete example.
+See [data/preset.example.yaml](./data/preset.example.yaml) for a complete example.
 
 ### Prepare database
 

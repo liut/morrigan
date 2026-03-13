@@ -1,7 +1,0 @@
-  welcome: "你好，我是你的 AI 助手"
-  systemPrompt: "你是一个有帮助的助手"
-  toolsPrompt: "使用工具时注意..."
-  tools:
-    kb_search: "在知识库中搜索相关内容"
-    kb_create: "创建新的知识库文档"
-    fetch: "获取网页内容"

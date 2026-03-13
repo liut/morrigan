@@ -146,13 +146,13 @@ forego run go run . web
 ```yaml
 # 简单配置
 welcome: "你好，我是你的虚拟助手。有什么可以帮助你的吗？"
-systemPrompt: "你是一个有帮助的助手。"
+systemPrompt: "你是一位有用的助手。"
 toolsPrompt: "根据用户问题选择合适的工具并调用来解决问题。"
 
 # 或配置自定义工具描述
 welcome: "你好，我是你的虚拟助手。有什么可以帮助你的吗？"
-systemPrompt: "你是一个有帮助的助手。"
-toolsPrompt: "根据用户问题选择合适的工具并调用来解决问题。"
+systemPrompt: "你是一位有用的助手。"
+toolsPrompt: "根据用户的问题选择合适的工具，区分读写操作，提取必要参数进行调用，使用中文关键词进行搜索，必要时翻译英文内容。"
 tools:
   kb_search: "在知识库中搜索相关内容。当遇到未知或不确定的问题时，优先查阅知识库。"
   kb_create: "创建新的知识库文档，所有参数必填。注意：除非用户明确要求补充内容，否则不要调用。"
@@ -164,7 +164,7 @@ tools:
 - `toolsPrompt`: 工具使用说明（当 MCP 工具可用时使用）
 - `tools`: 自定义工具描述（可选，覆盖内置默认值）
 
-完整示例请参考 [data/preset.yaml](./data/preset.yaml)
+完整示例请参考 [data/preset.example.yaml](./data/preset.example.yaml)
 
 ### 准备数据库
 

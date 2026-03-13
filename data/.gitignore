@@ -1,3 +1,4 @@
 *.yaml
 *.csv
 *.jsonl
+!*.example.yaml
