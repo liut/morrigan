@@ -50,6 +50,9 @@ type Config struct {
 	// 相似度匹配数量
 	VectorLimit int `envconfig:"Vector_Limit" default:"5"`
 
+	// LLM调用循环次数限制，防止无限循环
+	MaxLoopIterations int `envconfig:"MAX_LOOP_ITERATIONS" default:"5"`
+
 	Embedding Provider
 	Interact  Provider
 	Summarize Provider

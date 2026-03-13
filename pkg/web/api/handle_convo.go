@@ -283,12 +283,22 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 	w.Header().Add("Conversation-ID", ccr.cs.GetID())
 
 	var iter int
+	maxLoopIterations := settings.Current.MaxLoopIterations
+	if maxLoopIterations <= 0 {
+		maxLoopIterations = 5
+	}
 	for {
 		iter++
+		// 达到迭代次数限制，跳出循环
+		if iter > maxLoopIterations {
+			logger().Infow("chat loop iteration limit reached", "maxIter", maxLoopIterations)
+			break
+		}
+
 		// 调用流式响应处理
 		streamRes := a.doChatStream(ccr, w, r)
-		logger().Infow("stream round done", "iter", iter, "answer_len", len(streamRes.answer),
-			"toolCalls_len", len(streamRes.toolCalls))
+		logger().Infow("stream round done", "iter", iter, "maxIter", maxLoopIterations,
+			"answer_len", len(streamRes.answer), "toolCalls_len", len(streamRes.toolCalls))
 
 		// 累积答案
 		res.answer += streamRes.answer
