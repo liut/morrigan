@@ -18,7 +18,7 @@ var (
 	// kbSearchDescriptor 知识库搜索工具描述
 	kbSearchDescriptor = mcps.ToolDescriptor{
 		Name:        ToolNameKBSearch,
-		Description: "Search documents in knowledge base with keywords or subject",
+		Description: "Search documents in knowledge base with subject. \nWhen faced with unknown or uncertain issues, prioritize consulting the knowledge base.",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

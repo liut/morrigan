@@ -480,17 +480,13 @@ func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, 
 // @Success 200 {object} Done{result=aigc.Message}
 // @Router /api/welcome [get]
 func (a *api) getWelcome(w http.ResponseWriter, r *http.Request) {
-	msg := new(aigc.Message)
-
-	if a.preset.Welcome != nil {
-		msg.Content = a.preset.Welcome.Content
-	} else {
-		msg.Content = welcomeText
+	content := a.preset.Welcome
+	if content == "" {
+		content = welcomeText
 	}
 
 	cs := stores.NewConversation(r.Context(), "")
-	msg.ID = cs.GetID()
-	apiOk(w, r, msg)
+	apiOk(w, r, M{"id": cs.GetID(), "content": content})
 }
 
 // SummaryRequest 摘要请求

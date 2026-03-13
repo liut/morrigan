@@ -62,10 +62,7 @@ func strap(r chi.Router) {
 }
 
 func newapi(sto stores.Storage) *api {
-	preset, err := stores.LoadPreset()
-	if err == nil {
-		logger().Infow("loaded preset", "mcps", len(preset.MCPServers))
-	}
+	preset, _ := stores.LoadPreset()
 
 	// 初始化 OAuth MCP 配置
 	var opts = []tools.RegistryOption{
