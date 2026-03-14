@@ -366,3 +366,93 @@ func (in *UserSet) MetaAddKVs(args ...any) *UserSet {
 	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
 	return in
 }
+
+// consts of Memory 记忆
+const (
+	MemoryTable = "convo_memory"
+	MemoryAlias = "mm"
+	MemoryLabel = "memory"
+	MemoryTypID = "convoMemory"
+)
+
+// Memory 记忆
+type Memory struct {
+	comm.BaseModel `bun:"table:convo_memory,alias:mm" json:"-"`
+
+	comm.DefaultModel
+
+	MemoryBasic
+
+	comm.MetaField
+} // @name convoMemory
+
+type MemoryBasic struct {
+	// 所有人编号
+	OwnerID oid.OID `bun:"owner_id,notnull,type:bigint,unique:mm_key_uid_key" extensions:"x-order=A" json:"ownerID" pg:"owner_id,notnull,type:bigint,unique:mm_key_uid_key" swaggertype:"string"`
+	// 关键点
+	Key string `bun:",notnull,type:text,unique:mm_key_uid_key" extensions:"x-order=B" form:"key" json:"key" pg:",notnull,type:text,unique:mm_key_uid_key"`
+	// 分类
+	Cate string `bun:",notnull,type:text" extensions:"x-order=C" form:"cate" json:"cate" pg:",notnull,type:text"`
+	// 内容
+	Content string `bun:",notnull,type:text" extensions:"x-order=D" form:"content" json:"content" pg:",notnull,type:text"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
+} // @name convoMemoryBasic
+
+type Memories []Memory
+
+// Creating function call to it's inner fields defined hooks
+func (z *Memory) Creating() error {
+	if z.IsZeroID() {
+		z.SetID(oid.NewID(oid.OtEvent))
+	}
+
+	return z.DefaultModel.Creating()
+}
+func NewMemoryWithBasic(in MemoryBasic) *Memory {
+	obj := &Memory{
+		MemoryBasic: in,
+	}
+	_ = obj.MetaUp(in.MetaDiff)
+	return obj
+}
+func NewMemoryWithID(id any) *Memory {
+	obj := new(Memory)
+	_ = obj.SetID(id)
+	return obj
+}
+func (_ *Memory) IdentityLabel() string { return MemoryLabel }
+func (_ *Memory) IdentityModel() string { return MemoryTypID }
+func (_ *Memory) IdentityTable() string { return MemoryTable }
+func (_ *Memory) IdentityAlias() string { return MemoryAlias }
+
+type MemorySet struct {
+	// 分类
+	Cate *string `extensions:"x-order=A" json:"cate"`
+	// 内容
+	Content *string `extensions:"x-order=B" json:"content"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
+} // @name convoMemorySet
+
+func (z *Memory) SetWith(o MemorySet) {
+	if o.Cate != nil && z.Cate != *o.Cate {
+		z.LogChangeValue("cate", z.Cate, o.Cate)
+		z.Cate = *o.Cate
+	}
+	if o.Content != nil && z.Content != *o.Content {
+		z.LogChangeValue("content", z.Content, o.Content)
+		z.Content = *o.Content
+	}
+	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
+		z.SetChange("meta")
+	}
+}
+func (in *MemoryBasic) MetaAddKVs(args ...any) *MemoryBasic {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+func (in *MemorySet) MetaAddKVs(args ...any) *MemorySet {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}

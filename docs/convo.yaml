@@ -121,13 +121,50 @@ models:
     specNs: convo
     export1: true
 
+
+  - name: Memory
+    comment: '记忆'
+    tableTag: 'convo_memory,alias:mm'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 所有人编号
+        name: OwnerID
+        type: oid.OID
+        tags: {json: 'ownerID', pg: 'owner_id,notnull,type:bigint,unique:mm_key_uid_key'}
+        basic: true
+        query: equal
+      - comment: 关键点
+        name: Key
+        type: string
+        tags: {json: 'key', pg: ',notnull,type:text,unique:mm_key_uid_key'}
+        basic: true
+        query: 'match'
+      - comment: 分类
+        name: Cate
+        type: string
+        tags: {json: 'cate', pg: ',notnull,type:text'}
+        isset: true
+        query: 'match'
+      - comment: 内容
+        name: Content
+        type: string
+        tags: {json: 'content', pg: ',notnull,type:text'}
+        isset: true
+      - type: comm.MetaField
+    oidcat: event
+    specNs: convo
+    hooks:
+      afterCreated: yes
+
+
 stores:
   - name: convoStore
     embed: ConvoStoreX
     hods:
-      - { name: Session, type: LGCUD }
-      - { name: Message, type: LGCD }
-      - { name: User, type: LGD }
+      - { name: Session, type: LGUD }
+      - { name: Message, type: LGD }
+      - { name: User, type: LGD, export: G }
+      - { name: Memory, type: LGCUD }
 
 
 webcode: chi

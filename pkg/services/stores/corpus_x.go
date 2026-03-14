@@ -32,7 +32,7 @@ var (
 
 // MatchSpec defines the document matching specification
 type MatchSpec struct {
-	Question     string
+	Query        string
 	Threshold    float32
 	Limit        int
 	SkipKeywords bool
@@ -74,7 +74,7 @@ func validHead(rec []string) bool {
 type CobStoreX interface {
 	ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error
 	ExportDocs(ctx context.Context, ea ExportArg) error
-	EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error
+	SyncEmbeddingDocments(ctx context.Context, spec *CobDocumentSpec) error
 	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error)
 	MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error)
@@ -228,7 +228,7 @@ func (s *corpuStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt 
 	}
 
 	prompt = fmt.Sprintf("%s\n\n%s %s\n%s",
-		strings.Join(sections, ""), corpus.PrefixQ, ms.Question, corpus.PrefixA)
+		strings.Join(sections, ""), corpus.PrefixQ, ms.Query, corpus.PrefixA)
 
 	return
 }
@@ -238,9 +238,9 @@ func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corp
 	ms.setDefaults()
 	var subject string
 	if ms.SkipKeywords {
-		subject = ms.Question
+		subject = ms.Query
 	} else {
-		subject, err = GetKeywords(ctx, ms.Question)
+		subject, err = GetKeywords(ctx, ms.Query)
 		if err != nil {
 			return
 		}
@@ -334,8 +334,8 @@ func documentsToCSV(data corpus.Documents, w io.Writer) error {
 	return cw.Error()
 }
 
-// EmbeddingDocVector generates vectors for documents
-func (s *corpuStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error {
+// SyncEmbeddingDocments generates vectors for documents
+func (s *corpuStore) SyncEmbeddingDocments(ctx context.Context, spec *CobDocumentSpec) error {
 	data, _, err := s.ListDocument(ctx, spec)
 	if err != nil {
 		return err
@@ -391,7 +391,7 @@ func (s *corpuStore) InvokerForSearch() mcps.Invoker {
 		}
 
 		docs, err := s.MatchDocments(ctx, MatchSpec{
-			Question:     subject,
+			Query:        subject,
 			Limit:        5,
 			SkipKeywords: true,
 		})

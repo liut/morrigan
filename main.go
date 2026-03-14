@@ -82,11 +82,22 @@ func exportDocs(cc *cli.Context) error {
 
 func embeddingDocVector(cc *cli.Context) error {
 	ctx := context.Background()
+	target := cc.String("target")
 	spec := &stores.CobDocumentSpec{}
 	spec.Limit = 90
 	spec.Sort = "id"
-	return stores.Sgt().KB().EmbeddingDocVector(ctx, spec)
-	// return nil
+
+	switch target {
+	case "doc":
+		return stores.Sgt().Cob().SyncEmbeddingDocments(ctx, spec)
+	case "mem":
+		memSpec := &stores.ConvoMemorySpec{}
+		memSpec.Limit = 90
+		memSpec.Sort = "id"
+		return stores.Sgt().Convo().SyncEmbeddingMemories(ctx, memSpec)
+	default:
+		return fmt.Errorf("unsupported target: %s (supported: doc, mem)", target)
+	}
 }
 
 func agent(cc *cli.Context) error {
@@ -196,6 +207,9 @@ func main() {
 				Usage:   "read prompt documents and embedding",
 				Aliases: []string{"embedding-doc-vec"},
 				Action:  embeddingDocVector,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "target", Aliases: []string{"t"}, Value: "doc", Usage: "target to embed: doc|mem"},
+				},
 			},
 			{
 				Name:    "agent",

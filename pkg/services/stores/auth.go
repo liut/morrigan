@@ -39,6 +39,12 @@ type ModelMetaCreator interface {
 	comm.ModelCreator
 }
 
+type ModelMetaOwner interface {
+	ModelMeta
+	comm.ModelCreator
+	comm.ModelOwner
+}
+
 // OpModelCreator gets model creator information from context
 func OpModelCreator(ctx context.Context, obj comm.ModelCreator) (id oid.OID, name string) {
 	if user, ok := UserFromContext(ctx); ok {
@@ -69,6 +75,25 @@ func DbOpModelMetaCreator(ctx context.Context, db ormDB, obj ModelMetaCreator) (
 	return
 }
 
+func DbOpModelMetaOwner(ctx context.Context, db ormDB, obj ModelMetaOwner) (err error) {
+	ownID := obj.GetOwnerID()
+	if !ownID.Valid() {
+		return
+	}
+	if _, cat, _ := ownID.Split(); cat != oid.OtAccount {
+		logger().Infow("not account", "ownID", ownID)
+		return
+	}
+	return opModelMetaSet(ctx, obj, field.MetaOwner, obj.GetOwnerID(), func(ctx context.Context, id oid.OID) (any, error) {
+		user := new(ConvoUser)
+		err := dbGetWithPKID(ctx, db, user, id)
+		if err != nil {
+			return "", err
+		}
+		return user.Nickname, nil
+	})
+}
+
 // dbModelMetaUps updates model metadata before and after database operations
 func dbModelMetaUps(ctx context.Context, db ormDB, obj Model) {
 	if v, ok := obj.(ModelMetaCreator); ok {
@@ -76,4 +101,9 @@ func dbModelMetaUps(ctx context.Context, db ormDB, obj Model) {
 	} else if v, ok := obj.(comm.ModelCreator); ok {
 		_, _ = OpModelCreator(ctx, v)
 	}
+
+	if v, ok := obj.(ModelMetaOwner); ok {
+		_ = DbOpModelMetaOwner(ctx, db, v)
+	}
+
 }

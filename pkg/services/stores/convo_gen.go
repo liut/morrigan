@@ -10,11 +10,12 @@ import (
 
 type ConvoUser = convo.User
 
+// type ConvoMemory = convo.Memory
 // type ConvoMessage = convo.Message
 // type ConvoSession = convo.Session
 
 func init() {
-	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.User)(nil))
+	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.User)(nil), (*convo.Memory)(nil))
 }
 
 type ConvoStore interface {
@@ -22,18 +23,22 @@ type ConvoStore interface {
 
 	ListSession(ctx context.Context, spec *ConvoSessionSpec) (data convo.Sessions, total int, err error)
 	GetSession(ctx context.Context, id string) (obj *convo.Session, err error)
-	CreateSession(ctx context.Context, in convo.SessionBasic) (obj *convo.Session, err error)
 	UpdateSession(ctx context.Context, id string, in convo.SessionSet) error
 	DeleteSession(ctx context.Context, id string) error
 
 	ListMessage(ctx context.Context, spec *ConvoMessageSpec) (data convo.Messages, total int, err error)
 	GetMessage(ctx context.Context, id string) (obj *convo.Message, err error)
-	CreateMessage(ctx context.Context, in convo.MessageBasic) (obj *convo.Message, err error)
 	DeleteMessage(ctx context.Context, id string) error
 
 	ListUser(ctx context.Context, spec *ConvoUserSpec) (data convo.Users, total int, err error)
 	GetUser(ctx context.Context, id string) (obj *convo.User, err error)
 	DeleteUser(ctx context.Context, id string) error
+
+	ListMemory(ctx context.Context, spec *ConvoMemorySpec) (data convo.Memories, total int, err error)
+	GetMemory(ctx context.Context, id string) (obj *convo.Memory, err error)
+	CreateMemory(ctx context.Context, in convo.MemoryBasic) (obj *convo.Memory, err error)
+	UpdateMemory(ctx context.Context, id string, in convo.MemorySet) error
+	DeleteMemory(ctx context.Context, id string) error
 }
 
 type ConvoSessionSpec struct {
@@ -98,6 +103,27 @@ func (spec *ConvoUserSpec) Sift(q *ormQuery) *ormQuery {
 	return q
 }
 
+type ConvoMemorySpec struct {
+	PageSpec
+	ModelSpec
+
+	// 所有人编号
+	OwnerID string `extensions:"x-order=A" form:"ownerID" json:"ownerID"`
+	// 关键点
+	Key string `extensions:"x-order=B" form:"key" json:"key"`
+	// 分类
+	Cate string `extensions:"x-order=C" form:"cate" json:"cate"`
+}
+
+func (spec *ConvoMemorySpec) Sift(q *ormQuery) *ormQuery {
+	q = spec.ModelSpec.Sift(q)
+	q, _ = siftOID(q, "owner_id", spec.OwnerID, false)
+	q, _ = siftMatch(q, "key", spec.Key, false)
+	q, _ = siftMatch(q, "cate", spec.Cate, false)
+
+	return q
+}
+
 type convoStore struct {
 	w *Wrap
 }
@@ -110,12 +136,6 @@ func (s *convoStore) GetSession(ctx context.Context, id string) (obj *convo.Sess
 	obj = new(convo.Session)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
-	return
-}
-func (s *convoStore) CreateSession(ctx context.Context, in convo.SessionBasic) (obj *convo.Session, err error) {
-	obj = convo.NewSessionWithBasic(in)
-	dbMetaUp(ctx, s.w.db, obj)
-	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
 func (s *convoStore) UpdateSession(ctx context.Context, id string, in convo.SessionSet) error {
@@ -143,12 +163,6 @@ func (s *convoStore) GetMessage(ctx context.Context, id string) (obj *convo.Mess
 
 	return
 }
-func (s *convoStore) CreateMessage(ctx context.Context, in convo.MessageBasic) (obj *convo.Message, err error) {
-	obj = convo.NewMessageWithBasic(in)
-	dbMetaUp(ctx, s.w.db, obj)
-	err = dbInsert(ctx, s.w.db, obj)
-	return
-}
 func (s *convoStore) DeleteMessage(ctx context.Context, id string) error {
 	obj := new(convo.Message)
 	return s.w.db.DeleteModel(ctx, obj, id)
@@ -159,14 +173,53 @@ func (s *convoStore) ListUser(ctx context.Context, spec *ConvoUserSpec) (data co
 	return
 }
 func (s *convoStore) GetUser(ctx context.Context, id string) (obj *convo.User, err error) {
-	obj = new(convo.User)
-	if err = dbGetWith(ctx, s.w.db, obj, "username", "ILIKE", id); err != nil && obj.SetID(id) {
-		err = dbGetWithPK(ctx, s.w.db, obj)
-	}
+	obj, err = GetUser(ctx, s.w.db, id)
 
 	return
 }
 func (s *convoStore) DeleteUser(ctx context.Context, id string) error {
 	obj := new(convo.User)
 	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
+func (s *convoStore) ListMemory(ctx context.Context, spec *ConvoMemorySpec) (data convo.Memories, total int, err error) {
+	total, err = s.w.db.ListModel(ctx, spec, &data)
+	return
+}
+func (s *convoStore) GetMemory(ctx context.Context, id string) (obj *convo.Memory, err error) {
+	obj = new(convo.Memory)
+	err = dbGetWithPKID(ctx, s.w.db, obj, id)
+
+	return
+}
+func (s *convoStore) CreateMemory(ctx context.Context, in convo.MemoryBasic) (obj *convo.Memory, err error) {
+	obj = convo.NewMemoryWithBasic(in)
+	dbMetaUp(ctx, s.w.db, obj)
+	err = dbInsert(ctx, s.w.db, obj)
+	if err == nil {
+		err = s.afterCreatedMemory(ctx, obj)
+	}
+	return
+}
+func (s *convoStore) UpdateMemory(ctx context.Context, id string, in convo.MemorySet) error {
+	exist := new(convo.Memory)
+	if err := dbGetWithPKID(ctx, s.w.db, exist, id); err != nil {
+		return err
+	}
+	exist.SetIsUpdate(true)
+	exist.SetWith(in)
+	dbMetaUp(ctx, s.w.db, exist)
+	return dbUpdate(ctx, s.w.db, exist)
+}
+func (s *convoStore) DeleteMemory(ctx context.Context, id string) error {
+	obj := new(convo.Memory)
+	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
+func GetUser(ctx context.Context, db ormDB, id string, cols ...string) (obj *convo.User, err error) {
+	obj = new(convo.User)
+	if err = dbGetWith(ctx, db, obj, "username", "ILIKE", id, cols...); err != nil && obj.SetID(id) {
+		err = dbGetWithPK(ctx, db, obj, cols...)
+	}
+	return
 }

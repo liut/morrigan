@@ -31,6 +31,7 @@ import (
 	"testing"
 
 	"github.com/cupogo/andvari/models/oid"
+	"github.com/liut/morign/pkg/models/convo"
 	"github.com/liut/morign/pkg/models/corpus"
 	"github.com/liut/morign/pkg/settings"
 )
@@ -192,7 +193,7 @@ func TestIntegration_ChatLogCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	// Create ChatLog
-	chatID := oid.OID(os.Getpid())
+	chatID := oid.NewID(oid.OtEvent)
 	log, err := sto.Cob().CreateChatLog(ctx, corpus.ChatLogBasic{
 		ChatID:   chatID,
 		Question: "What is Go?",
@@ -222,4 +223,85 @@ func TestIntegration_ChatLogCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteChatLog failed: %v", err)
 	}
+}
+
+func TestIntegration_MemoryCRUD(t *testing.T) {
+	sto := Sgt()
+	ctx := context.Background()
+
+	// 使用测试用户 ID
+	testOwnerID := oid.NewID(oid.OtEvent)
+	testKey := fmt.Sprintf("test-memory-key-%d", os.Getpid())
+
+	// Create Memory
+	mem, err := sto.Convo().CreateMemory(ctx, convo.MemoryBasic{
+		OwnerID: testOwnerID,
+		Key:     testKey,
+		Cate:    "core",
+		Content: "Test memory content",
+	})
+	if err != nil {
+		t.Fatalf("CreateMemory failed: %v", err)
+	}
+	if mem == nil {
+		t.Fatal("CreateMemory returned nil")
+	}
+
+	// Get Memory
+	found, err := sto.Convo().GetMemory(ctx, mem.ID.String())
+	if err != nil {
+		t.Fatalf("GetMemory failed: %v", err)
+	}
+	if found == nil {
+		t.Fatal("GetMemory returned nil")
+	}
+	if found.Key != testKey {
+		t.Errorf("expected key %q, got %q", testKey, found.Key)
+	}
+	if found.Content != "Test memory content" {
+		t.Errorf("expected content 'Test memory content', got %q", found.Content)
+	}
+
+	// Update Memory
+	newContent := "Updated memory content"
+	err = sto.Convo().UpdateMemory(ctx, mem.ID.String(), convo.MemorySet{
+		Content: &newContent,
+	})
+	if err != nil {
+		t.Fatalf("UpdateMemory failed: %v", err)
+	}
+
+	// Verify update
+	updated, err := sto.Convo().GetMemory(ctx, mem.ID.String())
+	if err != nil {
+		t.Fatalf("GetMemory after update failed: %v", err)
+	}
+	if updated.Content != newContent {
+		t.Errorf("expected content %q, got %q", newContent, updated.Content)
+	}
+
+	// Delete Memory
+	err = sto.Convo().DeleteMemory(ctx, mem.ID.String())
+	if err != nil {
+		t.Fatalf("DeleteMemory failed: %v", err)
+	}
+
+	// Verify deletion
+	deleted, err := sto.Convo().GetMemory(ctx, mem.ID.String())
+	if err == nil && deleted != nil {
+		t.Error("Memory should have been deleted")
+	}
+}
+
+func TestIntegration_ListMemories(t *testing.T) {
+	sto := Sgt()
+	ctx := context.Background()
+
+	spec := &ConvoMemorySpec{}
+	data, total, err := sto.Convo().ListMemory(ctx, spec)
+	if err != nil {
+		t.Fatalf("ListMemory failed: %v", err)
+	}
+
+	t.Logf("Total memories: %d, returned: %d", total, len(data))
 }
