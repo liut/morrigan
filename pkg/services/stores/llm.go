@@ -73,6 +73,7 @@ func GetLLMSummarizeClient() llm.Client {
 	return llmSu
 }
 
+// GetKeywords extracts keywords from text using LLM
 func GetKeywords(ctx context.Context, text string) (kw string, err error) {
 	if len(text) == 0 {
 		err = ErrEmptyParam

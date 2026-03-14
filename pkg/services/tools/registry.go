@@ -102,6 +102,7 @@ func (r *Registry) AddInvoker(name string, fn Invoker, desc string, inputSchema 
 	return nil
 }
 
+// Invoke 调用指定名称的工具
 func (r *Registry) Invoke(ctx context.Context, name string, params map[string]any) (map[string]any, error) {
 	if name == "" {
 		return mcps.BuildToolErrorResult("tool name is empty"), nil

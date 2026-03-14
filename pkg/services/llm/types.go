@@ -8,6 +8,7 @@ import (
 	"github.com/liut/morign/pkg/utils/words"
 )
 
+// FinishReason 聊天完成原因
 type FinishReason string
 
 const (
@@ -73,8 +74,10 @@ type FunctionDefinition struct {
 	Parameters  any    `json:"parameters,omitempty"`
 }
 
+// Tools 工具定义列表
 type Tools []ToolDefinition
 
+// Names 返回工具列表中的函数名
 func (z Tools) Names() []string {
 	out := make([]string, len(z))
 	for i := range z {

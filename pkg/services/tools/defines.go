@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	ToolNameKBSearch = "kb_search"
-	ToolNameKBCreate = "kb_create"
-	ToolNameFetch    = "fetch"
+	ToolNameKBSearch = "kb_search" // 知识库搜索工具
+	ToolNameKBCreate = "kb_create" // 知识库创建工具
+	ToolNameFetch    = "fetch"     // 网页抓取工具
 )
 
 // ToolDescriptor 变量定义

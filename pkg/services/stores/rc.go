@@ -9,6 +9,7 @@ import (
 	"github.com/liut/morign/pkg/settings"
 )
 
+// RedisClient is the Redis client type
 type RedisClient = redis.UniversalClient
 
 var (

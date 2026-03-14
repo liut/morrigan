@@ -7,11 +7,13 @@ import (
 	"github.com/liut/morign/pkg/utils/words"
 )
 
+// HistoryChatItem is a single message in chat history
 type HistoryChatItem struct {
 	User      string `json:"u"`
 	Assistant string `json:"a"`
 }
 
+// HistoryItem is a history record item with timestamp and chat content
 type HistoryItem struct {
 	Time int64 `json:"ts"`
 
@@ -21,6 +23,7 @@ type HistoryItem struct {
 	ChatItem *HistoryChatItem `json:"ci"`
 }
 
+// calcTokens calculates the token count for history record (approximate)
 func (z *HistoryItem) calcTokens() (c int) {
 	if z.ChatItem != nil {
 		// TODO: calculate tokens.
@@ -29,6 +32,7 @@ func (z *HistoryItem) calcTokens() (c int) {
 	return
 }
 
+// HistoryItems is a list of history records
 type HistoryItems []HistoryItem
 
 // ToText 将历史记录转换为纯文本格式
@@ -86,12 +90,19 @@ func (z *HistoryItems) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+// HiAscend is history records sorted by time in ascending order, for sort.Interface
 type HiAscend HistoryItems
 
+// Len returns the number of history records
 func (a HiAscend) Len() int           { return len(a) }
+
+// Swap swaps the positions of two history records
 func (a HiAscend) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// Less compares the time of two history records for ascending order
 func (a HiAscend) Less(i, j int) bool { return a[i].Time < a[j].Time }
 
+// RecentlyWithTokens returns the most recent history records with total tokens not exceeding size
 func (z HistoryItems) RecentlyWithTokens(size int) (ohi HistoryItems) {
 	var count int
 	// 从后向前遍历，直接获取最新的记录

@@ -34,7 +34,7 @@ func NewConversation(ctx context.Context, id any) Conversation {
 	return newConversation(ctx, id, SgtRC())
 }
 
-// newConversation 内部构造函数，支持注入 Redis 客户端（用于测试）
+// newConversation is internal constructor, supports injecting Redis client (for testing)
 func newConversation(ctx context.Context, id any, rc RedisClient) Conversation {
 	sto := Sgt()
 	cid := oid.Cast(id)
@@ -58,6 +58,7 @@ func newConversation(ctx context.Context, id any, rc RedisClient) Conversation {
 	}
 }
 
+// conversation is the conversation implementation using Redis for history storage
 type conversation struct {
 	id oid.OID
 	rc RedisClient
@@ -66,27 +67,31 @@ type conversation struct {
 	sto  Storage
 }
 
+// GetID returns the conversation ID
 func (s *conversation) GetID() string {
 	return s.id.String()
 }
 
+// GetOID returns the conversation OID
 func (s *conversation) GetOID() oid.OID {
 	return s.id
 }
 
+// SetTools sets the tool list for the conversation
 func (s *conversation) SetTools(names ...string) {
 	if len(names) > 0 {
 		s.sess.Tools = names
 	}
 }
 
-// 保存聊天会话
+// Save saves the conversation to the database
 func (s *conversation) Save(ctx context.Context) error {
 	count := s.CountHistory(ctx)
 	s.sess.MessageCount = count
 	return s.sto.Convo().SaveSession(ctx, s.sess)
 }
 
+// CountHistory returns the number of history records
 func (s *conversation) CountHistory(ctx context.Context) int {
 	key := s.getKey()
 	n, err := s.rc.LLen(ctx, key).Result()
@@ -99,6 +104,7 @@ func (s *conversation) CountHistory(ctx context.Context) int {
 
 // TODO: AddMessages()
 
+// AddHistory adds a history record
 func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) error {
 	key := s.getKey()
 
@@ -139,7 +145,7 @@ func (s *conversation) AddHistory(ctx context.Context, item *aigc.HistoryItem) e
 	return nil
 }
 
-// getLastUserMessage 获取列表中最后一条消息
+// getLastUserMessage gets the last user message from the list
 func (s *conversation) getLastUserMessage(ctx context.Context) (*aigc.HistoryItem, error) {
 	key := s.getKey()
 	b, err := s.rc.LIndex(ctx, key, -1).Bytes()
@@ -153,6 +159,7 @@ func (s *conversation) getLastUserMessage(ctx context.Context) (*aigc.HistoryIte
 	return &item, nil
 }
 
+// ListHistory returns the history record list
 func (s *conversation) ListHistory(ctx context.Context) (data aigc.HistoryItems, err error) {
 	key := s.getKey()
 	ss := s.rc.LRange(ctx, key, 0, -1)
@@ -160,14 +167,17 @@ func (s *conversation) ListHistory(ctx context.Context) (data aigc.HistoryItems,
 	return
 }
 
+// ClearHistory clears the history records
 func (s *conversation) ClearHistory(ctx context.Context) error {
 	return s.rc.Del(ctx, s.getKey()).Err()
 }
 
+// getKey returns the Redis key for storing history records
 func (s *conversation) getKey() string {
 	return "convs-" + s.GetID()
 }
 
+// LoadPreset loads preset configuration from file
 func LoadPreset() (doc aigc.Preset, err error) {
 	if len(settings.Current.PresetFile) == 0 {
 		logger().Infow("preset file is not set")

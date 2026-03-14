@@ -13,11 +13,12 @@ import (
 
 type User = auth.User
 
+// UserFromContext gets user information from context
 func UserFromContext(ctx context.Context) (*User, bool) {
 	return auth.UserFromContext(ctx)
 }
 
-// IsKeeper 检查当前上下文中的用户是否具有 keeper 角色或 UID
+// IsKeeper checks if the user in the current context has keeper role or UID
 func IsKeeper(ctx context.Context) bool {
 	user, ok := UserFromContext(ctx)
 	if !ok {
@@ -32,11 +33,13 @@ func IsKeeper(ctx context.Context) bool {
 
 type ModelMeta = comm.ModelMeta
 
+// ModelMetaCreator is the model metadata creator interface
 type ModelMetaCreator interface {
 	ModelMeta
 	comm.ModelCreator
 }
 
+// OpModelCreator gets model creator information from context
 func OpModelCreator(ctx context.Context, obj comm.ModelCreator) (id oid.OID, name string) {
 	if user, ok := UserFromContext(ctx); ok {
 		if obj.GetCreatorID().IsZero() {
@@ -49,6 +52,7 @@ func OpModelCreator(ctx context.Context, obj comm.ModelCreator) (id oid.OID, nam
 	return obj.GetCreatorID(), ""
 }
 
+// DbOpModelMetaCreator sets model creator information in database operations
 func DbOpModelMetaCreator(ctx context.Context, db ormDB, obj ModelMetaCreator) (err error) {
 	id, name := OpModelCreator(ctx, obj)
 	if !id.Valid() {
@@ -65,6 +69,7 @@ func DbOpModelMetaCreator(ctx context.Context, db ormDB, obj ModelMetaCreator) (
 	return
 }
 
+// dbModelMetaUps updates model metadata before and after database operations
 func dbModelMetaUps(ctx context.Context, db ormDB, obj Model) {
 	if v, ok := obj.(ModelMetaCreator); ok {
 		_ = DbOpModelMetaCreator(ctx, db, v)

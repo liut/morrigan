@@ -8,10 +8,12 @@ import (
 	"github.com/cupogo/andvari/utils/array"
 )
 
+// GetSubject returns the document subject (title + heading)
 func (z *Document) GetSubject() string {
 	return fmt.Sprintf("%s %s", z.Title, z.Heading)
 }
 
+// IDs returns all document IDs in the document list
 func (z Documents) IDs() (out oid.OIDs) {
 	for _, doc := range z {
 		out = append(out, doc.ID)
@@ -19,6 +21,7 @@ func (z Documents) IDs() (out oid.OIDs) {
 	return
 }
 
+// MarkdownText converts document list to Markdown format text for LLM context
 func (z Documents) MarkdownText() string {
 	if len(z) == 0 {
 		return "No relevant information found in the knowledge base."
@@ -39,6 +42,7 @@ func (z Documents) MarkdownText() string {
 	return sb.String()
 }
 
+// Headings returns all document headings in the document list
 func (z Documents) Headings() []string {
 	headings := make([]string, len(z))
 	for i, doc := range z {
@@ -47,6 +51,7 @@ func (z Documents) Headings() []string {
 	return headings
 }
 
+// DocumentIDs returns deduplicated document IDs from the document match list
 func (z DocMatches) DocumentIDs() (out oid.OIDs) {
 	m := make(map[oid.OID]array.Empty)
 	for _, p := range z {
@@ -58,6 +63,7 @@ func (z DocMatches) DocumentIDs() (out oid.OIDs) {
 	return
 }
 
+// Subjects returns all document subjects from the document match list
 func (z DocMatches) Subjects() (out []string) {
 	out = make([]string, len(z))
 	for i := range z {

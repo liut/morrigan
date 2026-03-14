@@ -81,6 +81,7 @@ func (r *Registry) callFetch(ctx context.Context, args map[string]any) (map[stri
 
 var converter = htmd.NewConverter("", true, nil)
 
+// extractContentFromHTML extracts text from HTML and converts to Markdown
 func extractContentFromHTML(htmlContent, uri string) string {
 	parsedURL, _ := nurl.Parse(uri)
 	article, err := readeck.FromReader(strings.NewReader(htmlContent), parsedURL)
@@ -111,6 +112,7 @@ func extractContentFromHTML(htmlContent, uri string) string {
 	return markdown
 }
 
+// fetchURL fetches web page content, supports HTML to Markdown conversion
 func fetchURL(ctx context.Context, urlStr, userAgent string, raw bool) (content, prefix string, err error) {
 	client := &http.Client{
 		Timeout: 30 * time.Second,

@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Invoker is the tool invocation function type
 type Invoker func(ctx context.Context, params map[string]any) (map[string]any, error)
 
 // ToolDescriptor 是工具的描述符，用于 MCP 工具列表
@@ -65,6 +66,7 @@ func BuildToolErrorResult(message string) map[string]any {
 	}
 }
 
+// stringifyStructuredContent converts structured content to string
 func stringifyStructuredContent(v any) string {
 	if v == nil {
 		return ""

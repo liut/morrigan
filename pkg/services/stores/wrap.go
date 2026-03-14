@@ -144,10 +144,12 @@ func Sgt() *Wrap {
 	return stoW
 }
 
+// Close closes the database connection
 func (w *Wrap) Close() {
 	_ = w.db.Close()
 }
 
+// InitDB initializes database schema and runs migrations
 func InitDB(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()

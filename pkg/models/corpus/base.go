@@ -9,6 +9,7 @@ const (
 	PrefixA = "A:"
 )
 
+// Vector is the vector type for document embedding
 type Vector []float32
 
 // Pair 一对问答
@@ -17,8 +18,10 @@ type Pair struct {
 	Anwser   string `json:"A"`
 }
 
+// Pairs is a list of Q&A pairs
 type Pairs []Pair
 
+// ParseText parses text into a list of Q&A pairs, supports Q: and A: prefix format
 func ParseText(text string) (result Pairs) {
 	if len(text) < 2 {
 		return

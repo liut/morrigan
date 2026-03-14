@@ -30,6 +30,7 @@ var (
 	replText   = strings.NewReplacer("\u2028", "\n")
 )
 
+// MatchSpec defines the document matching specification
 type MatchSpec struct {
 	Question     string
 	Threshold    float32
@@ -37,6 +38,7 @@ type MatchSpec struct {
 	SkipKeywords bool
 }
 
+// setDefaults sets default threshold and limit
 func (ms *MatchSpec) setDefaults() {
 	if ms.Threshold == 0 {
 		ms.Threshold = settings.Current.VectorThreshold
@@ -46,12 +48,14 @@ func (ms *MatchSpec) setDefaults() {
 	}
 }
 
+// ExportArg is the arguments for document export
 type ExportArg struct {
 	Spec   *CobDocumentSpec
 	Out    io.Writer
 	Format string // csv,jsonl
 }
 
+// validHead validates if CSV header is valid
 func validHead(rec []string) bool {
 	if len(rec) < len(qaHeads) {
 		return false
@@ -66,6 +70,7 @@ func validHead(rec []string) bool {
 	return true
 }
 
+// CobStoreX is the knowledge base storage extension interface
 type CobStoreX interface {
 	ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error
 	ExportDocs(ctx context.Context, ea ExportArg) error
@@ -77,6 +82,7 @@ type CobStoreX interface {
 	InvokerForCreate() mcps.Invoker
 }
 
+// ImportDocs imports documents from CSV
 func (s *corpuStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error {
 	rd := csv.NewReader(r)
 	rec, err := rd.Read()
@@ -117,6 +123,7 @@ func (s *corpuStore) ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) 
 	}
 }
 
+// importLine imports a single line of document data
 func (s *corpuStore) importLine(ctx context.Context, basic corpus.DocumentBasic, lw io.Writer) error {
 	doc := new(corpus.Document)
 	basic.Content = replText.Replace(basic.Content)
@@ -146,6 +153,7 @@ func (s *corpuStore) importLine(ctx context.Context, basic corpus.DocumentBasic,
 	return nil
 }
 
+// diff2 calculates the difference between two texts
 func diff2(text1, text2 string) string {
 	diff := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(text1),
@@ -158,6 +166,7 @@ func diff2(text1, text2 string) string {
 	return text
 }
 
+// afterCreatedCobDocument generates vector after document creation
 func (s *corpuStore) afterCreatedCobDocument(ctx context.Context, obj *corpus.Document) error {
 	dvb := corpus.DocVectorBasic{
 		DocID:   obj.ID,
@@ -179,6 +188,7 @@ func (s *corpuStore) afterCreatedCobDocument(ctx context.Context, obj *corpus.Do
 	return nil
 }
 
+// GetEmbedding gets the vector representation of text
 func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err error) {
 	if len(text) == 0 {
 		err = ErrEmptyParam
@@ -204,6 +214,7 @@ func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err erro
 	return
 }
 
+// ConstructPrompt constructs prompt based on matching results
 func (s *corpuStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
 	var docs corpus.Documents
 	docs, err = s.MatchDocments(ctx, ms)
@@ -221,6 +232,8 @@ func (s *corpuStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt 
 
 	return
 }
+
+// MatchDocments matches documents
 func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error) {
 	ms.setDefaults()
 	var subject string
@@ -261,6 +274,7 @@ func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corp
 	return
 }
 
+// MatchVectorWith matches documents using vector
 func (s *corpuStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error) {
 	if len(vec) != corpus.VectorLen {
 		logger().Infow("mismatch length of vector", "a", len(vec), "b", corpus.VectorLen)
@@ -284,6 +298,7 @@ func (s *corpuStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, thr
 	return
 }
 
+// ExportDocs exports documents
 func (s *corpuStore) ExportDocs(ctx context.Context, ea ExportArg) error {
 	data, _, err := s.ListDocument(ctx, ea.Spec)
 	if err != nil {
@@ -298,6 +313,7 @@ func (s *corpuStore) ExportDocs(ctx context.Context, ea ExportArg) error {
 	return errors.New("invalid format: " + ea.Format)
 }
 
+// documentsToCSV exports document list to CSV format
 func documentsToCSV(data corpus.Documents, w io.Writer) error {
 
 	head := []string{"doc_id", "title", "heading", "content"}
@@ -318,6 +334,7 @@ func documentsToCSV(data corpus.Documents, w io.Writer) error {
 	return cw.Error()
 }
 
+// EmbeddingDocVector generates vectors for documents
 func (s *corpuStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSpec) error {
 	data, _, err := s.ListDocument(ctx, spec)
 	if err != nil {
@@ -354,6 +371,7 @@ func (s *corpuStore) EmbeddingDocVector(ctx context.Context, spec *CobDocumentSp
 	return nil
 }
 
+// dbAfterDeleteCobDocument cleans up related vector data after document deletion
 func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *corpus.Document) error {
 	_, err := dbBatchDeleteWithKeyID(ctx, db, corpus.DocVectorTable, "doc_id", obj.ID)
 	return err
