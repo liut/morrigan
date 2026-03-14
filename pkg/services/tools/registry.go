@@ -134,6 +134,15 @@ func (r *Registry) initTools(sto stores.Storage) {
 		// 受限工具：KBCreate (需要 keeper 角色)
 		r.privTools = append(r.privTools, kbCreateDescriptor)
 		r.invokers[ToolNameKBCreate] = sto.Cob().InvokerForCreate()
+
+		r.tools = append(r.tools,
+			memoryListDescriptor, memoryRecallDescriptor,
+			memoryStoreDescriptor, memoryForgetDescriptor,
+		)
+		r.invokers[ToolNameMemoryList] = sto.Convo().InvokerForMemoryList()
+		r.invokers[ToolNameMemoryRecall] = sto.Convo().InvokerForMemoryRecall()
+		r.invokers[ToolNameMemoryStore] = sto.Convo().InvokerForMemoryStore()
+		r.invokers[ToolNameMemoryForget] = sto.Convo().InvokerForMemoryForget()
 	}
 
 	// 公开工具：Fetch
@@ -470,7 +479,8 @@ func (r *Registry) AddServer(ctx context.Context, server *mcps.Server) error {
 func (r *Registry) checkToolNameConflict(name string) error {
 	// 检查是否与内置工具冲突
 	switch name {
-	case ToolNameKBSearch, ToolNameKBCreate, ToolNameFetch:
+	case ToolNameKBSearch, ToolNameKBCreate, ToolNameFetch,
+		ToolNameMemoryList, ToolNameMemoryRecall, ToolNameMemoryStore, ToolNameMemoryForget:
 		return fmt.Errorf("tool name %q conflicts with built-in tool", name)
 	}
 

@@ -72,6 +72,8 @@ var (
 	ContextWithRelation = pgx.ContextWithRelation
 	RelationFromContext = pgx.RelationFromContext
 
+	opModelMetaSet = pgx.OpModelMetaSet
+
 	RegisterModel = pgx.RegisterModel
 )
 

@@ -100,8 +100,8 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 		cs.SetTools(llm.Tools(tools).Names()...)
 	} else { // 没有工具，使用问答
 		docs, err := a.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
-			Question: param.Prompt,
-			Limit:    5,
+			Query: param.Prompt,
+			Limit: 5,
 		})
 		if err == nil {
 			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)

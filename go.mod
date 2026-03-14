@@ -17,6 +17,7 @@ require (
 	github.com/mark3labs/mcp-go v0.45.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/redis/go-redis/v9 v9.18.0
+	github.com/spf13/cast v1.7.1
 	github.com/stretchr/testify v1.11.1
 	github.com/ulule/limiter/v3 v3.11.2
 	github.com/urfave/cli/v2 v2.27.7
@@ -49,7 +50,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/spf13/cast v1.7.1 // indirect
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/uptrace/bun v1.2.16 // indirect

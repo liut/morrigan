@@ -12,6 +12,11 @@ const (
 	ToolNameKBSearch = "kb_search" // 知识库搜索工具
 	ToolNameKBCreate = "kb_create" // 知识库创建工具
 	ToolNameFetch    = "fetch"     // 网页抓取工具
+
+	ToolNameMemoryList   = "memory_list"   // 记忆列表工具
+	ToolNameMemoryRecall = "memory_recall" // 记忆召回工具
+	ToolNameMemoryStore  = "memory_store"  // 记忆存储工具
+	ToolNameMemoryForget = "memory_forget" // 记忆删除工具
 )
 
 // ToolDescriptor 变量定义
@@ -87,6 +92,101 @@ var (
 				},
 			},
 			"required": []string{"url"},
+		},
+	}
+
+	// memoryListDescriptor 记忆列表工具描述
+	memoryListDescriptor = mcps.ToolDescriptor{
+		Name:        ToolNameMemoryList,
+		Description: "List memory entries in recency order. Use for requests like 'show first N memory records' without shell/sqlite access.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"limit": map[string]any{
+					"type":        "integer",
+					"description": "Max entries to return (default: 5, max: 100)",
+					"default":     5,
+					"minimum":     1,
+					"maximum":     100,
+				},
+				"category": map[string]any{
+					"type":        "string",
+					"description": "Optional category filter (core|daily|conversation|custom)",
+				},
+				"session_id": map[string]any{
+					"type":        "string",
+					"description": "Optional session filter",
+				},
+				"include_content": map[string]any{
+					"type":        "boolean",
+					"description": "Include content preview (default: true)",
+					"default":     true,
+				},
+			},
+		},
+	}
+
+	// memoryRecallDescriptor 记忆召回工具描述
+	memoryRecallDescriptor = mcps.ToolDescriptor{
+		Name:        ToolNameMemoryRecall,
+		Description: "Search long-term memory for relevant facts, preferences, or context.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"query": map[string]any{
+					"type":        "string",
+					"description": "Keywords or phrase to search for in memory",
+				},
+				"limit": map[string]any{
+					"type":        "integer",
+					"description": "Max results to return (default: 5)",
+					"default":     5,
+					"minimum":     1,
+					"maximum":     100,
+				},
+			},
+			"required": []string{"query"},
+		},
+	}
+
+	// memoryStoreDescriptor 记忆存储工具描述
+	memoryStoreDescriptor = mcps.ToolDescriptor{
+		Name:        ToolNameMemoryStore,
+		Description: "Store durable user facts, preferences, and decisions in long-term memory. Use category 'core' for stable facts, 'daily' for session notes, 'conversation' for important context only. Do not store routine greetings or every chat message.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"key": map[string]any{
+					"type":        "string",
+					"description": "Unique key for this memory",
+				},
+				"content": map[string]any{
+					"type":        "string",
+					"description": "The information to remember",
+				},
+				"category": map[string]any{
+					"type":        "string",
+					"description": "Memory category",
+					"enum":        []string{"core", "daily", "conversation"},
+				},
+			},
+			"required": []string{"key", "content"},
+		},
+	}
+
+	// memoryForgetDescriptor 记忆删除工具描述
+	memoryForgetDescriptor = mcps.ToolDescriptor{
+		Name:        ToolNameMemoryForget,
+		Description: "Remove a memory by key. Use to delete outdated facts or sensitive data.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"key": map[string]any{
+					"type":        "string",
+					"description": "The key of the memory to forget",
+				},
+			},
+			"required": []string{"key"},
 		},
 	}
 )
