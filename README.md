@@ -216,22 +216,8 @@ Parameters:
 ./morign usage
 ```
 
-Example:
-
-```plan
-# Interact provider (chat)
-MORIGN_INTERACT_API_KEY=sk-xxx
-MORIGN_INTERACT_MODEL=gpt-4o-mini
-MORIGN_INTERACT_URL=https://api.openai.com/v1
-
-# Embedding provider (vector)
-MORIGN_EMBEDDING_API_KEY=sk-xxx
-MORIGN_EMBEDDING_MODEL=text-embedding-3-small
-
-# Summarize provider (optional)
-MORIGN_SUMMARIZE_API_KEY=sk-xxx
-MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
-
+```bash
+# HTTP server
 MORIGN_HTTP_LISTEN=:3002
 
 # optional preset data
@@ -322,7 +308,7 @@ MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
 Example:
 
 ```bash
-cd ../chatgpt-svelte
+cd ../Calisyn
 npm run build
 rsync -a --delete dist/* ../morign/htdocs/
 cd -

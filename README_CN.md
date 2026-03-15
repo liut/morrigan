@@ -215,22 +215,8 @@ GLOBAL OPTIONS:
 ./morign usage
 ```
 
-示例：
-
-```plan
-# Interact provider（对话）
-MORIGN_INTERACT_API_KEY=sk-xxx
-MORIGN_INTERACT_MODEL=gpt-4o-mini
-MORIGN_INTERACT_URL=https://api.openai.com/v1
-
-# Embedding provider（向量嵌入）
-MORIGN_EMBEDDING_API_KEY=sk-xxx
-MORIGN_EMBEDDING_MODEL=text-embedding-3-small
-
-# Summarize provider（可选）
-MORIGN_SUMMARIZE_API_KEY=sk-xxx
-MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
-
+```bash
+# HTTP 服务器
 MORIGN_HTTP_LISTEN=:3002
 
 # 可选：预设数据
@@ -319,7 +305,7 @@ MORIGN_SUMMARIZE_MODEL=gpt-4o-mini
 示例：
 
 ```bash
-cd ../chatgpt-svelte
+cd ../Calisyn
 npm run build
 rsync -a --delete dist/* ../morign/htdocs/
 cd -
