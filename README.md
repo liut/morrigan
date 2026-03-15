@@ -1,6 +1,6 @@
 # Morign
 
-Backend implementation of a knowledge base system for AI chat.
+AI chat backend with knowledge base Q&A, MCP tools, and OAuth authentication.
 
 ## Features
  - Import documents of knowledge base from a table (CSV), save them into PostgreSQL
@@ -26,7 +26,7 @@ Backend implementation of a knowledge base system for AI chat.
 </details>
 
 <details>
- <summary>calisyn based on Vue.js  ⤸</summary>
+ <summary>Calisyn based on Vue.js  ⤸</summary>
 
  ![calisyn](./docs/screen-web-s.png)
 
@@ -157,12 +157,17 @@ tools:
   kb_search: "Search documents in knowledge base with subject. When faced with unknown or uncertain issues, prioritize consulting the knowledge base."
   kb_create: "Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it."
   fetch: "Fetches a URL from the internet and optionally extracts its contents as markdown"
+  memory_list: "List all stored memories"
+  memory_recall: "Search memories by keyword"
+  memory_store: "Store a new memory"
+  memory_forget: "Delete a memory by key"
 ```
 
 - `welcome`: Welcome message displayed to users
 - `systemPrompt`: System prompt for AI conversation
 - `toolsPrompt`: Instructions for tool usage (used when MCP tools are available)
 - `tools`: Custom tool descriptions (optional, overrides built-in defaults)
+  Note: Memory tools (memory_*) are bound to and isolated by the logged-in user identity.
 
 See [data/preset.example.yaml](./data/preset.example.yaml) for a complete example.
 

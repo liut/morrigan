@@ -1,6 +1,6 @@
 # Morign
 
-AI 聊天应用知识库系统的后端实现。
+AI 聊天后端，集知识库问答、MCP 工具与 OAuth 认证于一体。
 
 ## 功能特性
 
@@ -157,12 +157,17 @@ tools:
   kb_search: "在知识库中搜索相关内容。当遇到未知或不确定的问题时，优先查阅知识库。"
   kb_create: "创建新的知识库文档，所有参数必填。注意：除非用户明确要求补充内容，否则不要调用。"
   fetch: "从互联网获取 URL 内容并可选地提取为 markdown 格式"
+  memory_list: "列出所有已存储的记忆"
+  memory_recall: "通过关键词搜索记忆"
+  memory_store: "存储新的记忆"
+  memory_forget: "根据 key 删除记忆"
 ```
 
 - `welcome`: 显示给用户的欢迎消息
 - `systemPrompt`: AI 对话的系统提示
 - `toolsPrompt`: 工具使用说明（当 MCP 工具可用时使用）
 - `tools`: 自定义工具描述（可选，覆盖内置默认值）
+  注意：记忆工具 (memory_*) 与登录身份绑定并隔离。
 
 完整示例请参考 [data/preset.example.yaml](./data/preset.example.yaml)
 

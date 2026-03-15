@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Morign 是一个基于 PostgreSQL + Redis 的知识库系统后端，用于 AI 聊天应用。
+Morign 是一个 AI 聊天后端，集知识库问答、MCP 工具与 OAuth 认证于一体。
 
 ### 核心功能
 
