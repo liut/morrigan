@@ -85,10 +85,9 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 		Content: systemPrompt,
 	})
 
-	var tools []llm.ToolDefinition
-	if len(a.toolreg.ToolsFor(ctx)) > 0 {
-		// 转换 MCP 工具为 LLM 工具定义
-		tools = convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
+	// 转换 MCP 工具为 LLM 工具定义
+	tools := convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
+	if len(tools) > 0 {
 		toolsPrompt := dftToolsMsg
 		if len(a.preset.ToolsPrompt) > 0 {
 			toolsPrompt = a.preset.ToolsPrompt
@@ -99,7 +98,7 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 		})
 		cs.SetTools(llm.Tools(tools).Names()...)
 	} else { // 没有工具，使用问答
-		docs, err := a.sto.Cob().MatchDocments(ctx, stores.MatchSpec{
+		docs, err := a.sto.Corpus().MatchDocments(ctx, stores.MatchSpec{
 			Query: param.Prompt,
 			Limit: 5,
 		})
@@ -214,7 +213,7 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 				if res.usage != nil {
 					in.MetaAddKVs("usage", res.usage)
 				}
-				_, err := stores.Sgt().Cob().CreateChatLog(r.Context(), in)
+				_, err := stores.Sgt().Corpus().CreateChatLog(r.Context(), in)
 				if err != nil {
 					logger().Infow("save chat log fail", "err", err)
 				}

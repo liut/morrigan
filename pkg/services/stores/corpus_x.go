@@ -26,8 +26,9 @@ var (
 
 	qaHeads = []string{"title", "heading", "content"}
 
-	replPrompt = strings.NewReplacer("\n", " ")
-	replText   = strings.NewReplacer("\u2028", "\n")
+	// replText converts Unicode line separator (U+2028) to regular newline
+	// This is needed because some Excel cells use U+2028 instead of \n
+	replText = strings.NewReplacer("\u2028", "\n")
 )
 
 // MatchSpec defines the document matching specification
@@ -70,12 +71,11 @@ func validHead(rec []string) bool {
 	return true
 }
 
-// CobStoreX is the knowledge base storage extension interface
-type CobStoreX interface {
+// CorpuStoreX is the knowledge base storage extension interface
+type CorpuStoreX interface {
 	ImportDocs(ctx context.Context, r io.Reader, lw io.Writer) error
 	ExportDocs(ctx context.Context, ea ExportArg) error
 	SyncEmbeddingDocments(ctx context.Context, spec *CobDocumentSpec) error
-	ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error)
 	MatchDocments(ctx context.Context, ms MatchSpec) (data corpus.Documents, err error)
 	MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data corpus.DocMatches, err error)
 	InvokerForSearch() mcps.Invoker
@@ -211,25 +211,6 @@ func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err erro
 	} else {
 		logger().Infow("embedding result is empty", "text", text)
 	}
-	return
-}
-
-// ConstructPrompt constructs prompt based on matching results
-func (s *corpuStore) ConstructPrompt(ctx context.Context, ms MatchSpec) (prompt string, err error) {
-	var docs corpus.Documents
-	docs, err = s.MatchDocments(ctx, ms)
-	if err != nil {
-		return
-	}
-	var sections []string
-	for _, doc := range docs {
-		text := fmt.Sprintf("%s%s: %s", Separator, doc.Heading, replPrompt.Replace(doc.Content))
-		sections = append(sections, text)
-	}
-
-	prompt = fmt.Sprintf("%s\n\n%s %s\n%s",
-		strings.Join(sections, ""), corpus.PrefixQ, ms.Query, corpus.PrefixA)
-
 	return
 }
 

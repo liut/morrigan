@@ -117,8 +117,9 @@ models:
     oidcat: event
 
 stores:
-  - name: cobStore
-    embed: CobStoreX
+  - name: corpuStore
+    embed: CorpuStoreX
+    siname: Corpus
     hods:
       - { name: Document, type: LGCUD }
       - { name: DocVector, type: GCD }

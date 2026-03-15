@@ -18,8 +18,8 @@ func init() {
 	RegisterModel((*corpus.Document)(nil), (*corpus.DocVector)(nil), (*corpus.ChatLog)(nil))
 }
 
-type CobStore interface {
-	CobStoreX
+type CorpuStore interface {
+	CorpuStoreX
 
 	ListDocument(ctx context.Context, spec *CobDocumentSpec) (data corpus.Documents, total int, err error)
 	GetDocument(ctx context.Context, id string) (obj *corpus.Document, err error)

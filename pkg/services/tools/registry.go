@@ -129,11 +129,11 @@ func (r *Registry) initTools(sto stores.Storage) {
 	if sto != nil {
 		// 公开工具：KBSearch
 		r.tools = append(r.tools, kbSearchDescriptor)
-		r.invokers[ToolNameKBSearch] = sto.Cob().InvokerForSearch()
+		r.invokers[ToolNameKBSearch] = sto.Corpus().InvokerForSearch()
 
 		// 受限工具：KBCreate (需要 keeper 角色)
 		r.privTools = append(r.privTools, kbCreateDescriptor)
-		r.invokers[ToolNameKBCreate] = sto.Cob().InvokerForCreate()
+		r.invokers[ToolNameKBCreate] = sto.Corpus().InvokerForCreate()
 
 		r.tools = append(r.tools,
 			memoryListDescriptor, memoryRecallDescriptor,

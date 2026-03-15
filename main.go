@@ -52,7 +52,7 @@ func importDocs(cc *cli.Context) error {
 	} else {
 		lw = os.Stderr
 	}
-	err = stores.Sgt().Cob().ImportDocs(cc.Context, file, lw)
+	err = stores.Sgt().Corpus().ImportDocs(cc.Context, file, lw)
 	if err != nil {
 		logger().Warnw("import fail", "input", input, "err", err)
 		return err
@@ -77,7 +77,7 @@ func exportDocs(cc *cli.Context) error {
 		Out:    file,
 		Format: cc.String("format"),
 	}
-	return stores.Sgt().Cob().ExportDocs(ctx, ea)
+	return stores.Sgt().Corpus().ExportDocs(ctx, ea)
 }
 
 func embeddingDocVector(cc *cli.Context) error {
@@ -89,7 +89,7 @@ func embeddingDocVector(cc *cli.Context) error {
 		spec := &stores.CobDocumentSpec{}
 		spec.Limit = cc.Int("limit")
 		spec.Sort = "id"
-		return stores.Sgt().Cob().SyncEmbeddingDocments(ctx, spec)
+		return stores.Sgt().Corpus().SyncEmbeddingDocments(ctx, spec)
 	case "mem":
 		spec := &stores.ConvoMemorySpec{}
 		spec.Limit = cc.Int("limit")

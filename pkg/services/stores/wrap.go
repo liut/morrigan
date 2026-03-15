@@ -169,7 +169,7 @@ func InitDB(ctx context.Context) error {
 	return nil
 }
 
-func (w *Wrap) Cob() CobStore     { return w.corpuStore } // Cob gened
-func (w *Wrap) KB() CobStore      { return w.corpuStore } // Deprecated: by Cob
-func (w *Wrap) MCP() MCPStore     { return w.mcpStore }   // MCP gened
-func (w *Wrap) Convo() ConvoStore { return w.convoStore } // Convo gened
+func (w *Wrap) Corpus() CorpuStore { return w.corpuStore } // Corpu gened
+func (w *Wrap) KB() CorpuStore     { return w.corpuStore } // Corpu alias
+func (w *Wrap) MCP() MCPStore      { return w.mcpStore }   // MCP gened
+func (w *Wrap) Convo() ConvoStore  { return w.convoStore } // Convo gened

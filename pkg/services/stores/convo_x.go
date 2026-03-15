@@ -107,7 +107,7 @@ func (s *convoStore) afterCreatedMemory(ctx context.Context, obj *convo.Memory) 
 		dvb.Vector = vec
 	}
 
-	_, err = s.w.Cob().CreateDocVector(ctx, dvb)
+	_, err = s.w.Corpus().CreateDocVector(ctx, dvb)
 	if err != nil {
 		logger().Infow("create memory vector fail", "dvb", &dvb, "err", err)
 		return err
@@ -138,7 +138,7 @@ func (s *convoStore) MatchMemories(ctx context.Context, ms MatchSpec) (data conv
 
 	// Match vectors
 	var ps corpus.DocMatches
-	ps, err = s.w.Cob().MatchVectorWith(ctx, vec, ms.Threshold, ms.Limit)
+	ps, err = s.w.Corpus().MatchVectorWith(ctx, vec, ms.Threshold, ms.Limit)
 	if err != nil || len(ps) == 0 {
 		logger().Infow("no match memories", "query", ms.Query)
 		return

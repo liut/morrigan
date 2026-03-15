@@ -2,6 +2,23 @@
 welcome: "你好，我是你的 AI 助手"
 systemPrompt: "你是一个有帮用的助手"
 toolsPrompt: "根据用户的问题选择合适的工具，区分读写操作，提取必要参数进行调用，使用中文关键词进行搜索，必要时翻译英文内容。"
+
+keywordTpl: |
+  Summarize and extract key phrases; for questions, ignore interrogative forms and return only keywords, space-separated, single line output.:
+
+  %s
+
+  summary:
+
+
+titleTpl: |
+  Generate a concise title (no more than 10 words) based on the following chat history. The title should reflect only the chat topic. Return the title only, nothing else.
+
+  %s
+
+  title:
+
+
 tools:
   kb_search: "在知识库中搜索相关内容。当遇到未知或不确定的问题时，优先查阅知识库。"
   kb_create: "创建新的知识库文档，所有参数必填。注意：除非用户明确要求补充内容，否则不要调用。"

@@ -128,7 +128,7 @@ func TestIntegration_DocumentCRUD(t *testing.T) {
 	title := testDocTitle()
 
 	// Create
-	doc, err := sto.Cob().CreateDocument(ctx, corpus.DocumentBasic{
+	doc, err := sto.Corpus().CreateDocument(ctx, corpus.DocumentBasic{
 		Title:   title,
 		Heading: "Test Heading",
 		Content: "Test Content",
@@ -141,7 +141,7 @@ func TestIntegration_DocumentCRUD(t *testing.T) {
 	}
 
 	// Get
-	found, err := sto.Cob().GetDocument(ctx, doc.ID.String())
+	found, err := sto.Corpus().GetDocument(ctx, doc.ID.String())
 	if err != nil {
 		t.Fatalf("GetDocument failed: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestIntegration_DocumentCRUD(t *testing.T) {
 	}
 
 	// Delete
-	if err := sto.Cob().DeleteDocument(ctx, doc.ID.String()); err != nil {
+	if err := sto.Corpus().DeleteDocument(ctx, doc.ID.String()); err != nil {
 		t.Logf("cleanup failed: %v", err)
 	}
 }
@@ -160,7 +160,7 @@ func TestIntegration_ListDocuments(t *testing.T) {
 	ctx := context.Background()
 
 	spec := &CobDocumentSpec{}
-	data, total, err := sto.Cob().ListDocument(ctx, spec)
+	data, total, err := sto.Corpus().ListDocument(ctx, spec)
 	if err != nil {
 		t.Fatalf("ListDocument failed: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestIntegration_DocVectorCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	docTitle := testDocTitle()
-	doc, err := sto.Cob().CreateDocument(ctx, corpus.DocumentBasic{
+	doc, err := sto.Corpus().CreateDocument(ctx, corpus.DocumentBasic{
 		Title:   docTitle,
 		Heading: "Vector Test",
 		Content: "Content for vector test",
@@ -189,10 +189,10 @@ func TestIntegration_DocVectorCRUD(t *testing.T) {
 	docID := doc.ID.String()
 
 	// 清理
-	defer sto.Cob().DeleteDocument(ctx, docID)
+	defer sto.Corpus().DeleteDocument(ctx, docID)
 
 	// Create DocVector
-	vec, err := sto.Cob().CreateDocVector(ctx, corpus.DocVectorBasic{
+	vec, err := sto.Corpus().CreateDocVector(ctx, corpus.DocVectorBasic{
 		DocID:   doc.ID,
 		Subject: "test-subject",
 		Vector:  corpus.Vector{0.1, 0.2, 0.3},
@@ -205,7 +205,7 @@ func TestIntegration_DocVectorCRUD(t *testing.T) {
 	}
 
 	// Get DocVector
-	found, err := sto.Cob().GetDocVector(ctx, vec.ID.String())
+	found, err := sto.Corpus().GetDocVector(ctx, vec.ID.String())
 	if err != nil {
 		t.Fatalf("GetDocVector failed: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestIntegration_DocVectorCRUD(t *testing.T) {
 	}
 
 	// Delete DocVector
-	err = sto.Cob().DeleteDocVector(ctx, vec.ID.String())
+	err = sto.Corpus().DeleteDocVector(ctx, vec.ID.String())
 	if err != nil {
 		t.Fatalf("DeleteDocVector failed: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestIntegration_ChatLogCRUD(t *testing.T) {
 
 	// Create ChatLog
 	chatID := oid.NewID(oid.OtEvent)
-	log, err := sto.Cob().CreateChatLog(ctx, corpus.ChatLogBasic{
+	log, err := sto.Corpus().CreateChatLog(ctx, corpus.ChatLogBasic{
 		ChatID:   chatID,
 		Question: "What is Go?",
 		Answer:   "Go is a programming language.",
@@ -239,7 +239,7 @@ func TestIntegration_ChatLogCRUD(t *testing.T) {
 	}
 
 	// Get ChatLog
-	found, err := sto.Cob().GetChatLog(ctx, log.ID.String())
+	found, err := sto.Corpus().GetChatLog(ctx, log.ID.String())
 	if err != nil {
 		t.Fatalf("GetChatLog failed: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestIntegration_ChatLogCRUD(t *testing.T) {
 	}
 
 	// Delete ChatLog
-	err = sto.Cob().DeleteChatLog(ctx, log.ID.String())
+	err = sto.Corpus().DeleteChatLog(ctx, log.ID.String())
 	if err != nil {
 		t.Fatalf("DeleteChatLog failed: %v", err)
 	}
