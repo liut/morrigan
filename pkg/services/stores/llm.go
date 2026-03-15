@@ -91,7 +91,7 @@ func GetSummary(ctx context.Context, text, tpl string) (summary string, err erro
 	prompt := fmt.Sprintf(tpl, text)
 	result, _, err := llmSu.Generate(ctx, prompt)
 	if err != nil {
-		logger().Infow("summarize fail", "text", text, "err", err)
+		logger().Infow("summarize fail", "tpl", tpl, "text", text, "err", err)
 		return
 	}
 	if _, b, ok := strings.Cut(result, "</think>"); ok {

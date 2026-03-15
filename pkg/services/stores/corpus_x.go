@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
+	"github.com/spf13/cast"
 
 	"github.com/liut/morign/pkg/models/corpus"
 	"github.com/liut/morign/pkg/models/mcps"
@@ -387,14 +388,11 @@ func dbAfterDeleteCobDocument(ctx context.Context, db ormDB, obj *corpus.Documen
 // InvokerForSearch 返回一个搜索知识库文档的 invoker
 func (s *corpuStore) InvokerForSearch() mcps.Invoker {
 	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
-		logger().Infow("mcp call qa search", "args", args)
-		subjectArg, ok := args["subject"]
-		if !ok {
+
+		subject, err := cast.ToStringE(args["subject"])
+		if err != nil || len(subject) == 0 {
+			logger().Infow("kb search fail: empty subject")
 			return mcps.BuildToolErrorResult("missing required argument: subject"), nil
-		}
-		subject, ok := subjectArg.(string)
-		if !ok {
-			return mcps.BuildToolErrorResult("subject argument must be a string"), nil
 		}
 
 		docs, err := s.MatchDocments(ctx, MatchSpec{
@@ -405,10 +403,11 @@ func (s *corpuStore) InvokerForSearch() mcps.Invoker {
 		if err != nil {
 			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
-		logger().Infow("matched", "docs", len(docs))
 		if len(docs) == 0 {
+			logger().Infow("matches not found", "subj", subject)
 			return mcps.BuildToolSuccessResult("No relevant information found"), nil
 		}
+		logger().Infow("matched", "docs", len(docs))
 
 		return mcps.BuildToolSuccessResult(docs.MarkdownText()), nil
 
@@ -425,23 +424,23 @@ func (s *corpuStore) InvokerForCreate() mcps.Invoker {
 		user, _ := UserFromContext(ctx)
 		logger().Infow("mcp call qa create", "args", args, "user", user)
 
-		titleArg, ok := args["title"]
-		if !ok {
+		title, err := cast.ToStringE(args["title"])
+		if err != nil || title == "" {
 			return mcps.BuildToolErrorResult("missing required argument: title"), nil
 		}
-		headingArg, ok := args["heading"]
-		if !ok {
+		heading, err := cast.ToStringE(args["heading"])
+		if err != nil || heading == "" {
 			return mcps.BuildToolErrorResult("missing required argument: heading"), nil
 		}
-		contentArg, ok := args["content"]
-		if !ok {
+		content, err := cast.ToStringE(args["content"])
+		if err != nil || content == "" {
 			return mcps.BuildToolErrorResult("missing required argument: content"), nil
 		}
 
 		docBasic := corpus.DocumentBasic{
-			Title:   titleArg.(string),
-			Heading: headingArg.(string),
-			Content: contentArg.(string),
+			Title:   title,
+			Heading: heading,
+			Content: content,
 		}
 		docBasic.MetaAddKVs("creator", user.Name)
 		obj, err := s.CreateDocument(ctx, docBasic)

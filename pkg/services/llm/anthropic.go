@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -51,18 +52,20 @@ func (p *anthropicProvider) Chat(ctx context.Context, cfg *config, messages []Me
 		"model", cfg.model,
 		"msgs_count", len(messages),
 		"tools_count", len(tools),
-		"tools", tools,
+		"tools", ToolLogs(tools),
 		"has_tools", len(tools) > 0,
 		"endpoint", endpoint,
 	)
 
 	b, err := json.Marshal(reqBody)
 	if err != nil {
+		logger().Infow("marshal chat request failed", "err", err)
 		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
+		logger().Infow("create chat request failed", "err", err, "endpoint", endpoint)
 		return nil, err
 	}
 
@@ -103,208 +106,274 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 	go func() {
 		defer close(ch)
 
-		endpoint := anthropicMessagesEndpoint(cfg.baseURL)
-		anthropicMessages, systemText := toAnthropicMessages(messages)
-
-		reqBody := struct {
-			Model       string          `json:"model"`
-			Messages    []anthropicMsg  `json:"messages"`
-			System      string          `json:"system,omitempty"`
-			Tools       []anthropicTool `json:"tools,omitempty"`
-			MaxTokens   int             `json:"max_tokens"`
-			Temperature *float64        `json:"temperature,omitempty"`
-			Stream      bool            `json:"stream"`
-		}{
-			Model:       cfg.model,
-			Messages:    anthropicMessages,
-			System:      systemText,
-			MaxTokens:   cfg.maxTokens,
-			Temperature: float64Ptr(cfg.temperature),
-			Stream:      true,
-		}
-		if len(tools) > 0 {
-			converted, err := toAnthropicTools(tools)
-			if err != nil {
-				ch <- StreamResult{Error: err}
-				return
-			}
-			reqBody.Tools = converted
-		}
-		logger().Infow("stream start",
-			"model", cfg.model,
-			"msgs_count", len(messages),
-			"tools_count", len(tools),
-			"tools", ToolLogs(tools),
-			"has_tools", len(tools) > 0,
-			"endpoint", endpoint,
-			"messages", MessagesLogged(messages),
-		)
-
-		b, err := json.Marshal(reqBody)
+		req, err := p.buildStreamRequest(ctx, cfg, messages, tools)
 		if err != nil {
 			ch <- StreamResult{Error: err}
 			return
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
+		resp, err := p.sendStreamRequest(req, cfg)
 		if err != nil {
-			ch <- StreamResult{Error: err}
-			return
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		if cfg.apiKey != "" {
-			req.Header.Set("x-api-key", cfg.apiKey)
-		}
-		req.Header.Set("anthropic-version", anthropicVersion)
-		for k, v := range cfg.headers {
-			req.Header.Set(k, v)
-		}
-
-		hc := cfg.httpClient
-		if hc == nil {
-			hc = &http.Client{Timeout: 0} // 流式请求不设置超时
-		}
-
-		resp, err := hc.Do(req)
-		if err != nil {
-			logger().Warnw("anthropic stream request failed", "err", err, "endpoint", endpoint)
 			ch <- StreamResult{Error: err}
 			return
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-			errMsg := fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-			logger().Warnw("anthropic stream response error", "status", resp.StatusCode, "body", string(body))
-			ch <- StreamResult{Error: errMsg}
-			return
-		}
-
-		// 解析流式响应
-		var currentToolCalls []ToolCall
-		var currentText strings.Builder
-
-		bufReader := bufio.NewReaderSize(resp.Body, 1024)
-
-		for {
-			line, err := bufReader.ReadBytes('\n')
-			if err != nil {
-				if err == io.EOF {
-					ch <- StreamResult{Done: true}
-				} else {
-					ch <- StreamResult{Error: fmt.Errorf("read: %w", err)}
-				}
-				return
-			}
-
-			line = bytes.TrimSpace(line)
-			if len(line) == 0 {
-				continue
-			}
-
-			// 跳过非 data: 开头的行
-			if !bytes.HasPrefix(line, []byte("data:")) {
-				continue
-			}
-
-			data := bytes.TrimSpace(line[5:])
-			if string(data) == "[DONE]" {
-				ch <- StreamResult{Done: true}
-				return
-			}
-
-			var event struct {
-				Type  string `json:"type"`
-				Index int    `json:"index"`
-				Delta struct {
-					Text  string `json:"text,omitempty"`
-					Type  string `json:"type,omitempty"`
-					ID    string `json:"id,omitempty"`
-					Name  string `json:"name,omitempty"`
-					Input any    `json:"input,omitempty"`
-				} `json:"delta,omitempty"`
-				Content []struct {
-					Type  string `json:"type"`
-					Text  string `json:"text,omitempty"`
-					ID    string `json:"id,omitempty"`
-					Name  string `json:"name,omitempty"`
-					Input any    `json:"input,omitempty"`
-				} `json:"content,omitempty"`
-			}
-
-			if err := json.Unmarshal(data, &event); err != nil {
-				logger().Infow("parse anthropic stream event fail", "err", err, "data", string(data))
-				continue
-			}
-
-			switch event.Type {
-			case "content_block_start":
-				// 开始新的内容块，检查是否是 tool_use 类型
-				if len(event.Content) > 0 && event.Content[0].Type == "tool_use" {
-					toolID := event.Content[0].ID
-					if toolID == "" {
-						toolID = fmt.Sprintf("toolu_%d", event.Index)
-					}
-					currentToolCalls = append(currentToolCalls, ToolCall{
-						ID:   toolID,
-						Type: "function",
-						Function: ToolCallFunc{
-							Name:      event.Content[0].Name,
-							Arguments: json.RawMessage(`{}`),
-						},
-					})
-					logger().Debugw("tool_use started", "id", toolID, "name", event.Content[0].Name)
-				}
-			case "content_block_delta":
-				if event.Delta.Type == "text_delta" {
-					currentText.WriteString(event.Delta.Text)
-					ch <- StreamResult{
-						Delta:     event.Delta.Text,
-						ToolCalls: currentToolCalls,
-					}
-				} else if event.Delta.Type == "input_json_delta" {
-					// 处理 tool_use 的参数
-					if len(currentToolCalls) > 0 && event.Index < len(currentToolCalls) {
-						inputJSON, _ := json.Marshal(event.Delta.Input)
-						currentToolCalls[event.Index].Function.Arguments = append(
-							currentToolCalls[event.Index].Function.Arguments,
-							inputJSON...,
-						)
-					}
-				}
-			case "content_block_stop":
-				// 内容块结束
-			case "message_delta":
-				// 检查是否有 tool_calls
-				if len(currentToolCalls) > 0 {
-					// 发送完成信号
-					ch <- StreamResult{
-						Delta:        "",
-						ToolCalls:    currentToolCalls,
-						Done:         true,
-						FinishReason: "tool_calls",
-					}
-					return
-				}
-			case "message_stop":
-				ch <- StreamResult{
-					Done:      true,
-					ToolCalls: currentToolCalls,
-				}
-				return
-			case "message_start":
-				// 忽略
-			case "ping":
-				// 忽略
-			default:
-				logger().Infow("unknown anthropic event type", "type", event.Type)
-			}
+		if err := p.parseStreamResponse(resp.Body, ch); err != nil {
+			ch <- StreamResult{Error: err}
 		}
 	}()
 
 	return ch, nil
+}
+
+// buildStreamRequest 构建流式请求
+func (p *anthropicProvider) buildStreamRequest(ctx context.Context, cfg *config, messages []Message, tools []ToolDefinition) (*http.Request, error) {
+	endpoint := anthropicMessagesEndpoint(cfg.baseURL)
+	anthropicMessages, systemText := toAnthropicMessages(messages)
+
+	reqBody := struct {
+		Model       string          `json:"model"`
+		Messages    []anthropicMsg  `json:"messages"`
+		System      string          `json:"system,omitempty"`
+		Tools       []anthropicTool `json:"tools,omitempty"`
+		MaxTokens   int             `json:"max_tokens"`
+		Temperature *float64        `json:"temperature,omitempty"`
+		Stream      bool            `json:"stream"`
+	}{
+		Model:       cfg.model,
+		Messages:    anthropicMessages,
+		System:      systemText,
+		MaxTokens:   cfg.maxTokens,
+		Temperature: float64Ptr(cfg.temperature),
+		Stream:      true,
+	}
+	if len(tools) > 0 {
+		converted, err := toAnthropicTools(tools)
+		if err != nil {
+			logger().Infow("convert tools for stream failed", "err", err)
+			return nil, err
+		}
+		reqBody.Tools = converted
+	}
+	logger().Infow("stream start",
+		"model", cfg.model,
+		"msgs_count", len(messages),
+		"tools_count", len(tools),
+		"tools", ToolLogs(tools),
+		"has_tools", len(tools) > 0,
+		"endpoint", endpoint,
+		"messages", MessagesLogged(messages),
+	)
+
+	b, err := json.Marshal(reqBody)
+	if err != nil {
+		logger().Infow("marshal stream request failed", "err", err)
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
+	if err != nil {
+		logger().Infow("create stream request failed", "err", err, "endpoint", endpoint)
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if cfg.apiKey != "" {
+		req.Header.Set("x-api-key", cfg.apiKey)
+	}
+	req.Header.Set("anthropic-version", anthropicVersion)
+	for k, v := range cfg.headers {
+		req.Header.Set(k, v)
+	}
+
+	return req, nil
+}
+
+// sendStreamRequest 发送流式请求并检查响应状态
+func (p *anthropicProvider) sendStreamRequest(req *http.Request, cfg *config) (*http.Response, error) {
+	hc := cfg.httpClient
+	if hc == nil {
+		hc = &http.Client{Timeout: 0} // 流式请求不设置超时
+	}
+
+	resp, err := hc.Do(req)
+	if err != nil {
+		logger().Warnw("anthropic stream request failed", "err", err, "endpoint", req.URL)
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		errMsg := fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		logger().Warnw("anthropic stream response error", "status", resp.StatusCode,
+			"body", string(body))
+		return nil, errMsg
+	}
+
+	return resp, nil
+}
+
+// parseStreamResponse 解析流式响应
+func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult) error {
+	var currentToolCalls []ToolCall
+	var currentText strings.Builder
+
+	bufReader := bufio.NewReaderSize(body, 1024)
+
+	for {
+		line, err := bufReader.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				ch <- StreamResult{Done: true}
+			} else {
+				logger().Infow("read stream response failed", "err", err)
+				return fmt.Errorf("read: %w", err)
+			}
+			return nil
+		}
+
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+
+		// 跳过非 data: 开头的行
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+
+		fmt.Fprintln(os.Stderr, string(line))
+		// slog.Info("streaming", "line", string(line))
+
+		data := bytes.TrimSpace(line[5:])
+		if string(data) == "[DONE]" {
+			ch <- StreamResult{Done: true}
+			return nil
+		}
+
+		event, err := p.parseStreamEvent(data)
+		if err != nil {
+			continue
+		}
+		// logger().Debugw("stream event parsed", "type", event.Type, "index", event.Index,
+		// 	"delta", &event.Delta)
+
+		done, toolCalls := p.handleStreamEvent(event, &currentText, currentToolCalls, ch)
+		currentToolCalls = toolCalls
+
+		if done {
+			logger().Infow("stream done", "event_type", event.Type, "tool_calls_count", len(currentToolCalls))
+			return nil
+		}
+	}
+}
+
+// streamEvent Anthropic 流事件
+type streamEvent struct {
+	Type         string `json:"type"`
+	Index        int    `json:"index"`
+	ContentBlock *struct {
+		Type  string          `json:"type"`
+		Text  string          `json:"text,omitempty"`
+		ID    string          `json:"id,omitempty"`
+		Name  string          `json:"name,omitempty"`
+		Input json.RawMessage `json:"input,omitempty"`
+	} `json:"content_block,omitempty"`
+	Delta struct {
+		Text        string `json:"text,omitempty"`
+		Thinking    string `json:"thinking,omitempty"`
+		Type        string `json:"type,omitempty"`
+		ID          string `json:"id,omitempty"`
+		Name        string `json:"name,omitempty"`
+		Input       any    `json:"input,omitempty"`
+		PartialJSON string `json:"partial_json,omitempty"`
+		StopReason  string `json:"stop_reason,omitempty"`
+	} `json:"delta,omitempty"`
+}
+
+// parseStreamEvent 解析单个流事件
+func (p *anthropicProvider) parseStreamEvent(data []byte) (streamEvent, error) {
+	var event streamEvent
+	if err := json.Unmarshal(data, &event); err != nil {
+		logger().Infow("parse anthropic stream event fail", "err", err, "data", string(data))
+		return event, err
+	}
+	return event, nil
+}
+
+// handleStreamEvent 处理流事件，返回是否结束及更新后的 toolCalls
+func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *strings.Builder, currentToolCalls []ToolCall, ch chan<- StreamResult) (bool, []ToolCall) {
+	switch event.Type {
+	case "content_block_start":
+		// 开始新的内容块，检查是否是 tool_use 类型
+		if event.ContentBlock != nil && event.ContentBlock.Type == "tool_use" {
+			toolID := event.ContentBlock.ID
+			if toolID == "" {
+				toolID = fmt.Sprintf("toolu_%d", event.Index)
+			}
+			currentToolCalls = append(currentToolCalls, ToolCall{
+				ID:   toolID,
+				Type: "function",
+				Function: ToolCallFunc{
+					Name: event.ContentBlock.Name,
+				},
+			})
+			logger().Debugw("tool_use started", "id", toolID, "name", event.ContentBlock.Name)
+		}
+	case "content_block_delta":
+		if event.Delta.Type == "text_delta" {
+			currentText.WriteString(event.Delta.Text)
+			ch <- StreamResult{
+				Delta:     event.Delta.Text,
+				ToolCalls: currentToolCalls,
+			}
+		} else if event.Delta.Type == "thinking_delta" {
+			ch <- StreamResult{
+				Think:     event.Delta.Thinking,
+				ToolCalls: currentToolCalls,
+			}
+		} else if event.Delta.Type == "input_json_delta" {
+			// 处理 tool_use 的参数，直接取最后一个 tool_call
+			if len(currentToolCalls) > 0 && event.Delta.PartialJSON != "" {
+				lastIdx := len(currentToolCalls) - 1
+				currentToolCalls[lastIdx].Function.Arguments = append(
+					currentToolCalls[lastIdx].Function.Arguments,
+					event.Delta.PartialJSON...,
+				)
+			}
+			logger().Debugw("input json", "delta", event.Delta, "toolCalls", currentToolCalls)
+		}
+	case "content_block_stop":
+		// 内容块结束
+	case "message_delta":
+		stopReason := FinishReason(event.Delta.StopReason)
+		if stopReason == "end_turn" {
+			stopReason = "stop"
+		} else if len(currentToolCalls) > 0 { // 检查是否有 tool_calls
+			stopReason = "tool_calls" // 为了兼容 OpenAI
+		}
+		// 发送完成信号
+		ch <- StreamResult{
+			Done:         true,
+			ToolCalls:    currentToolCalls,
+			FinishReason: stopReason,
+		}
+		return true, currentToolCalls
+	case "message_stop":
+		ch <- StreamResult{
+			Done:      true,
+			ToolCalls: currentToolCalls,
+		}
+		return true, currentToolCalls
+	case "message_start":
+		// 忽略
+	case "ping":
+		// 忽略
+	default:
+		logger().Infow("unknown anthropic event type", "type", event.Type)
+	}
+	return false, currentToolCalls
 }
 
 func (p *anthropicProvider) Generate(ctx context.Context, cfg *config, prompt string) (string, Usage, error) {
@@ -360,6 +429,8 @@ func toAnthropicTools(tools []ToolDefinition) ([]anthropicTool, error) {
 	for _, t := range tools {
 		params, err := schemaToRawJSON(t.Function.Parameters)
 		if err != nil {
+			logger().Infow("convert tool to anthropic format failed", "err", err,
+				"tool", t.Function.Name)
 			return nil, fmt.Errorf("anthropic tool schema %s: %w", t.Function.Name, err)
 		}
 		out = append(out, anthropicTool{
@@ -536,6 +607,7 @@ func schemaToRawJSON(params any) (json.RawMessage, error) {
 	}
 	b, err := json.Marshal(params)
 	if err != nil {
+		logger().Infow("schema to raw JSON failed", "err", err, "params", params)
 		return nil, err
 	}
 	return json.RawMessage(b), nil

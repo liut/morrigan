@@ -359,8 +359,8 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 
 	// 发送完成事件（最后）
 	ccr.chunkIdx++
-	w.Write([]byte(esDone)) //nolint
-	w.(http.Flusher).Flush()
+	_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), esDone)
+
 	return res
 }
 
@@ -385,6 +385,7 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		}
 
 		cm.Delta = result.Delta
+		cm.Think = result.Think
 		res.answer += result.Delta
 		if len(result.ToolCalls) > 0 && result.FinishReason == llm.FinishReasonToolCalls {
 			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
