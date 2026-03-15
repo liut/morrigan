@@ -101,6 +101,7 @@ func (r *ChatResult) HasToolCalls() bool {
 // StreamResult 流式响应结果
 type StreamResult struct {
 	Delta        string
+	Think        string
 	ToolCalls    []ToolCall
 	Done         bool `json:",omitempty"`
 	FinishReason FinishReason
@@ -144,7 +145,7 @@ func (z MessagesLogged) String() string {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		text := msg.previewText(30)
+		text := msg.previewText(37)
 		sb.WriteString(text)
 	}
 	sb.WriteString("]")
@@ -162,7 +163,7 @@ func (z *Message) previewText(n int) string {
 	case RoleAssistant:
 		prefix = "A: "
 	case RoleTool:
-		prefix = "T: " + z.Name + ": "
+		prefix = "T: " + z.ToolCallID + ": "
 	default:
 		prefix = "? "
 	}

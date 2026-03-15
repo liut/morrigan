@@ -197,6 +197,7 @@ func (s *convoStore) SyncEmbeddingMemories(ctx context.Context, spec *ConvoMemor
 // InvokerForMemoryList returns an invoker for listing memories
 func (s *convoStore) InvokerForMemoryList() mcps.Invoker {
 	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
+
 		limit := defaultMemoryLimit
 		if l := cast.ToInt(args["limit"]); l > 0 {
 			limit = l
@@ -216,7 +217,14 @@ func (s *convoStore) InvokerForMemoryList() mcps.Invoker {
 			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
 
-		includeContent := cast.ToBool(args["include_content"])
+		includeContent := true
+		if v, ok := args["include_content"]; ok {
+			if ic, err := cast.ToBoolE(v); err == nil {
+				includeContent = ic
+			}
+		}
+
+		logger().Debugw("invoke memory list", "args", args, "ic", includeContent)
 
 		var results []map[string]any
 		for _, m := range data {

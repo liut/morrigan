@@ -1,5 +1,7 @@
 
-```json
+create mcp
+
+```js
 fetch('/api/m/mcp/servers', {
   method: 'POST',
   headers: {
@@ -22,4 +24,4 @@ fetch('/api/m/mcp/servers/fi-54ionou2hq0w/activate', {
 .then(r => r.json())
 .then(console.log);
 
-```json
+```

@@ -49,6 +49,7 @@ type ChatMessage struct {
 	ID    string `json:"id,omitempty"`
 	Delta string `json:"delta,omitempty"`
 	Text  string `json:"text,omitempty"`
+	Think string `json:"think,omitempty"`
 	Role  string `json:"role,omitempty"`
 	Name  string `json:"name,omitempty"`
 
