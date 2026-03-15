@@ -349,7 +349,7 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 
 	history, err := ccr.cs.ListHistory(ctx)
 	if err == nil && len(history) > 0 {
-		title, err := stores.GetHistorySummary(ctx, history, "")
+		title, err := stores.GetHistorySummary(ctx, history)
 		if err == nil {
 			cm.Title = title
 		}
@@ -551,7 +551,7 @@ func (a *api) patchConversationTitle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 调用 GetHistorySummary 生成标题
-	summary, err := stores.GetHistorySummary(r.Context(), history, "")
+	summary, err := stores.GetHistorySummary(r.Context(), history)
 	if err != nil {
 		fail(w, r, 500, err)
 		return

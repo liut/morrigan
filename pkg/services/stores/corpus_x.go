@@ -13,12 +13,11 @@ import (
 	"github.com/liut/morign/pkg/models/corpus"
 	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/settings"
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 const (
 	Separator = "\n* "
-
-	tplKeyword = "总结下面的文字内容，提炼出关键字句，如果是疑问句，则忽略问话的形式，只罗列出重点关键词，去除疑问形式，不考虑疑问表达，也不要返回多余内容，只关注最重要的词语，例如如果文字内容是问“什么”“为什么”“有什么”“怎么样”等等类似的语句，这些问话形式一律忽略，只返回关键字句，如果关键字句不成语句，则以关键字列表的形式返回，且用空格分隔，仅占一行，不要多行:\n\n%s\n\n"
 )
 
 var (
@@ -207,7 +206,7 @@ func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err erro
 		for i, v := range embedding {
 			vec[i] = float32(v)
 		}
-		logger().Infow("embedding res", "text", text, "vec", len(vec))
+		logger().Infow("embedding res", "text", words.TakeHead(text, 60, ".."), "vec", len(vec))
 	} else {
 		logger().Infow("embedding result is empty", "text", text)
 	}
@@ -240,7 +239,7 @@ func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corp
 	if ms.SkipKeywords {
 		subject = ms.Query
 	} else {
-		subject, err = GetKeywords(ctx, ms.Query)
+		subject, err = GetSummary(ctx, ms.Query, GetTemplateForKeyword())
 		if err != nil {
 			return
 		}
@@ -262,7 +261,7 @@ func (s *corpuStore) MatchDocments(ctx context.Context, ms MatchSpec) (data corp
 		logger().Infow("no match docs", "subj", subject)
 		return
 	}
-	logger().Infow("matched", "docs", ps.Subjects(), "err", err)
+	logger().Infow("matched", "docs", ps.Subjects(30), "err", err)
 	spec := &CobDocumentSpec{}
 	spec.IDs = ps.DocumentIDs()
 	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
@@ -343,6 +342,11 @@ func (s *corpuStore) SyncEmbeddingDocments(ctx context.Context, spec *CobDocumen
 
 	for _, doc := range data {
 		subject := doc.GetSubject()
+		contentKeys, err := GetSummary(ctx, doc.Content, GetTemplateForKeyword())
+		if err != nil {
+			return err
+		}
+		subject += " " + contentKeys
 		vec, err := GetEmbedding(ctx, subject)
 		if err != nil {
 			return err
@@ -350,6 +354,9 @@ func (s *corpuStore) SyncEmbeddingDocments(ctx context.Context, spec *CobDocumen
 		exist := new(corpus.DocVector)
 		err = dbGetWithUnique(ctx, s.w.db, exist, "doc_id", doc.ID)
 		if err == nil {
+			if exist.Subject != subject {
+				logger().Infow("changed", "sub1", exist.Subject, "sub2", subject)
+			}
 			exist.SetWith(corpus.DocVectorSet{
 				Subject: &subject,
 				Vector:  &vec,

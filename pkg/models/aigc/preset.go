@@ -6,6 +6,9 @@ type Preset struct {
 	SystemPrompt string `json:"systemPrompt,omitempty" yaml:"systemPrompt,omitempty"`
 	ToolsPrompt  string `json:"toolsPrompt,omitempty" yaml:"toolsPrompt,omitempty"`
 
+	KeywordTpl string `json:"keywordTpl,omitempty" yaml:"keywordTpl,omitempty"`
+	TitleTpl   string `json:"titleTpl,omitempty" yaml:"titleTpl,omitempty"`
+
 	// toolName -> description
 	Tools map[string]string `json:"tools,omitempty" yaml:"tools,omitempty"`
 }

@@ -27,14 +27,41 @@ package stores
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 
 	"github.com/cupogo/andvari/models/oid"
 	"github.com/liut/morign/pkg/models/convo"
 	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/settings"
 )
+
+// mockEmbeddingClient is a mock implementation of llm.Client for testing
+type mockEmbeddingClient struct{}
+
+func (m *mockEmbeddingClient) Chat(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (*llm.ChatResult, error) {
+	return nil, nil
+}
+
+func (m *mockEmbeddingClient) StreamChat(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (<-chan llm.StreamResult, error) {
+	return nil, nil
+}
+
+func (m *mockEmbeddingClient) Generate(ctx context.Context, prompt string) (string, llm.Usage, error) {
+	return "", llm.Usage{}, nil
+}
+
+func (m *mockEmbeddingClient) Embedding(ctx context.Context, texts []string) ([]float64, error) {
+	// Return random vectors (same dimension as corpus.VectorLen)
+	dim := corpus.VectorLen
+	result := make([]float64, len(texts)*dim)
+	for i := range result {
+		result[i] = float64(rand.Float32())
+	}
+	return result, nil
+}
 
 // getTestDBDSN 构建测试数据库连接字符串
 func getTestDBDSN() string {
@@ -61,6 +88,11 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return v
 	}
 	return defaultValue
+}
+
+func init() {
+	// 用 mock 替换 embedding client
+	llmEm = &mockEmbeddingClient{}
 }
 
 // TestMain 测试入口

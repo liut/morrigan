@@ -6,11 +6,16 @@ import (
 
 	"github.com/cupogo/andvari/models/oid"
 	"github.com/cupogo/andvari/utils/array"
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 // GetSubject returns the document subject (title + heading)
 func (z *Document) GetSubject() string {
 	return fmt.Sprintf("%s %s", z.Title, z.Heading)
+}
+
+func (z *Document) GetFullText() string {
+	return fmt.Sprintf("%s\n%s\n%s", z.Title, z.Heading, z.Content)
 }
 
 // IDs returns all document IDs in the document list
@@ -64,10 +69,15 @@ func (z DocMatches) DocumentIDs() (out oid.OIDs) {
 }
 
 // Subjects returns all document subjects from the document match list
-func (z DocMatches) Subjects() (out []string) {
+func (z DocMatches) Subjects(n int) (out []string) {
 	out = make([]string, len(z))
 	for i := range z {
-		out[i] = z[i].Subject
+		if n <= 0 {
+			out[i] = z[i].Subject
+		} else {
+			out[i] = words.TakeHead(z[i].Subject, n, "..")
+		}
+
 	}
 	return
 }

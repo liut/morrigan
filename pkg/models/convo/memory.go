@@ -29,8 +29,3 @@ func (m *MemoryBasic) OwnerEmpty() bool {
 func (z MemoryBasic) GetSubject() string {
 	return fmt.Sprintf("%s  %s  %s", z.Key, z.Cate, z.Content)
 }
-
-// GetSubject returns the subject for Memory
-func (m *Memory) GetSubject() string {
-	return m.MemoryBasic.GetSubject()
-}

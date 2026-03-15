@@ -8,6 +8,13 @@ import (
 	"github.com/liut/morign/pkg/models/aigc"
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/settings"
+	"github.com/liut/morign/pkg/utils/words"
+)
+
+const (
+	KeywordTpl = "Summarize and extract key phrases; for questions, ignore interrogative forms and return only keywords, space-separated, single line output.:\n\n%s\n\nsummary:\n"
+
+	TitleTpl = "Generate a concise title (no more than 10 words) based on the following chat history. The title should reflect only the chat topic. Return the title only, nothing else.%s\n\n%s\n\ntitle:"
 )
 
 var (
@@ -73,50 +80,50 @@ func GetLLMSummarizeClient() llm.Client {
 	return llmSu
 }
 
-// GetKeywords extracts keywords from text using LLM
-func GetKeywords(ctx context.Context, text string) (kw string, err error) {
+// GetSummary 让LLM根据模版要求生成摘要
+// text tpl 参数为自定义提示内容模版
+func GetSummary(ctx context.Context, text, tpl string) (summary string, err error) {
 	if len(text) == 0 {
 		err = ErrEmptyParam
 		return
 	}
-	prompt := fmt.Sprintf(tplKeyword, text)
+
+	prompt := fmt.Sprintf(tpl, text)
 	result, _, err := llmSu.Generate(ctx, prompt)
 	if err != nil {
 		logger().Infow("summarize fail", "text", text, "err", err)
 		return
 	}
-	kw = strings.TrimSpace(result)
-	logger().Infow("summarize ok", "text", text, "kw", kw)
-	return
-}
-
-// GetSummary 生成聊天记录的简短标题
-// text 参数为聊天记录文本，tips 参数为自定义提示内容（可选）
-func GetSummary(ctx context.Context, text, tips string) (summary string, err error) {
-	if len(text) == 0 {
-		err = ErrEmptyParam
-		return
-	}
-	// 使用自定义提示或默认提示
-	if tips == "" {
-		tips = "请根据以下聊天记录生成一个简短的标题（不超过10个字），这个标题只针对聊天的主题，且只返回标题，不要其他内容:"
-	}
-	prompt := fmt.Sprintf("%s\n\n%s\n\n标题:", tips, text)
-	result, _, err := llmSu.Generate(ctx, prompt)
-	if err != nil {
-		logger().Infow("summary fail", "text", text, "err", err)
-		return
+	if _, b, ok := strings.Cut(result, "</think>"); ok {
+		result = b
 	}
 	summary = strings.TrimSpace(result)
-	logger().Infow("summary ok", "text", len(text), "summary", summary)
+	logger().Infow("summarize ok", "tpl", tpl, "text", words.TakeHead(text, 90, ".."),
+		"result", words.TakeHead(summary, 50, ".."))
 	return
 }
 
-func GetHistorySummary(ctx context.Context, history aigc.HistoryItems, tips string) (summary string, err error) {
-	summary, err = GetSummary(ctx, history.ToText(), tips)
+func GetHistorySummary(ctx context.Context, history aigc.HistoryItems) (summary string, err error) {
+	summary, err = GetSummary(ctx, history.ToText(), GetTemplateForTitle())
 	if err != nil {
 		return
 	}
 	logger().Infow("history summary ok", "history", aigc.HiLogged(history))
 	return
+}
+
+func GetTemplateForKeyword() string {
+	preset, _ := LoadPreset()
+	if len(preset.KeywordTpl) > 0 {
+		return preset.KeywordTpl
+	}
+	return KeywordTpl
+}
+
+func GetTemplateForTitle() string {
+	preset, _ := LoadPreset()
+	if len(preset.TitleTpl) > 0 {
+		return preset.TitleTpl
+	}
+	return TitleTpl
 }

@@ -45,8 +45,8 @@ type Config struct {
 	KeeperRole string   `envconfig:"Keeper_Role" default:"keeper" desc:"role required for write tools"`
 	KeeperUIDs []string `envconfig:"Keeper_UIDs" desc:"uid list that bypasses role check"`
 
-	// 相似度阈值 建议范围 0.39 - 0.65
-	VectorThreshold float32 `envconfig:"Vector_Threshold" default:"0.39"`
+	// 相似度阈值 建议范围 0.39 - 0.65, 数值越大条件越宽
+	VectorThreshold float32 `envconfig:"Vector_Threshold" default:"0.47"`
 	// 相似度匹配数量
 	VectorLimit int `envconfig:"Vector_Limit" default:"5"`
 

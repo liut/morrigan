@@ -83,18 +83,18 @@ func exportDocs(cc *cli.Context) error {
 func embeddingDocVector(cc *cli.Context) error {
 	ctx := context.Background()
 	target := cc.String("target")
-	spec := &stores.CobDocumentSpec{}
-	spec.Limit = 90
-	spec.Sort = "id"
 
 	switch target {
 	case "doc":
+		spec := &stores.CobDocumentSpec{}
+		spec.Limit = cc.Int("limit")
+		spec.Sort = "id"
 		return stores.Sgt().Cob().SyncEmbeddingDocments(ctx, spec)
 	case "mem":
-		memSpec := &stores.ConvoMemorySpec{}
-		memSpec.Limit = 90
-		memSpec.Sort = "id"
-		return stores.Sgt().Convo().SyncEmbeddingMemories(ctx, memSpec)
+		spec := &stores.ConvoMemorySpec{}
+		spec.Limit = cc.Int("limit")
+		spec.Sort = "id"
+		return stores.Sgt().Convo().SyncEmbeddingMemories(ctx, spec)
 	default:
 		return fmt.Errorf("unsupported target: %s (supported: doc, mem)", target)
 	}
@@ -209,6 +209,7 @@ func main() {
 				Action:  embeddingDocVector,
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "target", Aliases: []string{"t"}, Value: "doc", Usage: "target to embed: doc|mem"},
+					&cli.IntFlag{Name: "limit", Aliases: []string{"l"}, Value: 90, Usage: "limit for query"},
 				},
 			},
 			{
