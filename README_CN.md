@@ -98,27 +98,6 @@ AI 聊天后端，集知识库问答、MCP 工具与 OAuth 认证于一体。
 
 </details>
 
-<details>
- <summary><code>POST</code> <code><b>/api/chat-process</b></code> 仅适用于 chatgpt-web</summary>
-
-##### 参数
-
-> | 名称        |  类型     | 数据类型      | 描述                         |
-> |-------------|-----------|----------------|-------------------------------------|
-> | `prompt`    | 必填  |    string      | 提问消息        |
-> | `options`   | 可选  |    object      | <code>{ conversationId: "" }</code>    |
-
-
-##### 响应
-
-> | http 状态码 | content-type                    | 响应                                           |
-> |---------------|---------------------------------|-----------------------------------------------------|
-> | `200`         | `application/octet-stream`      | `{"delta": "消息片段", "text": "完整消息", "conversationId": ""}`                                          |
-> | `401`         | `application/json`        | `{"status": "Unauthorized", "message": ""}`                                         |
-
-
-</details>
-
 ## 快速开始
 
 ```bash

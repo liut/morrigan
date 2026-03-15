@@ -98,27 +98,6 @@ AI chat backend with knowledge base Q&A, MCP tools, and OAuth authentication.
 
 </details>
 
-<details>
- <summary><code>POST</code> <code><b>/api/chat-process</b></code> for chatgpt-web only</summary>
-
-##### Parameters
-
-> | name        |  type     | data type      | description                         |
-> |-------------|-----------|----------------|-------------------------------------|
-> | `prompt`    | required  |    string      | message for ask        |
-> | `options`   | optional  |    object      | <code>{ conversationId: "" }</code>    |
-
-
-##### Responses
-
-> | http code     | content-type                    | response                                           |
-> |---------------|---------------------------------|-----------------------------------------------------|
-> | `200`         | `application/octet-stream`      | `{"delta": "message fragments", "text": "message", "conversationId": ""}`                                          |
-> | `401`         | `application/json`        | `{"status": "Unauthorized", "message": ""}`                                         |
-
-
-</details>
-
 ## Getting started
 
 ```bash
