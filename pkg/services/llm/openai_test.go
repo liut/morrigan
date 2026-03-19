@@ -508,52 +508,6 @@ func TestDoRequestTimeout(t *testing.T) {
 	}
 }
 
-func TestHeaderDataRE(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected bool
-	}{
-		{"data prefix", "data: {}", true},
-		{"data prefix with space", "data: {\"key\": \"value\"}", true},
-		{"data prefix no space", "data:{}", true},
-		{"comment line", "// comment", false},
-		{"empty line", "", false},
-		{"not data", "some other text", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := headerDataRE.MatchString(tt.input)
-			if result != tt.expected {
-				t.Errorf("MatchString(%q) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestHeaderDataREReplace(t *testing.T) {
-	// 测试正则替换逻辑
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"remove data prefix", "data: {}", "{}"},
-		{"remove data prefix with space", "data: {\"a\":1}", "{\"a\":1}"},
-		{"remove data prefix no space", "data:{}", "{}"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := headerDataRE.ReplaceAllString(tt.input, "")
-			if result != tt.expected {
-				t.Errorf("ReplaceAllString(%q) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestOpenAIProviderEmbeddingWithCustomModel(t *testing.T) {
 	// 测试使用自定义 embedding model
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

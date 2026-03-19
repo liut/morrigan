@@ -8,12 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 )
-
-// headerDataRE 匹配 SSE data: 前缀（与 go-openai 保持一致）
-var headerDataRE = regexp.MustCompile(`^data:\s*`)
 
 // chatRequestBody OpenAI Chat Completion 请求体
 type chatRequestBody struct {
@@ -169,13 +165,13 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 
 			noSpaceLine := bytes.TrimSpace(rawLine)
 			// 跳过非 data: 开头的行
-			if !headerDataRE.Match(noSpaceLine) {
+			if len(noSpaceLine) < 5 || string(noSpaceLine[:5]) != "data:" {
 				// logger().Debugw("noSpaceLine", "rawLine", rawLine)
 				continue
 			}
 
-			// 去除 data: 前缀
-			noPrefixLine := headerDataRE.ReplaceAll(noSpaceLine, nil)
+			// 去除 data: 前缀和空格
+			noPrefixLine := bytes.TrimLeft(noSpaceLine[5:], " \t")
 			if string(noPrefixLine) == "[DONE]" {
 				logger().Infow("stream DONE", "lines", lines)
 				// 流结束
