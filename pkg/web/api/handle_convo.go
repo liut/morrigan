@@ -290,6 +290,9 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 	if maxLoopIterations <= 0 {
 		maxLoopIterations = 5
 	}
+
+	cctx := stores.ContextWithConvoID(r.Context(), ccr.cs.GetID())
+
 	for {
 		iter++
 		// 达到迭代次数限制，跳出循环
@@ -318,7 +321,7 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 
 		var hasToolCall bool
 		// 执行工具调用
-		ccr.messages, hasToolCall = a.doExecuteToolCalls(r.Context(), streamRes.toolCalls, ccr.messages)
+		ccr.messages, hasToolCall = a.doExecuteToolCalls(cctx, streamRes.toolCalls, ccr.messages)
 		logger().Infow("executed tool calls", "hasToolCall", hasToolCall, "msgs", len(ccr.messages))
 		if !hasToolCall {
 			// 没有成功执行任何工具，跳出循环

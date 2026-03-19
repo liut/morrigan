@@ -177,6 +177,23 @@ func (s *conversation) getKey() string {
 	return "convs-" + s.GetID()
 }
 
+type convoIDKeyType struct{}
+
+var convoIDKey = convoIDKeyType{}
+
+// ConvoIDFromContext 从 context 获取 csid
+func ConvoIDFromContext(ctx context.Context) string {
+	if s, ok := ctx.Value(convoIDKey).(string); ok {
+		return s
+	}
+	return ""
+}
+
+// ContextWithConvoID 将 csid 添加到 context
+func ContextWithConvoID(ctx context.Context, csid string) context.Context {
+	return context.WithValue(ctx, convoIDKey, csid)
+}
+
 // LoadPreset loads preset configuration from file
 func LoadPreset() (doc aigc.Preset, err error) {
 	if len(settings.Current.PresetFile) == 0 {

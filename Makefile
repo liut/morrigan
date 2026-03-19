@@ -9,7 +9,7 @@ GO=$(shell which go)
 GOMOD=$(shell echo "$${GO111MODULE:-auto}")
 WEBAPIS=$(shell find pkg/web -type f \( -name "*.go" ! -name "*_test.go" \) -print )
 LDFLAGS:=-X $(ROOF)/pkg/settings.name=$(NAME) -X $(ROOF)/pkg/settings.version=$(DATE)-$(TAG)
-
+SOURCES=$(shell find . -type f \( -name "*.go" ! -name "*_test.go" \) -print )
 MDs=$(shell find docs -type f \( -name "*.yaml" ! -name "swagger.yaml" \) -print )
 SPEC=7
 
