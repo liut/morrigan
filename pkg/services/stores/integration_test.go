@@ -49,8 +49,8 @@ func (m *mockEmbeddingClient) StreamChat(ctx context.Context, messages []llm.Mes
 	return nil, nil
 }
 
-func (m *mockEmbeddingClient) Generate(ctx context.Context, prompt string) (string, llm.Usage, error) {
-	return "", llm.Usage{}, nil
+func (m *mockEmbeddingClient) Generate(ctx context.Context, prompt string) (string, *llm.Usage, error) {
+	return "", nil, nil
 }
 
 func (m *mockEmbeddingClient) Embedding(ctx context.Context, texts []string) ([]float64, error) {
