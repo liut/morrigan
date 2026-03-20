@@ -35,3 +35,7 @@ make lint
 make test-models    # models 包测试
 make test-stores    # stores 包测试（含集成测试）
 ```
+
+## 注意
+
+- 每次提交之前都要确认

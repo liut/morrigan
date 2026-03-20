@@ -70,31 +70,30 @@ func convertMCPToolsToLLMTools(tools []mcps.ToolDescriptor) []llm.ToolDefinition
 	return result
 }
 
-func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatRequest {
-	cs := stores.NewConversation(ctx, param.GetConversionID())
-	var messages []llm.Message
+// prepareSystemMessage 准备系统消息，包括基础 prompt、记忆、工具或知识库
+func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores.Conversation) (llm.Message, []llm.ToolDefinition) {
+	var sb strings.Builder
 
-	systemPrompt := dftSystemMsg
 	if len(a.preset.SystemPrompt) > 0 {
-		systemPrompt = a.preset.SystemPrompt
+		sb.WriteString(a.preset.SystemPrompt)
+	} else {
+		sb.WriteString(dftSystemMsg)
 	}
+
 	if settings.Current.DateInContext {
-		systemPrompt = systemPrompt + "\n" + thisMoment()
+		sb.WriteString("\n")
+		sb.WriteString(thisMoment())
 	}
 
 	momories, _, err := a.sto.Convo().ListMemory(ctx, &stores.ConvoMemorySpec{IsOwner: true})
 	if err == nil {
 		mtext := momories.PrettyTextForOwner()
 		logger().Debugw("load memories", "keys", momories.Keys(), "text", words.TakeTail(mtext, 10, ".."))
-		systemPrompt = systemPrompt + "\n" + mtext
+		sb.WriteString("\n")
+		sb.WriteString(mtext)
 	} else {
 		logger().Infow("ListMemory fail", "err", err)
 	}
-	// logger().Debugw("loaded", "systemPrompt", systemPrompt)
-	messages = append(messages, llm.Message{
-		Role:    llm.RoleSystem,
-		Content: systemPrompt,
-	})
 
 	// 转换 MCP 工具为 LLM 工具定义
 	tools := convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
@@ -103,36 +102,41 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 		if len(a.preset.ToolsPrompt) > 0 {
 			toolsPrompt = a.preset.ToolsPrompt
 		}
-		messages = append(messages, llm.Message{
-			Role:    llm.RoleSystem,
-			Content: toolsPrompt,
-		})
+		sb.WriteString("\n")
+		sb.WriteString(toolsPrompt)
 		cs.SetTools(llm.Tools(tools).Names()...)
-	} else { // 没有工具，使用问答
+	} else {
 		docs, err := a.sto.Corpus().MatchDocments(ctx, stores.MatchSpec{
-			Query: param.Prompt,
+			Query: prompt,
 			Limit: 5,
 		})
 		if err == nil {
-			logger().Infow("matches", "docs", len(docs), "prompt", param.Prompt)
+			logger().Infow("matches", "docs", len(docs), "prompt", prompt)
 			content := docs.MarkdownText()
 			if len(docs) == 0 {
-				// 知识库未命中，添加明确提示
 				content += "\nPlease honestly state that you don't know rather than making up an answer."
 			}
-			messages = append(messages, llm.Message{
-				Role:    llm.RoleSystem,
-				Content: content,
-			})
+			sb.WriteString("\n")
+			sb.WriteString(content)
 		} else {
 			logger().Warnw("match fail", "err", err)
-			// 查询失败时，添加系统消息告知用户
-			messages = append(messages, llm.Message{
-				Role:    llm.RoleSystem,
-				Content: "知识库查询服务暂时不可用，请稍后再试或联系管理员。",
-			})
+			sb.WriteString("\n知识库查询服务暂时不可用，请稍后再试或联系管理员。")
 		}
 	}
+
+	msg := llm.Message{
+		Role:    llm.RoleSystem,
+		Content: sb.String(),
+	}
+
+	return msg, tools
+}
+
+func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatRequest {
+	cs := stores.NewConversation(ctx, param.GetConversionID())
+
+	sysMsg, tools := a.prepareSystemMessage(ctx, param.Prompt, cs)
+	messages := []llm.Message{sysMsg}
 
 	data, err := cs.ListHistory(ctx)
 	if err == nil && len(data) > 0 {
