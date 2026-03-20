@@ -213,7 +213,7 @@ func LoadPreset() (doc aigc.Preset, err error) {
 		logger().Infow("decode preset fail", "err", err)
 		return
 	}
-	logger().Debugw("loaded preset", "name", settings.Current.PresetFile, "doc", doc)
+	logger().Debugw("loaded preset", "name", settings.Current.PresetFile)
 
 	return
 }

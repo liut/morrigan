@@ -128,7 +128,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			"model", cfg.model,
 			"msgs_count", len(messages),
 			"tools_count", len(tools),
-			"tools", tools,
+			"tools", ToolLogs(tools),
 			"has_tools", len(tools) > 0,
 			"endpoint", endpoint,
 			"messages", MessagesLogged(messages),

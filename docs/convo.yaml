@@ -155,6 +155,15 @@ models:
     specNs: convo
     hooks:
       afterCreated: yes
+    specExtras:
+      - comment: 查全部（含内容）
+        name: IsFull
+        type: bool
+        tags: {form: 'full', json: 'full'}
+      - comment: 只查询自己的
+        name: IsOwner
+        type: bool
+        tags: {form: 'own', json: 'own'}
 
 
 stores:

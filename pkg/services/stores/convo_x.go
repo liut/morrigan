@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/spf13/cast"
 
@@ -115,6 +116,27 @@ func (s *convoStore) afterCreatedMemory(ctx context.Context, obj *convo.Memory) 
 	return nil
 }
 
+func (spec *ConvoMemorySpec) SiftX(ctx context.Context, q *ormQuery) *ormQuery {
+	if !spec.IsFull {
+		q.ExcludeColumn("content")
+	}
+	if spec.IsOwner {
+		user, uok := UserFromContext(ctx)
+		if !uok {
+			logger().Infow("need login when query owner memories")
+			return q.Where("FALSE")
+		}
+		spec.OwnerID = user.OID
+		if spec.Limit == 0 {
+			spec.Limit = defaultMemoryLimit
+		}
+	}
+	if len(spec.Sort) == 0 {
+		spec.Sort = "created DESC"
+	}
+	return q
+}
+
 func (s *convoStore) ListMyMomory(ctx context.Context, spec *ConvoMemorySpec) (convo.Memories, error) {
 	user, uok := UserFromContext(ctx)
 	if !uok {
@@ -147,7 +169,7 @@ func (s *convoStore) MatchMemories(ctx context.Context, ms MatchSpec) (data conv
 	logger().Infow("matched memories", "count", len(ps))
 
 	// Fetch memories by IDs
-	spec := &ConvoMemorySpec{}
+	spec := &ConvoMemorySpec{IsFull: true}
 	spec.IDs = ps.DocumentIDs()
 	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
 	if err != nil {
@@ -158,6 +180,7 @@ func (s *convoStore) MatchMemories(ctx context.Context, ms MatchSpec) (data conv
 
 // SyncEmbeddingMemories generates vectors for all memories
 func (s *convoStore) SyncEmbeddingMemories(ctx context.Context, spec *ConvoMemorySpec) error {
+	spec.IsFull = true
 	data, _, err := s.ListMemory(ctx, spec)
 	if err != nil {
 		return err
@@ -212,16 +235,17 @@ func (s *convoStore) InvokerForMemoryList() mcps.Invoker {
 		spec.Limit = limit
 		spec.Sort = "id desc"
 
-		data, err := s.ListMyMomory(ctx, spec)
-		if err != nil {
-			return mcps.BuildToolErrorResult(err.Error()), nil
-		}
-
 		includeContent := true
 		if v, ok := args["include_content"]; ok {
 			if ic, err := cast.ToBoolE(v); err == nil {
 				includeContent = ic
 			}
+		}
+		spec.IsFull = includeContent
+
+		data, err := s.ListMyMomory(ctx, spec)
+		if err != nil {
+			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
 
 		logger().Debugw("invoke memory list", "args", args, "ic", includeContent)
@@ -274,6 +298,7 @@ func (s *convoStore) InvokerForMemoryRecall() mcps.Invoker {
 		var results []map[string]any
 		for _, m := range data {
 			results = append(results, map[string]any{
+				"date":     m.GetUpdated().Format(time.DateOnly),
 				"key":      m.Key,
 				"category": m.Cate,
 				"content":  m.Content,

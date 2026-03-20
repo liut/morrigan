@@ -2,6 +2,8 @@ package convo
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	oid "github.com/cupogo/andvari/models/oid"
 )
@@ -28,4 +30,37 @@ func (m *MemoryBasic) OwnerEmpty() bool {
 // GetSubject returns the document subject (key + category + content)
 func (z MemoryBasic) GetSubject() string {
 	return fmt.Sprintf("%s  %s  %s", z.Key, z.Cate, z.Content)
+}
+
+func (z Memories) Keys() []string {
+	keys := make([]string, len(z))
+	for i := range z {
+		keys[i] = z[i].Key
+	}
+	return keys
+}
+
+// PrettyText 用于格式显式某个人的记忆清单
+func (z Memories) PrettyTextForOwner() string {
+	if len(z) == 0 {
+		return "*No memory yet*"
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(z) * 50) // ~= line length
+
+	fmt.Fprintf(&sb, "There are %d pieces of memory related to user ID %s.\n", len(z), z[0].OwnerID)
+
+	if len(z[0].Content) == 0 {
+		sb.WriteString("If the content is empty, you need to use the tool memory_recall again to retrieve the memory content.\n")
+	}
+
+	sb.WriteString("\n| updated | cate | key | content |\n")
+	sb.WriteString("| ---- | ---- | ---- | ---- |\n")
+	for _, m := range z {
+		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n",
+			m.GetUpdated().Format(time.DateOnly), m.Cate, m.Key, m.Content)
+	}
+
+	return sb.String()
 }

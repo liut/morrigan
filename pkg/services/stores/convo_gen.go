@@ -113,6 +113,10 @@ type ConvoMemorySpec struct {
 	Key string `extensions:"x-order=B" form:"key" json:"key"`
 	// 分类
 	Cate string `extensions:"x-order=C" form:"cate" json:"cate"`
+	// 查全部（含内容）
+	IsFull bool `extensions:"x-order=D" form:"full" json:"full"`
+	// 只查询自己的
+	IsOwner bool `extensions:"x-order=E" form:"own" json:"own"`
 }
 
 func (spec *ConvoMemorySpec) Sift(q *ormQuery) *ormQuery {

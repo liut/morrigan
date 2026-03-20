@@ -22,6 +22,7 @@ import (
 	"github.com/liut/morign/pkg/services/stores"
 	toolsvc "github.com/liut/morign/pkg/services/tools"
 	"github.com/liut/morign/pkg/settings"
+	"github.com/liut/morign/pkg/utils/words"
 )
 
 func init() {
@@ -80,6 +81,16 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 	if settings.Current.DateInContext {
 		systemPrompt = systemPrompt + "\n" + thisMoment()
 	}
+
+	momories, _, err := a.sto.Convo().ListMemory(ctx, &stores.ConvoMemorySpec{IsOwner: true})
+	if err == nil {
+		mtext := momories.PrettyTextForOwner()
+		logger().Debugw("load memories", "keys", momories.Keys(), "text", words.TakeTail(mtext, 10, ".."))
+		systemPrompt = systemPrompt + "\n" + mtext
+	} else {
+		logger().Infow("ListMemory fail", "err", err)
+	}
+	// logger().Debugw("loaded", "systemPrompt", systemPrompt)
 	messages = append(messages, llm.Message{
 		Role:    llm.RoleSystem,
 		Content: systemPrompt,
