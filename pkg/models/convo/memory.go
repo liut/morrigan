@@ -29,7 +29,7 @@ func (m *MemoryBasic) OwnerEmpty() bool {
 
 // GetSubject returns the document subject (key + category + content)
 func (z MemoryBasic) GetSubject() string {
-	return fmt.Sprintf("%s  %s  %s", z.Key, z.Cate, z.Content)
+	return fmt.Sprintf("%s %s  %s  %s", z.OwnerID.String(), z.Key, z.Cate, z.Content)
 }
 
 func (z Memories) Keys() []string {
@@ -51,15 +51,27 @@ func (z Memories) PrettyTextForOwner() string {
 
 	fmt.Fprintf(&sb, "There are %d pieces of memory related to user ID %s.\n", len(z), z[0].OwnerID)
 
-	if len(z[0].Content) == 0 {
-		sb.WriteString("If the content is empty, you need to use the tool memory_recall again to retrieve the memory content.\n")
+	noContent := len(z[0].Content) == 0
+
+	if noContent {
+		sb.WriteString("you need to use the tool memory_recall again to retrieve the memory content.\n")
+
+		sb.WriteString("\n| updated | cate | key |\n")
+		sb.WriteString("| ---- | ---- | ---- |\n")
+	} else {
+		sb.WriteString("\n| updated | cate | key | content |\n")
+		sb.WriteString("| ---- | ---- | ---- | ---- |\n")
 	}
 
-	sb.WriteString("\n| updated | cate | key | content |\n")
-	sb.WriteString("| ---- | ---- | ---- | ---- |\n")
 	for _, m := range z {
-		fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n",
-			m.GetUpdated().Format(time.DateOnly), m.Cate, m.Key, m.Content)
+		if noContent {
+			fmt.Fprintf(&sb, "| %s | %s | %s |\n",
+				m.GetUpdated().Format(time.DateOnly), m.Cate, m.Key)
+		} else {
+			fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n",
+				m.GetUpdated().Format(time.DateOnly), m.Cate, m.Key, m.Content)
+		}
+
 	}
 
 	return sb.String()
