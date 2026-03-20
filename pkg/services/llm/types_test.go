@@ -86,11 +86,10 @@ func TestToOpenAIMessages(t *testing.T) {
 				{
 					Role:    RoleUser,
 					Content: "Hello",
-					Name:    "user_123",
 				},
 			},
 			expected: []Message{
-				{Role: "user", Content: "Hello", Name: "user_123"},
+				{Role: "user", Content: "Hello"},
 			},
 		},
 	}
@@ -107,9 +106,6 @@ func TestToOpenAIMessages(t *testing.T) {
 				}
 				if result[i].Content != tt.expected[i].Content {
 					t.Errorf("messages[%d].Content = %v, want %v", i, result[i].Content, tt.expected[i].Content)
-				}
-				if result[i].Name != tt.expected[i].Name {
-					t.Errorf("messages[%d].Name = %v, want %v", i, result[i].Name, tt.expected[i].Name)
 				}
 				if result[i].ToolCallID != tt.expected[i].ToolCallID {
 					t.Errorf("messages[%d].ToolCallID = %v, want %v", i, result[i].ToolCallID, tt.expected[i].ToolCallID)
@@ -257,9 +253,10 @@ func TestMessagesLogged_String(t *testing.T) {
 		{
 			name: "tool message",
 			messages: []Message{
-				{Role: RoleTool, Name: "get_weather", Content: "Sunny, 25C"},
+				{Role: RoleTool, Content: "Sunny, 25C"},
 			},
-			expected: "[T: get_weather: [len=10]]",
+			// Name 字段被忽略，使用 ToolCallID
+			expected: "[T: : [len=10]]",
 		},
 		{
 			name: "multiple messages",
@@ -275,7 +272,7 @@ func TestMessagesLogged_String(t *testing.T) {
 			messages: []Message{
 				{Role: RoleUser, Content: "This is a very long message that should be truncated"},
 			},
-			expected: "[U: This is a very long message...]",
+			expected: "[U: This is a very long message that s...]",
 		},
 		{
 			name: "tool calls",
@@ -294,7 +291,7 @@ func TestMessagesLogged_String(t *testing.T) {
 			messages: []Message{
 				{Role: RoleTool, ToolCallID: "call_123", Content: ""},
 			},
-			expected: "[T: : ]",
+			expected: "[T: call_123: ]",
 		},
 		{
 			name: "unknown role",
@@ -337,9 +334,10 @@ func TestMessage_previewText(t *testing.T) {
 		},
 		{
 			name:     "tool with name",
-			msg:      Message{Role: RoleTool, Name: "get_weather", Content: "Result"},
+			msg:      Message{Role: RoleTool, Content: "Result"},
 			n:        50,
-			expected: "T: get_weather: [len=6]",
+			// Name 字段被忽略
+			expected: "T: : [len=6]",
 		},
 		{
 			name: "assistant tool calls",
@@ -356,7 +354,7 @@ func TestMessage_previewText(t *testing.T) {
 			name:     "tool result",
 			msg:      Message{Role: RoleTool, ToolCallID: "call_1", Content: "result data"},
 			n:        50,
-			expected: "T: : [len=11]",
+			expected: "T: call_1: [len=11]",
 		},
 	}
 

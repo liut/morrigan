@@ -26,7 +26,6 @@ type Message struct {
 	Content    string     `json:"content"` // 不可省略
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"` // only for role=tool
-	Name       string     `json:"name,omitempty"`
 }
 
 // ToolCall 表示工具调用请求

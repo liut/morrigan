@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -83,6 +84,16 @@ func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores
 	if settings.Current.DateInContext {
 		sb.WriteString("\n")
 		sb.WriteString(thisMoment())
+	}
+
+	if user, ok := UserFromContext(ctx); ok {
+		sb.WriteString("\nCurrent User:\n")
+		if user.UID == user.Name {
+			fmt.Fprintf(&sb, "Name and uid: %s\n", user.UID)
+		} else {
+			fmt.Fprintf(&sb, "Name: %s\nuid: %s\n", user.Name, user.UID)
+		}
+		fmt.Fprintf(&sb, "ID: %s\n", user.OID)
 	}
 
 	momories, _, err := a.sto.Convo().ListMemory(ctx, &stores.ConvoMemorySpec{IsOwner: true})
