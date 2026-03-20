@@ -68,7 +68,7 @@ models:
         type: oid.OID
         tags: {bson: 'session_id', json: 'session', pg: ',notnull', binding: 'required'}
         isset: true
-        query: 'match'
+        query: 'equal'
       - comment: 角色
         name: Role
         type: string
@@ -85,11 +85,49 @@ models:
         type: int
         tags: {bson: 'tokenCount', json: 'tokenCount', pg: ',notnull,type:smallint'}
         isset: true
-        query: 'equal'
       - type: comm.MetaField
     oidcat: message
     specNs: convo
 
+  - name: SessionUsage
+    comment: 会话使用情况 每次请求后记录
+    tableTag: 'convo_session_usage,alias:su'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 会话编号
+        name: SessionID
+        type: oid.OID
+        tags: {bson: 'session_id', json: 'session', pg: ',notnull', binding: 'required'}
+        basic: true
+        query: 'equal'
+      - comment: '消息数'
+        name: MsgCount
+        type: int
+        tags: {bson: 'msgCount', json: 'msgCount', pg: ',notnull,type:smallint'}
+        isset: true
+      - comment: '输入Token数'
+        name: InputTokens
+        type: int
+        tags: {bson: 'inputTokens', json: 'inputTokens', pg: ',notnull,type:int'}
+        basic: true
+      - comment: '输出Token数'
+        name: OutputTokens
+        type: int
+        tags: {bson: 'outputTokens', json: 'outputTokens', pg: ',notnull,type:int'}
+        basic: true
+      - comment: '总Token数'
+        name: TotalTokens
+        type: int
+        tags: {bson: 'totalTokens', json: 'totalTokens', pg: ',notnull,type:int'}
+        basic: true
+      - comment: 模型
+        name: Model
+        type: string
+        tags: {bson: 'model', json: 'model', pg: ',notnull,type:name'}
+        basic: true
+      - type: comm.MetaField
+    oidcat: event
+    specNs: convo
 
   - name: User
     comment: '用户 来自 OAuth SP 的拷贝'
@@ -174,6 +212,7 @@ stores:
       - { name: Message, type: LGD }
       - { name: User, type: LGD, export: G }
       - { name: Memory, type: LGCUD }
+      - { name: SessionUsage, type: LGCD }
 
 
 webcode: chi
@@ -189,5 +228,8 @@ webapi:
       prefix: '/api/convo'
       ignore: CU
     - model: User
+      prefix: '/api/convo'
+      ignore: CU
+    - model: SessionUsage
       prefix: '/api/convo'
       ignore: CU

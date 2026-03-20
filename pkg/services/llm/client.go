@@ -17,7 +17,7 @@ type Client interface {
 	// StreamChat 发送流式聊天请求，返回流式响应
 	StreamChat(ctx context.Context, messages []Message, tools []ToolDefinition) (<-chan StreamResult, error)
 	// Generate 简单文本生成（用于关键词提取等）
-	Generate(ctx context.Context, prompt string) (string, Usage, error)
+	Generate(ctx context.Context, prompt string) (string, *Usage, error)
 	// Embedding 向量化文本
 	Embedding(ctx context.Context, texts []string) ([]float64, error)
 }
@@ -32,7 +32,7 @@ type client struct {
 type provider interface {
 	Chat(ctx context.Context, cfg *config, messages []Message, tools []ToolDefinition) (*ChatResult, error)
 	StreamChat(ctx context.Context, cfg *config, messages []Message, tools []ToolDefinition) (<-chan StreamResult, error)
-	Generate(ctx context.Context, cfg *config, prompt string) (string, Usage, error)
+	Generate(ctx context.Context, cfg *config, prompt string) (string, *Usage, error)
 	Embedding(ctx context.Context, cfg *config, texts []string) ([]float64, error)
 }
 
@@ -74,7 +74,7 @@ func (c *client) StreamChat(ctx context.Context, messages []Message, tools []Too
 }
 
 // Generate 简单文本生成
-func (c *client) Generate(ctx context.Context, prompt string) (string, Usage, error) {
+func (c *client) Generate(ctx context.Context, prompt string) (string, *Usage, error) {
 	return c.provider.Generate(ctx, c.cfg, prompt)
 }
 

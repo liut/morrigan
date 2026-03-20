@@ -53,6 +53,27 @@ type chatRequest struct {
 	cs       stores.Conversation
 	hi       *aigc.HistoryItem
 	chunkIdx int // 全局 chunk 计数器，用于 SSE 事件序号
+	prompt   string
+}
+
+func (cr *chatRequest) gatherUsage(res chatResponse) convo.SessionUsageBasic {
+	sub := convo.SessionUsageBasic{
+		SessionID:    cr.cs.GetOID(),
+		MsgCount:     len(cr.messages),
+		InputTokens:  res.usage.InputTokens,
+		OutputTokens: res.usage.OutputTokens,
+		TotalTokens:  res.usage.TotalTokens,
+		Model:        res.model,
+	}
+	sub.MetaAddKVs("prompt", cr.prompt,
+		"answerHead", words.TakeHead(res.answer, 12, ".."),
+		"answerTail", words.TakeTail(res.answer, 15, ".."),
+	)
+	if len(res.llmResID) > 0 {
+		sub.MetaAddKVs("resposeID", res.llmResID)
+	}
+
+	return sub
 }
 
 // convertMCPToolsToLLMTools 将 MCP 工具描述转换为 LLM 工具定义
@@ -195,6 +216,7 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 				User: param.Prompt,
 			},
 		},
+		prompt: param.Prompt,
 	}
 }
 
@@ -228,6 +250,7 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		logger().Infow("stream response", "answer_len", len(res.answer), "toolCalls_len", len(res.toolCalls))
 		if len(res.answer) > 0 {
 
+			// TODO: migrate to convo.Message
 			if settings.Current.QAChatLog {
 				in := corpus.ChatLogBasic{
 					ChatID:   ccr.cs.GetOID(),
@@ -255,7 +278,7 @@ func (a *api) postChat(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return "", nil, nil, err
 		}
-		return result.Content, result.ToolCalls, &result.Usage, nil
+		return result.Content, result.ToolCalls, result.Usage, nil
 	}
 	answer, _, _, err := a.executeToolCallLoop(r.Context(), ccr.messages, ccr.tools, exec)
 	if err != nil {
@@ -297,11 +320,11 @@ func writeEvent(w io.Writer, id string, m any) bool {
 }
 
 // chatStreamResponseLoop 循环处理流式响应，支持工具调用循环
-func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r *http.Request) (res ChatResponse) {
+func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r *http.Request) (res chatResponse) {
 	// 预先设置 HTTP 头信息（只设置一次）
 	if _, ok := w.(http.Flusher); !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-		return ChatResponse{}
+		return chatResponse{}
 	}
 
 	w.Header().Set("Cache-Control", "no-cache")
@@ -393,15 +416,15 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 }
 
 // doChatStream 执行一次流式调用，返回累积的 answer 和 toolCalls
-func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Request) ChatResponse {
+func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Request) chatResponse {
 	stream, err := a.llm.StreamChat(r.Context(), ccr.messages, ccr.tools)
 	if err != nil {
 		logger().Infow("call chat stream fail", "err", err)
 		apiFail(w, r, 500, err)
-		return ChatResponse{}
+		return chatResponse{}
 	}
 
-	var res ChatResponse
+	var res chatResponse
 	var lastWriteEmpty bool // 标记上一次是否写入了空消息
 
 	for result := range stream {
@@ -415,12 +438,20 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		cm.Delta = result.Delta
 		cm.Think = result.Think
 		res.answer += result.Delta
+		res.usage = result.Usage
 		if len(result.ToolCalls) > 0 && result.FinishReason == llm.FinishReasonToolCalls {
 			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
 			ccr.chunkIdx++
 			cm.ConversationID = ccr.cs.GetID()
 			cm.FinishReason = string(result.FinishReason)
 			_ = writeEvent(w, strconv.Itoa(ccr.chunkIdx), &cm)
+		}
+
+		if len(result.Model) > 0 {
+			res.model = result.Model
+		}
+		if len(result.ResponseID) > 0 {
+			res.llmResID = result.ResponseID
 		}
 
 		if result.Done {
@@ -442,6 +473,11 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		if result.Done { // 只使用最后拼接的完整信息
 			res.toolCalls = result.ToolCalls
 			break
+		}
+	}
+	if res.usage != nil {
+		if _, err := a.sto.Convo().CreateSessionUsage(r.Context(), ccr.gatherUsage(res)); err != nil {
+			logger().Infow("create session usage fail", "err", err)
 		}
 	}
 	logger().Infow("chat stream done", "finish", res.finish, "answer", len(res.answer),

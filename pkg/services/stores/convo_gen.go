@@ -13,9 +13,10 @@ type ConvoUser = convo.User
 // type ConvoMemory = convo.Memory
 // type ConvoMessage = convo.Message
 // type ConvoSession = convo.Session
+// type ConvoSessionUsage = convo.SessionUsage
 
 func init() {
-	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.User)(nil), (*convo.Memory)(nil))
+	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.SessionUsage)(nil), (*convo.User)(nil), (*convo.Memory)(nil))
 }
 
 type ConvoStore interface {
@@ -39,6 +40,11 @@ type ConvoStore interface {
 	CreateMemory(ctx context.Context, in convo.MemoryBasic) (obj *convo.Memory, err error)
 	UpdateMemory(ctx context.Context, id string, in convo.MemorySet) error
 	DeleteMemory(ctx context.Context, id string) error
+
+	ListSessionUsage(ctx context.Context, spec *ConvoSessionUsageSpec) (data convo.SessionUsages, total int, err error)
+	GetSessionUsage(ctx context.Context, id string) (obj *convo.SessionUsage, err error)
+	CreateSessionUsage(ctx context.Context, in convo.SessionUsageBasic) (obj *convo.SessionUsage, err error)
+	DeleteSessionUsage(ctx context.Context, id string) error
 }
 
 type ConvoSessionSpec struct {
@@ -72,15 +78,12 @@ type ConvoMessageSpec struct {
 	SessionID string `extensions:"x-order=A" form:"session" json:"session"`
 	// 角色
 	Role string `extensions:"x-order=B" form:"role" json:"role"`
-	// TokenCount
-	TokenCount int `extensions:"x-order=C" form:"tokenCount" json:"tokenCount"`
 }
 
 func (spec *ConvoMessageSpec) Sift(q *ormQuery) *ormQuery {
 	q = spec.ModelSpec.Sift(q)
 	q, _ = siftOID(q, "session_id", spec.SessionID, false)
 	q, _ = siftMatch(q, "role", spec.Role, false)
-	q, _ = siftEqual(q, "token_count", spec.TokenCount, false)
 
 	return q
 }
@@ -124,6 +127,21 @@ func (spec *ConvoMemorySpec) Sift(q *ormQuery) *ormQuery {
 	q, _ = siftOID(q, "owner_id", spec.OwnerID, false)
 	q, _ = siftMatch(q, "key", spec.Key, false)
 	q, _ = siftMatch(q, "cate", spec.Cate, false)
+
+	return q
+}
+
+type ConvoSessionUsageSpec struct {
+	PageSpec
+	ModelSpec
+
+	// 会话编号
+	SessionID string `extensions:"x-order=A" form:"session" json:"session"`
+}
+
+func (spec *ConvoSessionUsageSpec) Sift(q *ormQuery) *ormQuery {
+	q = spec.ModelSpec.Sift(q)
+	q, _ = siftOID(q, "session_id", spec.SessionID, false)
 
 	return q
 }
@@ -217,6 +235,27 @@ func (s *convoStore) UpdateMemory(ctx context.Context, id string, in convo.Memor
 }
 func (s *convoStore) DeleteMemory(ctx context.Context, id string) error {
 	obj := new(convo.Memory)
+	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
+func (s *convoStore) ListSessionUsage(ctx context.Context, spec *ConvoSessionUsageSpec) (data convo.SessionUsages, total int, err error) {
+	total, err = s.w.db.ListModel(ctx, spec, &data)
+	return
+}
+func (s *convoStore) GetSessionUsage(ctx context.Context, id string) (obj *convo.SessionUsage, err error) {
+	obj = new(convo.SessionUsage)
+	err = dbGetWithPKID(ctx, s.w.db, obj, id)
+
+	return
+}
+func (s *convoStore) CreateSessionUsage(ctx context.Context, in convo.SessionUsageBasic) (obj *convo.SessionUsage, err error) {
+	obj = convo.NewSessionUsageWithBasic(in)
+	dbMetaUp(ctx, s.w.db, obj)
+	err = dbInsert(ctx, s.w.db, obj)
+	return
+}
+func (s *convoStore) DeleteSessionUsage(ctx context.Context, id string) error {
+	obj := new(convo.SessionUsage)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 

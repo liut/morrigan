@@ -45,6 +45,7 @@ func (z *ChatRequest) GetConversionID() string {
 	return ""
 }
 
+// for response to client
 type ChatMessage struct {
 	ID    string `json:"id,omitempty"`
 	Delta string `json:"delta,omitempty"`
@@ -66,11 +67,15 @@ type ChatMessage struct {
 	Title string `json:"title,omitempty"`
 }
 
-type ChatResponse struct {
+// wrap response from llm
+type chatResponse struct {
 	answer    string
 	toolCalls []llm.ToolCall
 	usage     *llm.Usage
 	finish    llm.FinishReason
+
+	model    string
+	llmResID string
 }
 
 func cutTxt(s string, n int, opts ...string) string {

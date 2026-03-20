@@ -273,6 +273,94 @@ func (in *MessageSet) MetaAddKVs(args ...any) *MessageSet {
 	return in
 }
 
+// consts of SessionUsage 会话使用情况
+const (
+	SessionUsageTable = "convo_session_usage"
+	SessionUsageAlias = "su"
+	SessionUsageLabel = "sessionUsage"
+	SessionUsageTypID = "convoSessionUsage"
+)
+
+// SessionUsage 会话使用情况 每次请求后记录
+type SessionUsage struct {
+	comm.BaseModel `bun:"table:convo_session_usage,alias:su" json:"-"`
+
+	comm.DefaultModel
+
+	SessionUsageBasic
+
+	comm.MetaField
+} // @name convoSessionUsage
+
+type SessionUsageBasic struct {
+	// 会话编号
+	SessionID oid.OID `binding:"required" bson:"session_id" bun:",notnull" extensions:"x-order=A" json:"session" pg:",notnull" swaggertype:"string"`
+	// 消息数
+	MsgCount int `bson:"msgCount" bun:",notnull,type:smallint" extensions:"x-order=B" form:"msgCount" json:"msgCount" pg:",notnull,type:smallint"`
+	// 输入Token数
+	InputTokens int `bson:"inputTokens" bun:",notnull,type:int" extensions:"x-order=C" form:"inputTokens" json:"inputTokens" pg:",notnull,type:int"`
+	// 输出Token数
+	OutputTokens int `bson:"outputTokens" bun:",notnull,type:int" extensions:"x-order=D" form:"outputTokens" json:"outputTokens" pg:",notnull,type:int"`
+	// 总Token数
+	TotalTokens int `bson:"totalTokens" bun:",notnull,type:int" extensions:"x-order=E" form:"totalTokens" json:"totalTokens" pg:",notnull,type:int"`
+	// 模型
+	Model string `bson:"model" bun:",notnull,type:name" extensions:"x-order=F" form:"model" json:"model" pg:",notnull,type:name"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
+} // @name convoSessionUsageBasic
+
+type SessionUsages []SessionUsage
+
+// Creating function call to it's inner fields defined hooks
+func (z *SessionUsage) Creating() error {
+	if z.IsZeroID() {
+		z.SetID(oid.NewID(oid.OtEvent))
+	}
+
+	return z.DefaultModel.Creating()
+}
+func NewSessionUsageWithBasic(in SessionUsageBasic) *SessionUsage {
+	obj := &SessionUsage{
+		SessionUsageBasic: in,
+	}
+	_ = obj.MetaUp(in.MetaDiff)
+	return obj
+}
+func NewSessionUsageWithID(id any) *SessionUsage {
+	obj := new(SessionUsage)
+	_ = obj.SetID(id)
+	return obj
+}
+func (_ *SessionUsage) IdentityLabel() string { return SessionUsageLabel }
+func (_ *SessionUsage) IdentityModel() string { return SessionUsageTypID }
+func (_ *SessionUsage) IdentityTable() string { return SessionUsageTable }
+func (_ *SessionUsage) IdentityAlias() string { return SessionUsageAlias }
+
+type SessionUsageSet struct {
+	// 消息数
+	MsgCount *int `extensions:"x-order=A" json:"msgCount"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
+} // @name convoSessionUsageSet
+
+func (z *SessionUsage) SetWith(o SessionUsageSet) {
+	if o.MsgCount != nil && z.MsgCount != *o.MsgCount {
+		z.LogChangeValue("msg_count", z.MsgCount, o.MsgCount)
+		z.MsgCount = *o.MsgCount
+	}
+	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
+		z.SetChange("meta")
+	}
+}
+func (in *SessionUsageBasic) MetaAddKVs(args ...any) *SessionUsageBasic {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+func (in *SessionUsageSet) MetaAddKVs(args ...any) *SessionUsageSet {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+
 // consts of User 用户
 const (
 	UserTable = "convo_user"

@@ -38,6 +38,15 @@ func init() {
 	regHI(true, "DELETE", "/convo/users/:id", "convo-users-id-delete", func(a *api) http.HandlerFunc {
 		return a.deleteConvoUser
 	})
+	regHI(true, "GET", "/convo/sessionusages", "", func(a *api) http.HandlerFunc {
+		return a.getConvoSessionUsages
+	})
+	regHI(true, "GET", "/convo/sessionusages/:id", "", func(a *api) http.HandlerFunc {
+		return a.getConvoSessionUsage
+	})
+	regHI(true, "DELETE", "/convo/sessionusages/:id", "convo-sessionusages-id-delete", func(a *api) http.HandlerFunc {
+		return a.deleteConvoSessionUsage
+	})
 }
 
 // @Tags 默认 文档生成
@@ -266,6 +275,84 @@ func (a *api) getConvoUser(w http.ResponseWriter, r *http.Request) {
 func (a *api) deleteConvoUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	err := a.sto.Convo().DeleteUser(r.Context(), id)
+	if err != nil {
+		fail(w, r, 503, err)
+		return
+	}
+
+	success(w, r, "ok")
+}
+
+// @Tags 默认 文档生成
+// @Summary 列出会话使用情况
+// @Accept json
+// @Produce json
+// @Param token    header   string  true "登录票据凭证"
+// @Param   query  query   stores.ConvoSessionUsageSpec  true   "Object"
+// @Success 200 {object} Done{result=ResultData{data=convo.SessionUsages}}
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 401 {object} Failure "未登录"
+// @Failure 404 {object} Failure "目标未找到"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/convo/sessionusages [get]
+func (a *api) getConvoSessionUsages(w http.ResponseWriter, r *http.Request) {
+	var spec stores.ConvoSessionUsageSpec
+	if err := queryBinder.Bind(&spec, r.URL); err != nil {
+		fail(w, r, 400, err)
+		return
+	}
+
+	ctx := r.Context()
+	data, total, err := a.sto.Convo().ListSessionUsage(ctx, &spec)
+	if err != nil {
+		fail(w, r, 503, err)
+		return
+	}
+
+	success(w, r, dtResult(data, total))
+}
+
+// @Tags 默认 文档生成
+// @Summary 获取会话使用情况
+// @Accept json
+// @Produce json
+// @Param token    header   string  true "登录票据凭证"
+// @Param   id    path   string  true   "编号"
+// @Success 200 {object} Done{result=convo.SessionUsage}
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 401 {object} Failure "未登录"
+// @Failure 404 {object} Failure "目标未找到"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/convo/sessionusages/{id} [get]
+func (a *api) getConvoSessionUsage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var obj *convo.SessionUsage
+	var err error
+	obj, err = a.sto.Convo().GetSessionUsage(r.Context(), id)
+	if err != nil {
+		fail(w, r, 503, err)
+		return
+	}
+
+	success(w, r, obj)
+}
+
+// @Tags 默认 文档生成
+// @ID convo-sessionusages-id-delete
+// @Summary 删除会话使用情况 🔑
+// @Accept json
+// @Produce json
+// @Param token    header   string  true "登录票据凭证"
+// @Param   id    path   string  true   "编号"
+// @Success 200 {object} Done
+// @Failure 400 {object} Failure "请求或参数错误"
+// @Failure 401 {object} Failure "未登录"
+// @Failure 403 {object} Failure "无权限"
+// @Failure 503 {object} Failure "服务端错误"
+// @Router /api/convo/sessionusages/{id} [delete]
+func (a *api) deleteConvoSessionUsage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	err := a.sto.Convo().DeleteSessionUsage(r.Context(), id)
 	if err != nil {
 		fail(w, r, 503, err)
 		return

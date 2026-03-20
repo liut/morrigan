@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -243,8 +242,9 @@ func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- Stream
 			continue
 		}
 
-		fmt.Fprintln(os.Stderr, string(line))
+		// fmt.Fprintln(os.Stderr, string(line))
 		// slog.Info("streaming", "line", string(line))
+		logger().Debugw("streaming", "line", string(line))
 
 		data := bytes.TrimSpace(line[5:])
 		if string(data) == "[DONE]" {
@@ -269,6 +269,22 @@ func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- Stream
 	}
 }
 
+type anthropicUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
+}
+
+func (au *anthropicUsage) toUsage() *Usage {
+	if au == nil {
+		return nil
+	}
+	return &Usage{
+		InputTokens:  au.InputTokens,
+		OutputTokens: au.OutputTokens,
+		TotalTokens:  au.InputTokens + au.OutputTokens,
+	}
+}
+
 // streamEvent Anthropic 流事件
 type streamEvent struct {
 	Type         string `json:"type"`
@@ -290,6 +306,11 @@ type streamEvent struct {
 		PartialJSON string `json:"partial_json,omitempty"`
 		StopReason  string `json:"stop_reason,omitempty"`
 	} `json:"delta,omitempty"`
+	Message *struct {
+		ID    string `json:"id,omitempty"`
+		Model string `json:"model,omitempty"`
+	} `json:"message,omitempty"`
+	Usage *anthropicUsage `json:"usage,omitempty"`
 }
 
 // parseStreamEvent 解析单个流事件
@@ -358,6 +379,7 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 			Done:         true,
 			ToolCalls:    currentToolCalls,
 			FinishReason: stopReason,
+			Usage:        event.Usage.toUsage(),
 		}
 		return true, currentToolCalls
 	case "message_stop":
@@ -367,6 +389,12 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 		}
 		return true, currentToolCalls
 	case "message_start":
+		if event.Message != nil {
+			ch <- StreamResult{
+				Model:      event.Message.Model,
+				ResponseID: event.Message.ID,
+			}
+		}
 		// 忽略
 	case "ping":
 		// 忽略
@@ -376,12 +404,12 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 	return false, currentToolCalls
 }
 
-func (p *anthropicProvider) Generate(ctx context.Context, cfg *config, prompt string) (string, Usage, error) {
+func (p *anthropicProvider) Generate(ctx context.Context, cfg *config, prompt string) (string, *Usage, error) {
 	// Anthropic 不支持 Completion API，使用 Chat 代替
 	messages := []Message{{Role: RoleUser, Content: prompt}}
 	result, err := p.Chat(ctx, cfg, messages, nil)
 	if err != nil {
-		return "", Usage{}, err
+		return "", nil, err
 	}
 	return result.Content, result.Usage, nil
 }
@@ -549,10 +577,7 @@ func parseAnthropicResponse(body []byte) (*ChatResult, error) {
 			Name  string          `json:"name,omitempty"`
 			Input json.RawMessage `json:"input,omitempty"`
 		} `json:"content"`
-		Usage struct {
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
-		} `json:"usage"`
+		Usage *anthropicUsage `json:"usage,omitempty"`
 	}
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		logger().Warnw("parse anthropic response failed", "err", err, "body", string(body))
@@ -564,11 +589,7 @@ func parseAnthropicResponse(body []byte) (*ChatResult, error) {
 	}
 
 	out := &ChatResult{
-		Usage: Usage{
-			PromptTokens:     parsed.Usage.InputTokens,
-			CompletionTokens: parsed.Usage.OutputTokens,
-			TotalTokens:      parsed.Usage.InputTokens + parsed.Usage.OutputTokens,
-		},
+		Usage: parsed.Usage.toUsage(),
 	}
 	var textParts []string
 	for i, part := range parsed.Content {

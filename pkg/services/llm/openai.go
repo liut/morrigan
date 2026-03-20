@@ -11,6 +11,10 @@ import (
 	"strings"
 )
 
+type StreamOptions struct {
+	IncludeUsage bool `json:"include_usage,omitempty"`
+}
+
 // chatRequestBody OpenAI Chat Completion 请求体
 type chatRequestBody struct {
 	Model       string           `json:"model"`
@@ -20,6 +24,28 @@ type chatRequestBody struct {
 	Stream      bool             `json:"stream"`
 	Tools       []ToolDefinition `json:"tools,omitempty"`
 	ToolChoice  string           `json:"tool_choice,omitempty"`
+	// Options for streaming response. Only set this when you set stream: true.
+	StreamOptions *StreamOptions `json:"stream_options,omitempty"`
+}
+
+type openaiUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+
+	PromptCacheHitTokens  int `json:"prompt_cache_hit_tokens"`  // deepseek
+	PromptCacheMissTokens int `json:"prompt_cache_miss_tokens"` // deepseek
+}
+
+func (ou *openaiUsage) toUsage() *Usage {
+	if ou == nil {
+		return nil
+	}
+	return &Usage{
+		InputTokens:  ou.PromptTokens,
+		OutputTokens: ou.CompletionTokens,
+		TotalTokens:  ou.TotalTokens,
+	}
 }
 
 // openAIProvider OpenAI Provider 实现
@@ -39,8 +65,9 @@ func (p *openAIProvider) Chat(ctx context.Context, cfg *config, messages []Messa
 	var resp struct {
 		Choices []struct {
 			Message struct {
-				Content   string `json:"content"`
-				ToolCalls []struct {
+				Content          string `json:"content"`
+				ReasoningContent string `json:"reasoning_content,omitempty"` // deepseek only
+				ToolCalls        []struct {
 					ID       string `json:"id"`
 					Type     string `json:"type"`
 					Function struct {
@@ -51,11 +78,7 @@ func (p *openAIProvider) Chat(ctx context.Context, cfg *config, messages []Messa
 				} `json:"tool_calls"`
 			} `json:"message"`
 		} `json:"choices"`
-		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
-			TotalTokens      int `json:"total_tokens"`
-		} `json:"usage"`
+		Usage *openaiUsage `json:"usage,omitempty"`
 	}
 
 	if err := json.Unmarshal(body, &resp); err != nil {
@@ -68,11 +91,9 @@ func (p *openAIProvider) Chat(ctx context.Context, cfg *config, messages []Messa
 
 	result := &ChatResult{
 		Content: resp.Choices[0].Message.Content,
-		Usage: Usage{
-			PromptTokens:     resp.Usage.PromptTokens,
-			CompletionTokens: resp.Usage.CompletionTokens,
-			TotalTokens:      resp.Usage.TotalTokens,
-		},
+	}
+	if resp.Usage != nil {
+		result.Usage = resp.Usage.toUsage()
 	}
 
 	for _, tc := range resp.Choices[0].Message.ToolCalls {
@@ -119,6 +140,8 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			Temperature: cfg.temperature,
 			Stream:      true,
 			Tools:       toolsOpt,
+
+			StreamOptions: &StreamOptions{IncludeUsage: true},
 		}
 		if len(toolsOpt) > 0 {
 			reqBody.ToolChoice = "auto"
@@ -169,6 +192,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 				// logger().Debugw("noSpaceLine", "rawLine", rawLine)
 				continue
 			}
+			// logger().Debugw("chunk", "line", string(noSpaceLine))
 
 			// 去除 data: 前缀和空格
 			noPrefixLine := bytes.TrimLeft(noSpaceLine[5:], " \t")
@@ -182,8 +206,9 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			var chunk struct {
 				Choices []struct {
 					Delta struct {
-						Content   string `json:"content"`
-						ToolCalls []struct {
+						Content          string `json:"content"`
+						ReasoningContent string `json:"reasoning_content,omitempty"` // deepseek only
+						ToolCalls        []struct {
 							ID       string `json:"id"`
 							Type     string `json:"type"`
 							Index    int    `json:"index"`
@@ -196,6 +221,9 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 					} `json:"delta"`
 					FinishReason FinishReason `json:"finish_reason"`
 				} `json:"choices"`
+				Model string       `json:"model"`
+				ID    string       `json:"id"`
+				Usage *openaiUsage `json:"usage,omitempty"`
 			}
 
 			if err := json.Unmarshal(noPrefixLine, &chunk); err != nil {
@@ -227,11 +255,20 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 				)
 			}
 
+			// logger().Debugw("stream read", "delta", &delta)
+
 			// 发送内容，每个 chunk 都带上累积的 tool_calls
 			result := StreamResult{
 				Delta:        delta.Content,
+				Think:        delta.ReasoningContent,
 				ToolCalls:    currentToolCalls,
 				FinishReason: finishReason,
+				Model:        chunk.Model,
+				ResponseID:   chunk.ID,
+			}
+			if chunk.Usage != nil {
+				logger().Debugw("usage from chunk", "usage", chunk.Usage)
+				result.Usage = chunk.Usage.toUsage()
 			}
 
 			// 检查是否需要结束流：
@@ -240,6 +277,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			shouldEndStream := finishReason != "" || (len(delta.ToolCalls) == 0 && len(currentToolCalls) > 0)
 
 			if shouldEndStream {
+
 				logger().Debugw("stream should done", "result", &result)
 				result.Done = true
 			}
@@ -371,7 +409,7 @@ func toOpenAIMessages(messages []Message) []Message {
 }
 
 // Generate 简单文本生成（使用 Completion API）
-func (p *openAIProvider) Generate(ctx context.Context, cfg *config, prompt string) (string, Usage, error) {
+func (p *openAIProvider) Generate(ctx context.Context, cfg *config, prompt string) (string, *Usage, error) {
 	endpoint := buildEndpoint(cfg.baseURL, "/completions")
 
 	reqBody := map[string]any{
@@ -383,7 +421,7 @@ func (p *openAIProvider) Generate(ctx context.Context, cfg *config, prompt strin
 
 	body, err := p.doRequest(ctx, cfg, endpoint, reqBody)
 	if err != nil {
-		return "", Usage{}, err
+		return "", nil, err
 	}
 
 	var resp struct {
@@ -398,17 +436,17 @@ func (p *openAIProvider) Generate(ctx context.Context, cfg *config, prompt strin
 	}
 
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return "", Usage{}, fmt.Errorf("parse response: %w", err)
+		return "", nil, fmt.Errorf("parse response: %w", err)
 	}
 
 	if len(resp.Choices) == 0 {
-		return "", Usage{}, fmt.Errorf("no choices in response")
+		return "", nil, fmt.Errorf("no choices in response")
 	}
 
-	usage := Usage{
-		PromptTokens:     resp.Usage.PromptTokens,
-		CompletionTokens: resp.Usage.CompletionTokens,
-		TotalTokens:      resp.Usage.TotalTokens,
+	usage := &Usage{
+		InputTokens:  resp.Usage.PromptTokens,
+		OutputTokens: resp.Usage.CompletionTokens,
+		TotalTokens:  resp.Usage.TotalTokens,
 	}
 
 	return resp.Choices[0].Text, usage, nil

@@ -116,11 +116,11 @@ func TestOpenAIProviderChat(t *testing.T) {
 		t.Errorf("Content = %v, want 'Hello, how can I help you?'", result.Content)
 	}
 
-	if result.Usage.PromptTokens != 10 {
-		t.Errorf("Usage.PromptTokens = %v, want 10", result.Usage.PromptTokens)
+	if result.Usage.InputTokens != 10 {
+		t.Errorf("Usage.PromptTokens = %v, want 10", result.Usage.InputTokens)
 	}
-	if result.Usage.CompletionTokens != 8 {
-		t.Errorf("Usage.CompletionTokens = %v, want 8", result.Usage.CompletionTokens)
+	if result.Usage.OutputTokens != 8 {
+		t.Errorf("Usage.CompletionTokens = %v, want 8", result.Usage.OutputTokens)
 	}
 }
 

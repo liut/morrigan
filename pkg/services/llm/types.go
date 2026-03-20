@@ -89,7 +89,7 @@ func (z Tools) Names() []string {
 type ChatResult struct {
 	Content   string
 	ToolCalls []ToolCall
-	Usage     Usage
+	Usage     *Usage
 }
 
 // HasToolCalls 判断是否有工具调用
@@ -105,13 +105,17 @@ type StreamResult struct {
 	Done         bool `json:",omitempty"`
 	FinishReason FinishReason
 	Error        error `json:",omitempty"`
+	Model        string
+	ResponseID   string
+
+	Usage *Usage
 }
 
 // Usage token 使用统计
 type Usage struct {
-	PromptTokens     int
-	CompletionTokens int
-	TotalTokens      int
+	InputTokens  int
+	OutputTokens int
+	TotalTokens  int
 }
 
 // Response 完整响应
