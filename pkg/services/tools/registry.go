@@ -16,6 +16,7 @@ import (
 )
 
 type Invoker = mcps.Invoker
+type HeaderFunc = transport.HTTPHeaderFunc
 
 type Registry struct {
 	tools    []mcps.ToolDescriptor
@@ -32,6 +33,7 @@ type Registry struct {
 	oauthClients    map[string]*client.Client // token -> client 缓存
 	oauthClientsMu  sync.Mutex
 	clientInfo      mcp.Implementation // MCP 客户端信息
+	headerFunc      HeaderFunc
 
 	// MCP Servers 连接容器（name -> connection）
 	servers   map[string]*MCPConnection
@@ -48,7 +50,13 @@ func WithClientInfo(name, version string) RegistryOption {
 	}
 }
 
-// WithOAuthMCP 配置 OAuth MCP
+func WithHeaderFunc(hf HeaderFunc) RegistryOption {
+	return func(r *Registry) {
+		r.headerFunc = hf
+	}
+}
+
+// WithOAuthMCP 配置 OAuth MCP TODO: 可以合并到普通注册里
 func WithOAuthMCP(endpoint string, getToken func(ctx context.Context) string) RegistryOption {
 	return func(r *Registry) {
 		if endpoint != "" && getToken != nil {
@@ -239,7 +247,7 @@ func (r *Registry) initOAuthMCPTools(ctx context.Context) error {
 
 	// 转换为本地 ToolDescriptor 并注册 invoker
 	for _, tool := range result.Tools {
-		toolKey := fmt.Sprintf("oauth:%s", tool.Name)
+		toolKey := fmt.Sprintf("oauth_%s", tool.Name)
 		// InputSchema 是 ToolInputSchema 类型，需要转换
 		inputSchema := convertInputSchema(tool.InputSchema)
 		r.tools = append(r.tools, mcps.ToolDescriptor{
@@ -397,14 +405,21 @@ func (r *Registry) AddServer(ctx context.Context, server *mcps.Server) error {
 		return err
 	}
 
+	hf := HeaderFunc(server.HeaderFunc)
+	if hf == nil {
+		hf = r.headerFunc
+	}
+
 	// 创建 transport（使用接口类型）
 	var tp transport.Interface
 	var err error
 	switch server.TransType {
 	case mcps.TransTypeSSE:
-		tp, err = transport.NewSSE(server.URL)
+		tp, err = transport.NewSSE(server.URL,
+			transport.WithHeaderFunc(hf))
 	case mcps.TransTypeStreamable:
-		tp, err = transport.NewStreamableHTTP(server.URL)
+		tp, err = transport.NewStreamableHTTP(server.URL,
+			transport.WithHTTPHeaderFunc(hf))
 	default:
 		return fmt.Errorf("unsupported transport type: %v", server.TransType)
 	}
@@ -524,12 +539,13 @@ func (r *Registry) callServerTool(ctx context.Context, serverName, toolName stri
 		params = make(map[string]any)
 	}
 
-	result, err := server.client.CallTool(ctx, mcp.CallToolRequest{
-		Params: mcp.CallToolParams{
-			Name:      toolName,
-			Arguments: params,
-		},
-	})
+	result, err := server.client.CallTool(mcps.ContextWithServerName(ctx, serverName),
+		mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name:      toolName,
+				Arguments: params,
+			},
+		})
 	if err != nil {
 		logger().Errorw("MCP server tool call failed", "server", serverName, "tool", toolName, "err", err)
 		return mcps.BuildToolErrorResult(err.Error()), nil

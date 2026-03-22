@@ -31,6 +31,24 @@ func IsKeeper(ctx context.Context) bool {
 	return slices.Contains(user.Roles, settings.Current.KeeperRole)
 }
 
+// contextKey for OAuth token
+type oauthTokenKeyType struct{}
+
+var oauthTokenKey = oauthTokenKeyType{}
+
+// OAuthTokenFromContext 从 context 获取 token
+func OAuthTokenFromContext(ctx context.Context) string {
+	if tok, ok := ctx.Value(oauthTokenKey).(string); ok {
+		return tok
+	}
+	return ""
+}
+
+// OAuthContextWithToken 将 token 添加到 context
+func OAuthContextWithToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, oauthTokenKey, token)
+}
+
 type ModelMeta = comm.ModelMeta
 
 // ModelMetaCreator is the model metadata creator interface

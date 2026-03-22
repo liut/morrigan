@@ -17,6 +17,8 @@ const (
 	ToolNameMemoryRecall = "memory_recall" // 记忆召回工具
 	ToolNameMemoryStore  = "memory_store"  // 记忆存储工具
 	ToolNameMemoryForget = "memory_forget" // 记忆删除工具
+
+	ToolNameStrataExec = "strata_exec"
 )
 
 // ToolDescriptor 变量定义
@@ -189,6 +191,19 @@ var (
 			"required": []string{"key"},
 		},
 	}
+
+	// strataExecDescriptor = mcps.ToolDescriptor{
+	// 	Name:        ToolNameStrataExec,
+	// 	Description: "Execute Shell command",
+	// 	InputSchema: map[string]any{
+	// 		"type": "object",
+	// 		"properties": map[string]any{
+	// 			"command":    map[string]string{"type": "string", "description": "Shell 命令"},
+	// 			"timeout_ms": map[string]any{"type": "number", "description": "超时毫秒", "default": float64(30000)},
+	// 		},
+	// 		"required": []string{"command"},
+	// 	},
+	// }
 )
 
 // ResultLogs 是工具调用结果的日志类型别名

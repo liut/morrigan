@@ -96,6 +96,53 @@ func (z Status) MarshalText() ([]byte, error) {
 	return []byte(z.String()), nil
 }
 
+// 头类型
+type HeaderCate int8
+
+const (
+	HeaderCateAuthorization HeaderCate = 1 << iota //   1 Authorization
+	HeaderCateOwnerID                              //   2 OwnerID
+	HeaderCateSessionID                            //   4 SessionID
+
+	HeaderCateNone HeaderCate = 0 // None
+)
+
+func (z *HeaderCate) Decode(s string) error {
+	switch s {
+	case "0", "none":
+		*z = HeaderCateNone
+	case "1", "authorization", "Authorization":
+		*z = HeaderCateAuthorization
+	case "2", "ownerID", "OwnerID":
+		*z = HeaderCateOwnerID
+	case "4", "sessionID", "SessionID":
+		*z = HeaderCateSessionID
+	default:
+		return fmt.Errorf("invalid headerCate: %q", s)
+	}
+	return nil
+}
+func (z *HeaderCate) UnmarshalText(b []byte) error {
+	return z.Decode(string(b))
+}
+func (z HeaderCate) String() string {
+	switch z {
+	case HeaderCateNone:
+		return "none"
+	case HeaderCateAuthorization:
+		return "authorization"
+	case HeaderCateOwnerID:
+		return "ownerID"
+	case HeaderCateSessionID:
+		return "sessionID"
+	default:
+		return fmt.Sprintf("headerCate %d", int8(z))
+	}
+}
+func (z HeaderCate) MarshalText() ([]byte, error) {
+	return []byte(z.String()), nil
+}
+
 // consts of Server 服务器
 const (
 	ServerTable = "mcp_server"
@@ -111,6 +158,9 @@ type Server struct {
 	comm.DefaultModel
 
 	ServerBasic
+
+	// 定制头函数
+	HeaderFunc HeaderFunc `bson:"-" bun:"-" extensions:"x-order=I" json:"-" pg:"-"`
 
 	comm.MetaField
 } // @name mcpsServer
@@ -137,6 +187,11 @@ type ServerBasic struct {
 	Status Status `bson:"status" bun:",notnull,type:smallint" enums:"disconnected,connecting,connected" extensions:"x-order=F" form:"status" json:"status" pg:",notnull,type:smallint" swaggertype:"string"`
 	// 备注
 	Remark string `bson:"remark" bun:",notnull" extensions:"x-order=G" form:"remark" json:"remark" pg:",notnull"`
+	// 头分类
+	//  * `authorization`
+	//  * `ownerID`
+	//  * `sessionID`
+	HeaderCate HeaderCate `bson:"headerCate" bun:",notnull,type:smallint" enums:"authorization,ownerID,sessionID" extensions:"x-order=H" json:"headerCate" pg:",notnull,type:smallint" swaggertype:"string"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name mcpsServerBasic
@@ -190,6 +245,11 @@ type ServerSet struct {
 	Status *Status `enums:"disconnected,connecting,connected" extensions:"x-order=F" json:"status" swaggertype:"string"`
 	// 备注
 	Remark *string `extensions:"x-order=G" json:"remark"`
+	// 头分类
+	//  * `authorization`
+	//  * `ownerID`
+	//  * `sessionID`
+	HeaderCate *HeaderCate `enums:"authorization,ownerID,sessionID" extensions:"x-order=H" json:"headerCate" swaggertype:"string"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name mcpsServerSet
@@ -222,6 +282,10 @@ func (z *Server) SetWith(o ServerSet) {
 	if o.Remark != nil && z.Remark != *o.Remark {
 		z.LogChangeValue("remark", z.Remark, o.Remark)
 		z.Remark = *o.Remark
+	}
+	if o.HeaderCate != nil {
+		z.LogChangeValue("header_cate", z.HeaderCate, o.HeaderCate)
+		z.HeaderCate = *o.HeaderCate
 	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")

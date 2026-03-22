@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -156,183 +157,182 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 			"endpoint", endpoint,
 			"messages", MessagesLogged(messages),
 		)
-		// logger().Debugw("stream start", "msgs", messages)
 
-		// 发送流式请求
-		body, err := p.doStreamRequest(ctx, cfg, endpoint, reqBody)
+		// 序列化请求体，保存用于错误时打印
+		reqBodyBytes, err := json.Marshal(reqBody)
 		if err != nil {
-			logger().Infow("request fail", "err", err, "reqBody", &reqBody)
+			ch <- StreamResult{Error: fmt.Errorf("marshal request: %w", err)}
+			return
+		}
+
+		// 构建并发送请求
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBodyBytes))
+		if err != nil {
+			logger().Warnw("create stream request failed", "err", err, "reqBody", string(reqBodyBytes))
 			ch <- StreamResult{Error: err}
 			return
 		}
-		defer body.Close()
 
-		// 使用 bufio.Reader 逐行读取 SSE 响应（与 go-openai 保持一致）
-		bufReader := bufio.NewReaderSize(body, 1024)
+		req.Header.Set("Content-Type", "application/json")
+		if cfg.apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+cfg.apiKey)
+		}
+		for k, v := range cfg.headers {
+			req.Header.Set(k, v)
+		}
 
-		var currentToolCalls []ToolCall
-		var finishReason FinishReason
-		var lines int
+		hc := cfg.httpClient
+		if hc == nil {
+			hc = &http.Client{Timeout: 0}
+		}
 
-		for {
-			lines++
-			rawLine, err := bufReader.ReadBytes('\n')
-			if err != nil {
-				if err == io.EOF {
-					ch <- StreamResult{Done: true}
-				} else {
-					ch <- StreamResult{Error: fmt.Errorf("read: %w", err)}
-				}
-				return
-			}
+		resp, err := hc.Do(req)
+		if err != nil {
+			logger().Warnw("stream request failed", "err", err, "reqBody", string(reqBodyBytes))
+			ch <- StreamResult{Error: err}
+			return
+		}
 
-			noSpaceLine := bytes.TrimSpace(rawLine)
-			// 跳过非 data: 开头的行
-			if len(noSpaceLine) < 5 || string(noSpaceLine[:5]) != "data:" {
-				// logger().Debugw("noSpaceLine", "rawLine", rawLine)
-				continue
-			}
-			// logger().Debugw("chunk", "line", string(noSpaceLine))
+		// 检查响应状态码
+		if resp.StatusCode >= 400 {
+			fmt.Fprintf(os.Stderr, "\n%s\n", string(reqBodyBytes))
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			resp.Body.Close()
+			errMsg := fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+			logger().Warnw("stream response error",
+				"status", resp.StatusCode,
+				// "reqBody", string(reqBodyBytes),
+				"respBody", string(respBody))
+			ch <- StreamResult{Error: errMsg}
+			return
+		}
+		defer resp.Body.Close()
 
-			// 去除 data: 前缀和空格
-			noPrefixLine := bytes.TrimLeft(noSpaceLine[5:], " \t")
-			if string(noPrefixLine) == "[DONE]" {
-				logger().Infow("stream DONE", "lines", lines)
-				// 流结束
-				ch <- StreamResult{Done: true}
-				return
-			}
-
-			var chunk struct {
-				Choices []struct {
-					Delta struct {
-						Content          string `json:"content"`
-						ReasoningContent string `json:"reasoning_content,omitempty"` // deepseek only
-						ToolCalls        []struct {
-							ID       string `json:"id"`
-							Type     string `json:"type"`
-							Index    int    `json:"index"`
-							Function struct {
-								Name      string `json:"name"`
-								Arguments string `json:"arguments"`
-								Results   any    `json:"results"`
-							} `json:"function"`
-						} `json:"tool_calls"`
-					} `json:"delta"`
-					FinishReason FinishReason `json:"finish_reason"`
-				} `json:"choices"`
-				Model string       `json:"model"`
-				ID    string       `json:"id"`
-				Usage *openaiUsage `json:"usage,omitempty"`
-			}
-
-			if err := json.Unmarshal(noPrefixLine, &chunk); err != nil {
-				logger().Infow("parse chunk fail", "err", err, "rawLine", rawLine)
-				ch <- StreamResult{Error: fmt.Errorf("parse chunk: %w", err)}
-				return
-			}
-
-			if len(chunk.Choices) == 0 {
-				logger().Debugw("choices is empty", "rawLine", rawLine)
-				continue
-			}
-
-			delta := chunk.Choices[0].Delta
-			finishReason = chunk.Choices[0].FinishReason
-
-			// 累积 tool calls
-			for _, tc := range delta.ToolCalls {
-				if tc.Index >= len(currentToolCalls) {
-					currentToolCalls = append(currentToolCalls, ToolCall{
-						ID:   tc.ID,
-						Type: tc.Type,
-					})
-				}
-				currentToolCalls[tc.Index].Function.Name += tc.Function.Name
-				currentToolCalls[tc.Index].Function.Arguments = append(
-					currentToolCalls[tc.Index].Function.Arguments,
-					tc.Function.Arguments...,
-				)
-			}
-
-			// logger().Debugw("stream read", "delta", &delta)
-
-			// 发送内容，每个 chunk 都带上累积的 tool_calls
-			result := StreamResult{
-				Delta:        delta.Content,
-				Think:        delta.ReasoningContent,
-				ToolCalls:    currentToolCalls,
-				FinishReason: finishReason,
-				Model:        chunk.Model,
-				ResponseID:   chunk.ID,
-			}
-			if chunk.Usage != nil {
-				logger().Debugw("usage from chunk", "usage", chunk.Usage)
-				result.Usage = chunk.Usage.toUsage()
-			}
-
-			// 检查是否需要结束流：
-			// 1. finish_reason 不为空（标准行为）
-			// 2. tool_calls_len 为 0 且之前累积了 tool_calls（DeepSeek 行为）
-			shouldEndStream := finishReason != "" || (len(delta.ToolCalls) == 0 && len(currentToolCalls) > 0)
-
-			if shouldEndStream {
-
-				logger().Debugw("stream should done", "result", &result)
-				result.Done = true
-			}
-			ch <- result
-
-			// 结束流
-			if shouldEndStream {
-				logger().Infow("stream done", "finish_reason", finishReason,
-					"tool_calls_count", len(currentToolCalls), "lines", lines)
-				return
-			}
+		// 解析流响应
+		if err := p.parseStreamResponse(resp.Body, ch); err != nil {
+			ch <- StreamResult{Error: err}
 		}
 	}()
 
 	return ch, nil
 }
 
-// doStreamRequest 发送流式请求，返回响应体供逐行读取
-func (p *openAIProvider) doStreamRequest(ctx context.Context, cfg *config, endpoint string, body any) (io.ReadCloser, error) {
-	b, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
+// parseStreamResponse 解析流式响应
+func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult) error {
+	bufReader := bufio.NewReaderSize(body, 1024)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
+	var currentToolCalls []ToolCall
+	var finishReason FinishReason
+	var lines int
 
-	req.Header.Set("Content-Type", "application/json")
-	if cfg.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.apiKey)
-	}
-	for k, v := range cfg.headers {
-		req.Header.Set(k, v)
-	}
+	for {
+		lines++
+		rawLine, err := bufReader.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				ch <- StreamResult{Done: true}
+			} else {
+				ch <- StreamResult{Error: fmt.Errorf("read: %w", err)}
+			}
+			return nil
+		}
 
-	hc := cfg.httpClient
-	if hc == nil {
-		hc = &http.Client{Timeout: 0} // 流式请求不设置超时
-	}
+		noSpaceLine := bytes.TrimSpace(rawLine)
+		// 跳过非 data: 开头的行
+		if len(noSpaceLine) < 5 || string(noSpaceLine[:5]) != "data:" {
+			continue
+		}
 
-	resp, err := hc.Do(req)
-	if err != nil {
-		logger().Infow("request fail", "err", err)
-		return nil, err
-	}
+		// 去除 data: 前缀和空格
+		noPrefixLine := bytes.TrimLeft(noSpaceLine[5:], " \t")
+		if string(noPrefixLine) == "[DONE]" {
+			logger().Infow("stream DONE", "lines", lines)
+			ch <- StreamResult{Done: true}
+			return nil
+		}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		resp.Body.Close()
-		return nil, fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
-	}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content          string `json:"content"`
+					ReasoningContent string `json:"reasoning_content,omitempty"`
+					ToolCalls        []struct {
+						ID       string `json:"id"`
+						Type     string `json:"type"`
+						Index    int    `json:"index"`
+						Function struct {
+							Name      string `json:"name"`
+							Arguments string `json:"arguments"`
+							Results   any    `json:"results"`
+						} `json:"function"`
+					} `json:"tool_calls"`
+				} `json:"delta"`
+				FinishReason FinishReason `json:"finish_reason"`
+			} `json:"choices"`
+			Model string       `json:"model"`
+			ID    string       `json:"id"`
+			Usage *openaiUsage `json:"usage,omitempty"`
+		}
 
-	return resp.Body, nil
+		if err := json.Unmarshal(noPrefixLine, &chunk); err != nil {
+			logger().Infow("parse chunk fail", "err", err, "rawLine", rawLine)
+			return fmt.Errorf("parse chunk: %w", err)
+		}
+
+		if len(chunk.Choices) == 0 {
+			logger().Debugw("choices is empty", "rawLine", rawLine)
+			continue
+		}
+
+		delta := chunk.Choices[0].Delta
+		finishReason = chunk.Choices[0].FinishReason
+
+		// 累积 tool calls
+		for _, tc := range delta.ToolCalls {
+			if tc.Index >= len(currentToolCalls) {
+				currentToolCalls = append(currentToolCalls, ToolCall{
+					ID:   tc.ID,
+					Type: tc.Type,
+				})
+			}
+			currentToolCalls[tc.Index].Function.Name += tc.Function.Name
+			currentToolCalls[tc.Index].Function.Arguments = append(
+				currentToolCalls[tc.Index].Function.Arguments,
+				tc.Function.Arguments...,
+			)
+		}
+
+		// 发送内容，每个 chunk 都带上累积的 tool_calls
+		result := StreamResult{
+			Delta:        delta.Content,
+			Think:        delta.ReasoningContent,
+			ToolCalls:    currentToolCalls,
+			FinishReason: finishReason,
+			Model:        chunk.Model,
+			ResponseID:   chunk.ID,
+		}
+		if chunk.Usage != nil {
+			logger().Debugw("usage from chunk", "usage", chunk.Usage)
+			result.Usage = chunk.Usage.toUsage()
+		}
+
+		// 检查是否需要结束流：
+		// 1. finish_reason 不为空（标准行为）
+		// 2. tool_calls_len 为 0 且之前累积了 tool_calls（DeepSeek 行为）
+		shouldEndStream := finishReason != "" || (len(delta.ToolCalls) == 0 && len(currentToolCalls) > 0)
+
+		if shouldEndStream {
+			logger().Debugw("stream should done", "result", &result)
+			result.Done = true
+		}
+		ch <- result
+
+		if shouldEndStream {
+			logger().Infow("stream done", "finish_reason", finishReason,
+				"tool_calls_count", len(currentToolCalls), "lines", lines)
+			return nil
+		}
+	}
 }
 
 // doChatRequest 发送聊天请求的公共方法

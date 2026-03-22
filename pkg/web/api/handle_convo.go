@@ -117,6 +117,8 @@ func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores
 		fmt.Fprintf(&sb, "ID: %s\n", user.OID)
 	}
 
+	fmt.Fprintf(&sb, "\nCurrent SessionID: %s\n", cs.GetID())
+
 	momories, _, err := a.sto.Convo().ListMemory(ctx, &stores.ConvoMemorySpec{IsOwner: true})
 	if err == nil {
 		mtext := momories.PrettyTextForOwner()

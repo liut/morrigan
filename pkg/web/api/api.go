@@ -16,6 +16,7 @@ import (
 	staffio "github.com/liut/staffio-client"
 
 	"github.com/liut/morign/pkg/models/aigc"
+	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/services/stores"
 	"github.com/liut/morign/pkg/services/tools"
@@ -71,11 +72,24 @@ func newapi(sto stores.Storage) *api {
 
 	if settings.Current.OAuthPathMCP != "" {
 		opts = append(opts, tools.WithOAuthMCP(
-			staffio.GetPrefix()+settings.Current.OAuthPathMCP, OAuthTokenFromContext),
+			staffio.GetPrefix()+settings.Current.OAuthPathMCP, stores.OAuthTokenFromContext),
 		)
 	}
 	toolreg := tools.NewRegistry(sto, opts...)
 	toolreg.ApplyToolDescriptions(preset.Tools)
+
+	if settings.Current.StrataMCPURL != "" {
+		var mcpsrv = mcps.NewServerWithBasic(mcps.ServerBasic{
+			TransType:  mcps.TransTypeStreamable,
+			Name:       "strata",
+			URL:        settings.Current.StrataMCPURL,
+			HeaderCate: mcps.HeaderCateOwnerID + mcps.HeaderCateSessionID,
+		})
+		stores.PatchMCPServer(mcpsrv)
+		if err := toolreg.AddServer(context.Background(), mcpsrv); err != nil {
+			logger().Infow("add mcp server fail", "err", err)
+		}
+	}
 
 	// 加载已激活的 MCP Servers
 	if err := toolreg.LoadServers(context.Background(), sto); err != nil {

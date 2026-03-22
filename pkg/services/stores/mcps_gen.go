@@ -64,6 +64,9 @@ type mcpStore struct {
 
 func (s *mcpStore) ListServer(ctx context.Context, spec *MCPServerSpec) (data mcps.Servers, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
+	if err == nil {
+		err = s.afterListServer(ctx, spec, data)
+	}
 	return
 }
 func (s *mcpStore) GetServer(ctx context.Context, id string) (obj *mcps.Server, err error) {
@@ -71,7 +74,9 @@ func (s *mcpStore) GetServer(ctx context.Context, id string) (obj *mcps.Server, 
 	if err = dbGetWith(ctx, s.w.db, obj, "name", "=", id); err != nil && obj.SetID(id) {
 		err = dbGetWithPK(ctx, s.w.db, obj)
 	}
-
+	if err == nil {
+		err = s.afterLoadServer(ctx, obj)
+	}
 	return
 }
 func (s *mcpStore) CreateServer(ctx context.Context, in mcps.ServerBasic) (obj *mcps.Server, err error) {

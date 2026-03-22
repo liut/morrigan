@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -27,9 +28,9 @@ func (p *anthropicProvider) Chat(ctx context.Context, cfg *config, messages []Me
 	anthropicMessages, systemText := toAnthropicMessages(messages)
 
 	reqBody := struct {
+		System      string          `json:"system,omitempty"`
 		Model       string          `json:"model"`
 		Messages    []anthropicMsg  `json:"messages"`
-		System      string          `json:"system,omitempty"`
 		Tools       []anthropicTool `json:"tools,omitempty"`
 		MaxTokens   int             `json:"max_tokens"`
 		Temperature *float64        `json:"temperature,omitempty"`
@@ -105,112 +106,105 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 	go func() {
 		defer close(ch)
 
-		req, err := p.buildStreamRequest(ctx, cfg, messages, tools)
+		// 构建请求
+		endpoint := anthropicMessagesEndpoint(cfg.baseURL)
+		anthropicMessages, systemText := toAnthropicMessages(messages)
+
+		reqBody := struct {
+			Model       string          `json:"model"`
+			Messages    []anthropicMsg  `json:"messages"`
+			System      string          `json:"system,omitempty"`
+			Tools       []anthropicTool `json:"tools,omitempty"`
+			MaxTokens   int             `json:"max_tokens"`
+			Temperature *float64        `json:"temperature,omitempty"`
+			Stream      bool            `json:"stream"`
+		}{
+			Model:       cfg.model,
+			Messages:    anthropicMessages,
+			System:      systemText,
+			MaxTokens:   cfg.maxTokens,
+			Temperature: float64Ptr(cfg.temperature),
+			Stream:      true,
+		}
+		if len(tools) > 0 {
+			converted, err := toAnthropicTools(tools)
+			if err != nil {
+				ch <- StreamResult{Error: err}
+				return
+			}
+			reqBody.Tools = converted
+		}
+
+		logger().Infow("stream start",
+			"model", cfg.model,
+			"msgs_count", len(messages),
+			"tools_count", len(tools),
+			"tools", ToolLogs(tools),
+			"has_tools", len(tools) > 0,
+			"endpoint", endpoint,
+			"messages", MessagesLogged(messages),
+		)
+
+		// 序列化请求体，保存用于错误时打印
+		reqBodyBytes, err := json.Marshal(reqBody)
 		if err != nil {
+			logger().Warnw("marshal stream request failed", "err", err)
 			ch <- StreamResult{Error: err}
 			return
 		}
 
-		resp, err := p.sendStreamRequest(req, cfg)
+		// 构建请求
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(reqBodyBytes))
 		if err != nil {
+			logger().Warnw("create stream request failed", "err", err, "reqBody", string(reqBodyBytes))
 			ch <- StreamResult{Error: err}
+			return
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		if cfg.apiKey != "" {
+			req.Header.Set("x-api-key", cfg.apiKey)
+		}
+		req.Header.Set("anthropic-version", anthropicVersion)
+		for k, v := range cfg.headers {
+			req.Header.Set(k, v)
+		}
+
+		// 发送请求
+		hc := cfg.httpClient
+		if hc == nil {
+			hc = &http.Client{Timeout: 0}
+		}
+
+		resp, err := hc.Do(req)
+		if err != nil {
+			logger().Warnw("stream request failed", "err", err, "reqBody", string(reqBodyBytes))
+			ch <- StreamResult{Error: err}
+			return
+		}
+
+		// 检查响应状态码
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			fmt.Fprintf(os.Stderr, "\n%s\n", string(reqBodyBytes))
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			resp.Body.Close()
+			errMsg := fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+			logger().Warnw("stream response error",
+				"status", resp.StatusCode,
+				// "reqBody", string(reqBodyBytes),
+				"respBody", string(respBody))
+			ch <- StreamResult{Error: errMsg}
 			return
 		}
 		defer resp.Body.Close()
 
+		// 解析流响应
 		if err := p.parseStreamResponse(resp.Body, ch); err != nil {
 			ch <- StreamResult{Error: err}
 		}
 	}()
 
 	return ch, nil
-}
-
-// buildStreamRequest 构建流式请求
-func (p *anthropicProvider) buildStreamRequest(ctx context.Context, cfg *config, messages []Message, tools []ToolDefinition) (*http.Request, error) {
-	endpoint := anthropicMessagesEndpoint(cfg.baseURL)
-	anthropicMessages, systemText := toAnthropicMessages(messages)
-
-	reqBody := struct {
-		Model       string          `json:"model"`
-		Messages    []anthropicMsg  `json:"messages"`
-		System      string          `json:"system,omitempty"`
-		Tools       []anthropicTool `json:"tools,omitempty"`
-		MaxTokens   int             `json:"max_tokens"`
-		Temperature *float64        `json:"temperature,omitempty"`
-		Stream      bool            `json:"stream"`
-	}{
-		Model:       cfg.model,
-		Messages:    anthropicMessages,
-		System:      systemText,
-		MaxTokens:   cfg.maxTokens,
-		Temperature: float64Ptr(cfg.temperature),
-		Stream:      true,
-	}
-	if len(tools) > 0 {
-		converted, err := toAnthropicTools(tools)
-		if err != nil {
-			logger().Infow("convert tools for stream failed", "err", err)
-			return nil, err
-		}
-		reqBody.Tools = converted
-	}
-	logger().Infow("stream start",
-		"model", cfg.model,
-		"msgs_count", len(messages),
-		"tools_count", len(tools),
-		"tools", ToolLogs(tools),
-		"has_tools", len(tools) > 0,
-		"endpoint", endpoint,
-		"messages", MessagesLogged(messages),
-	)
-
-	b, err := json.Marshal(reqBody)
-	if err != nil {
-		logger().Infow("marshal stream request failed", "err", err)
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		logger().Infow("create stream request failed", "err", err, "endpoint", endpoint)
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	if cfg.apiKey != "" {
-		req.Header.Set("x-api-key", cfg.apiKey)
-	}
-	req.Header.Set("anthropic-version", anthropicVersion)
-	for k, v := range cfg.headers {
-		req.Header.Set(k, v)
-	}
-
-	return req, nil
-}
-
-// sendStreamRequest 发送流式请求并检查响应状态
-func (p *anthropicProvider) sendStreamRequest(req *http.Request, cfg *config) (*http.Response, error) {
-	hc := cfg.httpClient
-	if hc == nil {
-		hc = &http.Client{Timeout: 0} // 流式请求不设置超时
-	}
-
-	resp, err := hc.Do(req)
-	if err != nil {
-		logger().Warnw("anthropic stream request failed", "err", err, "endpoint", req.URL)
-		return nil, err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		errMsg := fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-		logger().Warnw("anthropic stream response error", "status", resp.StatusCode,
-			"body", string(body))
-		return nil, errMsg
-	}
-
-	return resp, nil
 }
 
 // parseStreamResponse 解析流式响应

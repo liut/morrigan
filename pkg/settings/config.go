@@ -31,6 +31,7 @@ type Config struct {
 	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
 	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"seconds of cookie maxAge"`
 	OAuthPathMCP string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
+	StrataMCPURL string   `envconfig:"Strata_MCP_URL"`
 
 	WebAppPath string `envconfig:"Web_App_Path" default:"/" desc:"web app path for oauth redirect"`
 

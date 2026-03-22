@@ -40,6 +40,23 @@ enums:
     textMarshaler: true
     textUnmarshaler: true
 
+  - comment: 头类型
+    name: HeaderCate
+    type: int8
+    values:
+      - label: None
+        suffix: None
+      - label: Authorization
+        suffix: Authorization
+      - label: OwnerID
+        suffix: OwnerID
+      - label: SessionID
+        suffix: SessionID
+    multiple: true
+    stringer: true
+    decodable: true
+    textMarshaler: true
+    textUnmarshaler: true
 
 dbcode: bun
 modelpkg: mcps
@@ -90,9 +107,22 @@ models:
         type: string
         tags: {bson: 'remark', json: 'remark', pg: ',notnull'}
         isset: true
+      - comment: 头分类
+        name: HeaderCate
+        type: HeaderCate
+        tags: {bson: 'headerCate', json: 'headerCate', pg: ',notnull,type:smallint'}
+        isset: true
+      - comment: 定制头函数
+        name: HeaderFunc
+        type: HeaderFunc
+        tags: {bson: '-', json: '-', pg: '-'}
+
       - type: comm.MetaField
     oidcat: file
     specNs: MCP
+    hooks:
+      afterLoad: yes
+      afterList: yes
 
 stores:
   - name: mcpStore
