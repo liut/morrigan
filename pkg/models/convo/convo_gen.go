@@ -273,26 +273,26 @@ func (in *MessageSet) MetaAddKVs(args ...any) *MessageSet {
 	return in
 }
 
-// consts of SessionUsage 会话使用情况
+// consts of UsageRecord 使用情况
 const (
-	SessionUsageTable = "convo_session_usage"
-	SessionUsageAlias = "su"
-	SessionUsageLabel = "sessionUsage"
-	SessionUsageTypID = "convoSessionUsage"
+	UsageRecordTable = "convo_usage_record"
+	UsageRecordAlias = "ur"
+	UsageRecordLabel = "usageRecord"
+	UsageRecordTypID = "convoUsageRecord"
 )
 
-// SessionUsage 会话使用情况 每次请求后记录
-type SessionUsage struct {
-	comm.BaseModel `bun:"table:convo_session_usage,alias:su" json:"-"`
+// UsageRecord 使用情况 每次请求后记录
+type UsageRecord struct {
+	comm.BaseModel `bun:"table:convo_usage_record,alias:ur" json:"-"`
 
 	comm.DefaultModel
 
-	SessionUsageBasic
+	UsageRecordBasic
 
 	comm.MetaField
-} // @name convoSessionUsage
+} // @name convoUsageRecord
 
-type SessionUsageBasic struct {
+type UsageRecordBasic struct {
 	// 会话编号
 	SessionID oid.OID `binding:"required" bson:"session_id" bun:",notnull" extensions:"x-order=A" json:"session" pg:",notnull" swaggertype:"string"`
 	// 消息数
@@ -307,43 +307,43 @@ type SessionUsageBasic struct {
 	Model string `bson:"model" bun:",notnull,type:name" extensions:"x-order=F" form:"model" json:"model" pg:",notnull,type:name"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
-} // @name convoSessionUsageBasic
+} // @name convoUsageRecordBasic
 
-type SessionUsages []SessionUsage
+type UsageRecords []UsageRecord
 
 // Creating function call to it's inner fields defined hooks
-func (z *SessionUsage) Creating() error {
+func (z *UsageRecord) Creating() error {
 	if z.IsZeroID() {
 		z.SetID(oid.NewID(oid.OtEvent))
 	}
 
 	return z.DefaultModel.Creating()
 }
-func NewSessionUsageWithBasic(in SessionUsageBasic) *SessionUsage {
-	obj := &SessionUsage{
-		SessionUsageBasic: in,
+func NewUsageRecordWithBasic(in UsageRecordBasic) *UsageRecord {
+	obj := &UsageRecord{
+		UsageRecordBasic: in,
 	}
 	_ = obj.MetaUp(in.MetaDiff)
 	return obj
 }
-func NewSessionUsageWithID(id any) *SessionUsage {
-	obj := new(SessionUsage)
+func NewUsageRecordWithID(id any) *UsageRecord {
+	obj := new(UsageRecord)
 	_ = obj.SetID(id)
 	return obj
 }
-func (_ *SessionUsage) IdentityLabel() string { return SessionUsageLabel }
-func (_ *SessionUsage) IdentityModel() string { return SessionUsageTypID }
-func (_ *SessionUsage) IdentityTable() string { return SessionUsageTable }
-func (_ *SessionUsage) IdentityAlias() string { return SessionUsageAlias }
+func (_ *UsageRecord) IdentityLabel() string { return UsageRecordLabel }
+func (_ *UsageRecord) IdentityModel() string { return UsageRecordTypID }
+func (_ *UsageRecord) IdentityTable() string { return UsageRecordTable }
+func (_ *UsageRecord) IdentityAlias() string { return UsageRecordAlias }
 
-type SessionUsageSet struct {
+type UsageRecordSet struct {
 	// 消息数
 	MsgCount *int `extensions:"x-order=A" json:"msgCount"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
-} // @name convoSessionUsageSet
+} // @name convoUsageRecordSet
 
-func (z *SessionUsage) SetWith(o SessionUsageSet) {
+func (z *UsageRecord) SetWith(o UsageRecordSet) {
 	if o.MsgCount != nil && z.MsgCount != *o.MsgCount {
 		z.LogChangeValue("msg_count", z.MsgCount, o.MsgCount)
 		z.MsgCount = *o.MsgCount
@@ -352,11 +352,11 @@ func (z *SessionUsage) SetWith(o SessionUsageSet) {
 		z.SetChange("meta")
 	}
 }
-func (in *SessionUsageBasic) MetaAddKVs(args ...any) *SessionUsageBasic {
+func (in *UsageRecordBasic) MetaAddKVs(args ...any) *UsageRecordBasic {
 	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
 	return in
 }
-func (in *SessionUsageSet) MetaAddKVs(args ...any) *SessionUsageSet {
+func (in *UsageRecordSet) MetaAddKVs(args ...any) *UsageRecordSet {
 	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
 	return in
 }

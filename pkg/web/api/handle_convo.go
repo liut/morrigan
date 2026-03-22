@@ -56,8 +56,8 @@ type chatRequest struct {
 	prompt   string
 }
 
-func (cr *chatRequest) gatherUsage(res chatResponse) convo.SessionUsageBasic {
-	sub := convo.SessionUsageBasic{
+func (cr *chatRequest) gatherUsage(res chatResponse) convo.UsageRecordBasic {
+	sub := convo.UsageRecordBasic{
 		SessionID:    cr.cs.GetOID(),
 		MsgCount:     len(cr.messages),
 		InputTokens:  res.usage.InputTokens,
@@ -478,7 +478,7 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		}
 	}
 	if res.usage != nil {
-		if _, err := a.sto.Convo().CreateSessionUsage(r.Context(), ccr.gatherUsage(res)); err != nil {
+		if _, err := a.sto.Convo().CreateUsageRecord(r.Context(), ccr.gatherUsage(res)); err != nil {
 			logger().Infow("create session usage fail", "err", err)
 		}
 	}

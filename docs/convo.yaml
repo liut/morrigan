@@ -89,9 +89,9 @@ models:
     oidcat: message
     specNs: convo
 
-  - name: SessionUsage
-    comment: 会话使用情况 每次请求后记录
-    tableTag: 'convo_session_usage,alias:su'
+  - name: UsageRecord
+    comment: 使用情况 每次请求后记录
+    tableTag: 'convo_usage_record,alias:ur'
     fields:
       - type: comm.DefaultModel
       - comment: 会话编号
@@ -212,7 +212,7 @@ stores:
       - { name: Message, type: LGD }
       - { name: User, type: LGD, export: G }
       - { name: Memory, type: LGCUD }
-      - { name: SessionUsage, type: LGCD }
+      - { name: UsageRecord, type: LGCD }
 
 
 webcode: chi
@@ -230,6 +230,6 @@ webapi:
     - model: User
       prefix: '/api/convo'
       ignore: CU
-    - model: SessionUsage
+    - model: UsageRecord
       prefix: '/api/convo'
       ignore: CU

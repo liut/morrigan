@@ -13,10 +13,10 @@ type ConvoUser = convo.User
 // type ConvoMemory = convo.Memory
 // type ConvoMessage = convo.Message
 // type ConvoSession = convo.Session
-// type ConvoSessionUsage = convo.SessionUsage
+// type ConvoUsageRecord = convo.UsageRecord
 
 func init() {
-	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.SessionUsage)(nil), (*convo.User)(nil), (*convo.Memory)(nil))
+	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.UsageRecord)(nil), (*convo.User)(nil), (*convo.Memory)(nil))
 }
 
 type ConvoStore interface {
@@ -41,10 +41,10 @@ type ConvoStore interface {
 	UpdateMemory(ctx context.Context, id string, in convo.MemorySet) error
 	DeleteMemory(ctx context.Context, id string) error
 
-	ListSessionUsage(ctx context.Context, spec *ConvoSessionUsageSpec) (data convo.SessionUsages, total int, err error)
-	GetSessionUsage(ctx context.Context, id string) (obj *convo.SessionUsage, err error)
-	CreateSessionUsage(ctx context.Context, in convo.SessionUsageBasic) (obj *convo.SessionUsage, err error)
-	DeleteSessionUsage(ctx context.Context, id string) error
+	ListUsageRecord(ctx context.Context, spec *ConvoUsageRecordSpec) (data convo.UsageRecords, total int, err error)
+	GetUsageRecord(ctx context.Context, id string) (obj *convo.UsageRecord, err error)
+	CreateUsageRecord(ctx context.Context, in convo.UsageRecordBasic) (obj *convo.UsageRecord, err error)
+	DeleteUsageRecord(ctx context.Context, id string) error
 }
 
 type ConvoSessionSpec struct {
@@ -131,7 +131,7 @@ func (spec *ConvoMemorySpec) Sift(q *ormQuery) *ormQuery {
 	return q
 }
 
-type ConvoSessionUsageSpec struct {
+type ConvoUsageRecordSpec struct {
 	PageSpec
 	ModelSpec
 
@@ -139,7 +139,7 @@ type ConvoSessionUsageSpec struct {
 	SessionID string `extensions:"x-order=A" form:"session" json:"session"`
 }
 
-func (spec *ConvoSessionUsageSpec) Sift(q *ormQuery) *ormQuery {
+func (spec *ConvoUsageRecordSpec) Sift(q *ormQuery) *ormQuery {
 	q = spec.ModelSpec.Sift(q)
 	q, _ = siftOID(q, "session_id", spec.SessionID, false)
 
@@ -238,24 +238,24 @@ func (s *convoStore) DeleteMemory(ctx context.Context, id string) error {
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 
-func (s *convoStore) ListSessionUsage(ctx context.Context, spec *ConvoSessionUsageSpec) (data convo.SessionUsages, total int, err error) {
+func (s *convoStore) ListUsageRecord(ctx context.Context, spec *ConvoUsageRecordSpec) (data convo.UsageRecords, total int, err error) {
 	total, err = s.w.db.ListModel(ctx, spec, &data)
 	return
 }
-func (s *convoStore) GetSessionUsage(ctx context.Context, id string) (obj *convo.SessionUsage, err error) {
-	obj = new(convo.SessionUsage)
+func (s *convoStore) GetUsageRecord(ctx context.Context, id string) (obj *convo.UsageRecord, err error) {
+	obj = new(convo.UsageRecord)
 	err = dbGetWithPKID(ctx, s.w.db, obj, id)
 
 	return
 }
-func (s *convoStore) CreateSessionUsage(ctx context.Context, in convo.SessionUsageBasic) (obj *convo.SessionUsage, err error) {
-	obj = convo.NewSessionUsageWithBasic(in)
+func (s *convoStore) CreateUsageRecord(ctx context.Context, in convo.UsageRecordBasic) (obj *convo.UsageRecord, err error) {
+	obj = convo.NewUsageRecordWithBasic(in)
 	dbMetaUp(ctx, s.w.db, obj)
 	err = dbInsert(ctx, s.w.db, obj)
 	return
 }
-func (s *convoStore) DeleteSessionUsage(ctx context.Context, id string) error {
-	obj := new(convo.SessionUsage)
+func (s *convoStore) DeleteUsageRecord(ctx context.Context, id string) error {
+	obj := new(convo.UsageRecord)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 

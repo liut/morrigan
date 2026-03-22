@@ -38,14 +38,14 @@ func init() {
 	regHI(true, "DELETE", "/convo/users/:id", "convo-users-id-delete", func(a *api) http.HandlerFunc {
 		return a.deleteConvoUser
 	})
-	regHI(true, "GET", "/convo/sessionusages", "", func(a *api) http.HandlerFunc {
-		return a.getConvoSessionUsages
+	regHI(true, "GET", "/convo/usagerecords", "", func(a *api) http.HandlerFunc {
+		return a.getConvoUsageRecords
 	})
-	regHI(true, "GET", "/convo/sessionusages/:id", "", func(a *api) http.HandlerFunc {
-		return a.getConvoSessionUsage
+	regHI(true, "GET", "/convo/usagerecords/:id", "", func(a *api) http.HandlerFunc {
+		return a.getConvoUsageRecord
 	})
-	regHI(true, "DELETE", "/convo/sessionusages/:id", "convo-sessionusages-id-delete", func(a *api) http.HandlerFunc {
-		return a.deleteConvoSessionUsage
+	regHI(true, "DELETE", "/convo/usagerecords/:id", "convo-usagerecords-id-delete", func(a *api) http.HandlerFunc {
+		return a.deleteConvoUsageRecord
 	})
 }
 
@@ -284,26 +284,26 @@ func (a *api) deleteConvoUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 列出会话使用情况
+// @Summary 列出使用情况
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
-// @Param   query  query   stores.ConvoSessionUsageSpec  true   "Object"
-// @Success 200 {object} Done{result=ResultData{data=convo.SessionUsages}}
+// @Param   query  query   stores.ConvoUsageRecordSpec  true   "Object"
+// @Success 200 {object} Done{result=ResultData{data=convo.UsageRecords}}
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 401 {object} Failure "未登录"
 // @Failure 404 {object} Failure "目标未找到"
 // @Failure 503 {object} Failure "服务端错误"
-// @Router /api/convo/sessionusages [get]
-func (a *api) getConvoSessionUsages(w http.ResponseWriter, r *http.Request) {
-	var spec stores.ConvoSessionUsageSpec
+// @Router /api/convo/usagerecords [get]
+func (a *api) getConvoUsageRecords(w http.ResponseWriter, r *http.Request) {
+	var spec stores.ConvoUsageRecordSpec
 	if err := queryBinder.Bind(&spec, r.URL); err != nil {
 		fail(w, r, 400, err)
 		return
 	}
 
 	ctx := r.Context()
-	data, total, err := a.sto.Convo().ListSessionUsage(ctx, &spec)
+	data, total, err := a.sto.Convo().ListUsageRecord(ctx, &spec)
 	if err != nil {
 		fail(w, r, 503, err)
 		return
@@ -313,22 +313,22 @@ func (a *api) getConvoSessionUsages(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 获取会话使用情况
+// @Summary 获取使用情况
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
 // @Param   id    path   string  true   "编号"
-// @Success 200 {object} Done{result=convo.SessionUsage}
+// @Success 200 {object} Done{result=convo.UsageRecord}
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 401 {object} Failure "未登录"
 // @Failure 404 {object} Failure "目标未找到"
 // @Failure 503 {object} Failure "服务端错误"
-// @Router /api/convo/sessionusages/{id} [get]
-func (a *api) getConvoSessionUsage(w http.ResponseWriter, r *http.Request) {
+// @Router /api/convo/usagerecords/{id} [get]
+func (a *api) getConvoUsageRecord(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	var obj *convo.SessionUsage
+	var obj *convo.UsageRecord
 	var err error
-	obj, err = a.sto.Convo().GetSessionUsage(r.Context(), id)
+	obj, err = a.sto.Convo().GetUsageRecord(r.Context(), id)
 	if err != nil {
 		fail(w, r, 503, err)
 		return
@@ -338,8 +338,8 @@ func (a *api) getConvoSessionUsage(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @ID convo-sessionusages-id-delete
-// @Summary 删除会话使用情况 🔑
+// @ID convo-usagerecords-id-delete
+// @Summary 删除使用情况 🔑
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -349,10 +349,10 @@ func (a *api) getConvoSessionUsage(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} Failure "未登录"
 // @Failure 403 {object} Failure "无权限"
 // @Failure 503 {object} Failure "服务端错误"
-// @Router /api/convo/sessionusages/{id} [delete]
-func (a *api) deleteConvoSessionUsage(w http.ResponseWriter, r *http.Request) {
+// @Router /api/convo/usagerecords/{id} [delete]
+func (a *api) deleteConvoUsageRecord(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	err := a.sto.Convo().DeleteSessionUsage(r.Context(), id)
+	err := a.sto.Convo().DeleteUsageRecord(r.Context(), id)
 	if err != nil {
 		fail(w, r, 503, err)
 		return
