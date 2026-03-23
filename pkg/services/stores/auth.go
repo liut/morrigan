@@ -89,6 +89,16 @@ func LoadUserFromToken(ctx context.Context, token string) (*User, error) {
 	return &user, nil
 }
 
+func DeleteUserToken(ctx context.Context, token string) error {
+	key := tokenUserKey(token)
+	err := SgtRC().Del(ctx, key).Err()
+	if err != nil {
+		logger().Infow("del token from redis failed", "key", key, "err", err)
+		return err
+	}
+	return nil
+}
+
 type ModelMeta = comm.ModelMeta
 
 // ModelMetaCreator is the model metadata creator interface

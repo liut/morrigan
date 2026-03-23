@@ -68,6 +68,10 @@ func buildTokenCookie(value string) *http.Cookie {
 }
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
+	siteToken := r.Header.Get(settings.Current.SiteTokenKey)
+	if len(siteToken) > 0 {
+		_ = stores.DeleteUserToken(r.Context(), siteToken)
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:   tokenCN,
 		Value:  "",
