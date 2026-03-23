@@ -6,4 +6,5 @@ type Storage interface {
 	KB() CorpuStore     // alias
 	MCP() MCPStore      // gened
 	Convo() ConvoStore  // gened
+	State() StateStore
 }

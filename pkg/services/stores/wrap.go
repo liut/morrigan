@@ -98,6 +98,8 @@ var (
 type Wrap struct {
 	db *pgx.DB
 
+	stateStore *stateStore
+
 	corpuStore *corpuStore // gened
 	mcpStore   *mcpStore   // gened
 	convoStore *convoStore // gened
@@ -108,6 +110,7 @@ func NewWithDB(db *pgx.DB) *Wrap {
 	w := &Wrap{
 		db: db,
 	}
+	w.stateStore = &stateStore{rc: SgtRC()}
 
 	w.corpuStore = &corpuStore{w: w} // gened
 	w.mcpStore = &mcpStore{w: w}     // gened
@@ -173,3 +176,4 @@ func (w *Wrap) Corpus() CorpuStore { return w.corpuStore } // Corpu gened
 func (w *Wrap) KB() CorpuStore     { return w.corpuStore } // Corpu alias
 func (w *Wrap) MCP() MCPStore      { return w.mcpStore }   // MCP gened
 func (w *Wrap) Convo() ConvoStore  { return w.convoStore } // Convo gened
+func (w *Wrap) State() StateStore  { return w.stateStore }

@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/cupogo/andvari/models/comm"
 	"github.com/cupogo/andvari/models/field"
@@ -10,6 +11,14 @@ import (
 	"github.com/liut/morign/pkg/settings"
 	auth "github.com/liut/simpauth"
 )
+
+const (
+	tokenExpire = time.Hour * 24
+)
+
+func tokenUserKey(token string) string {
+	return "tk-o-user-" + token
+}
 
 type User = auth.User
 
@@ -47,6 +56,37 @@ func OAuthTokenFromContext(ctx context.Context) string {
 // OAuthContextWithToken 将 token 添加到 context
 func OAuthContextWithToken(ctx context.Context, token string) context.Context {
 	return context.WithValue(ctx, oauthTokenKey, token)
+}
+
+// SaveUserWithToken saves user.Encode() into redis
+func SaveUserWithToken(ctx context.Context, user *User, token string) error {
+	s, err := user.Encode()
+	if err != nil {
+		logger().Infow("encode user failed", "err", err)
+		return err
+	}
+	key := tokenUserKey(token)
+	if err := SgtRC().Set(ctx, key, s, tokenExpire).Err(); err != nil {
+		logger().Infow("save user to redis failed", "key", key, "err", err)
+		return err
+	}
+	return nil
+}
+
+// LoadUserFromToken loads saved user from redis by token
+func LoadUserFromToken(ctx context.Context, token string) (*User, error) {
+	key := tokenUserKey(token)
+	s, err := SgtRC().Get(ctx, key).Result()
+	if err != nil {
+		logger().Infow("load user from redis failed", "key", key, "err", err)
+		return nil, err
+	}
+	var user User
+	if err := user.Decode(s); err != nil {
+		logger().Infow("decode user failed", "err", err)
+		return nil, err
+	}
+	return &user, nil
 }
 
 type ModelMeta = comm.ModelMeta

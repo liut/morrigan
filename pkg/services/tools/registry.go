@@ -433,6 +433,7 @@ func (r *Registry) AddServer(ctx context.Context, server *mcps.Server) error {
 		return fmt.Errorf("failed to start MCP client: %w", err)
 	}
 
+	logger().Debugw("initializing", "uri", server.URL, "type", server.TransType)
 	// 初始化 MCP 协议
 	if _, err := c.Initialize(ctx, mcp.InitializeRequest{
 		Params: mcp.InitializeParams{

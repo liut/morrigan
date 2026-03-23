@@ -96,6 +96,8 @@ func newapi(sto stores.Storage) *api {
 		logger().Warnw("failed to load MCP servers", "err", err)
 	}
 
+	staffio.RegisterStateStore(sto.State())
+
 	return &api{
 		sto:     sto,
 		llm:     stores.GetLLMClient(),
@@ -110,7 +112,7 @@ func (a *api) Strap(router chi.Router) {
 	router.Get(authLoginPath, staffio.LoginHandler)
 	router.Get(authLogoutPath, staffio.LogoutHandler)
 	router.Method(http.MethodGet, authCallbackPath, (&staffio.CodeCallback{
-		OnTokenGot: handleTokenGot,
+		OnTokenGot: a.handleTokenGot,
 	}).Handler())
 
 	// 限流器初始化

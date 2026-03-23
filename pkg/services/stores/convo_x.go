@@ -17,6 +17,7 @@ import (
 type ConvoStoreX interface {
 	SaveSession(ctx context.Context, sess *convo.Session) error
 	SaveUser(ctx context.Context, user *ConvoUser) error
+	SyncUserFromOAuth(ctx context.Context, user *User) error
 
 	GetMyMemoryWithKey(ctx context.Context, key string) (*convo.Memory, error)
 	ListMyMomory(ctx context.Context, spec *ConvoMemorySpec) (convo.Memories, error)
@@ -74,6 +75,21 @@ func (s *convoStore) SaveUser(ctx context.Context, user *convo.User) error {
 	logger().Infow("save user fail", "err", err, "user", user)
 
 	return err
+}
+
+func (s *convoStore) SyncUserFromOAuth(ctx context.Context, user *User) error {
+	cuser := convo.NewUserWithBasic(convo.UserBasic{
+		Username:   user.UID,
+		Nickname:   user.Name,
+		AvatarPath: user.Avatar,
+	})
+	_ = cuser.SetID(user.OID)
+	if err := s.SaveUser(ctx, cuser); err != nil {
+		logger().Infow("save user failed", "err", err,
+			"oid", user.OID, "uid", user.UID)
+		return err
+	}
+	return nil
 }
 
 func (s *convoStore) GetMyMemoryWithKey(ctx context.Context, key string) (*convo.Memory, error) {

@@ -8,7 +8,6 @@ import (
 	staffio "github.com/liut/staffio-client"
 	"github.com/marcsv/go-binder/binder"
 
-	"github.com/liut/morign/pkg/models/convo"
 	"github.com/liut/morign/pkg/services/stores"
 	"github.com/liut/morign/pkg/settings"
 )
@@ -68,26 +67,22 @@ func buildTokenCookie(value string) *http.Cookie {
 	}
 }
 
-func handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
+func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
 	logger().Debugw("got token", "tokenInfo", it)
-	ot := staffio.TokenFromContext(ctx)
-	if ot != nil {
-		logger().Infow("got token", "it", it, "ot", ot)
-		http.SetCookie(w, buildTokenCookie(ot.AccessToken))
-	}
+	http.SetCookie(w, buildTokenCookie(it.AccessToken))
 
-	if auser, uok := it.GetUser(); uok {
-		ctx = staffio.ContextWithUser(ctx, auser)
-		cuser := convo.NewUserWithBasic(convo.UserBasic{
-			Username:   auser.UID,
-			Nickname:   auser.Name,
-			AvatarPath: auser.Avatar,
-		})
-		_ = cuser.SetID(auser.OID)
-		if err := stores.Sgt().Convo().SaveUser(ctx, cuser); err != nil {
-			logger().Warnw("save user failed", "error", err, "uid", auser.UID)
+	if user, uok := it.GetUser(); uok {
+		a.storeUser(ctx, user)
+		if err := stores.SaveUserWithToken(ctx, user, it.AccessToken); err != nil {
+			logger().Infow("save user to redis failed", "error", err, "uid", user.UID)
 		}
 	}
+}
+
+// storeUser saves user to database via Convo().SyncUserFromOAuth
+func (a *api) storeUser(ctx context.Context, user *User) {
+	ctx = staffio.ContextWithUser(ctx, user)
+	_ = a.sto.Convo().SyncUserFromOAuth(ctx, user)
 }
 
 // @Tags 用户 认证
@@ -120,6 +115,25 @@ type respSession struct {
 	} `json:"data"`
 }
 
+type oAccount struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+}
+
+func (a *oAccount) toUser() *User {
+	if a != nil {
+		return &User{
+			OID:    a.ID,
+			UID:    a.Name,
+			Name:   a.Nickname,
+			Avatar: a.Avatar,
+		}
+	}
+	return nil
+}
+
 // @Tags 用户 认证
 // @Summary 获取会话信息
 // @Description 获取当前登录状态和用户信息 for github.com/Chanzhaoyu/chatgpt-web
@@ -128,26 +142,115 @@ type respSession struct {
 // @Success 200 {object} Done{result=respSession}
 // @Router /api/session [get]
 // @Router /api/session [post]
+// syncUserToCache syncs user to db and saves to Redis, then signs in
+func (a *api) syncUserToCache(ctx context.Context, user *User, token string, w http.ResponseWriter) {
+	a.storeUser(ctx, user)
+	if err := stores.SaveUserWithToken(ctx, user, token); err != nil {
+		logger().Infow("save user to redis failed", "error", err, "uid", user.UID)
+	}
+	staffio.Signin(user, w)
+}
+
+// fillUserResponse populates user data into response
+func fillUserResponse(res *respSession, user *User, token string) {
+	user.Avatar = patchImageURI(user.Avatar, staffio.GetPrefix())
+	res.Data.User = user
+	if token != "" {
+		res.Data.Token = token
+	}
+}
+
 func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
-	user, err := staffio.UserFromRequest(r)
 	var res respSession
 	res.Status = "Success"
-	logger().Debugw("handle session", "user", user, "err", err)
-	if settings.Current.AuthRequired {
-		if err == nil {
-			user.Avatar = patchImageURI(user.Avatar, staffio.GetPrefix())
-			res.Data.User = user
-			if token, err := r.Cookie(tokenCN); err == nil {
-				res.Data.Token = token.Value
-			}
-		} else {
-			res.Data.Auth = true
-			res.Data.URI = authLoginPath
-		}
-	} else {
+
+	if !settings.Current.AuthRequired {
 		res.Data.Auth = len(settings.Current.AuthSecret) > 0
+		render.JSON(w, r, &res)
+		return
 	}
+
+	ctx := r.Context()
+	var accessToken string
+	if ct, err := r.Cookie(tokenCN); err == nil {
+		accessToken = ct.Value
+	}
+	oauthToken := r.Header.Get(settings.Current.OAuthTokenKey)
+
+	// Try existing session first
+	user, err := staffio.UserFromRequest(r)
+	if err != nil && oauthToken != "" {
+		user, err = stores.LoadUserFromToken(ctx, oauthToken)
+	}
+	logger().Debugw("handle session", "user", user, "err", err)
+
+	if err == nil {
+		fillUserResponse(&res, user, accessToken)
+		render.JSON(w, r, &res)
+		return
+	}
+
+	// No valid session, try OAuth token
+	if oauthToken == "" {
+		res.Data.Auth = true
+		res.Data.URI = authLoginPath
+		render.JSON(w, r, &res)
+		return
+	}
+
+	// Try OAuth info endpoint
+	if user = a.tryOAuthUser(ctx, accessToken, oauthToken); user != nil {
+		a.syncUserToCache(ctx, user, oauthToken, w)
+		fillUserResponse(&res, user, oauthToken)
+		render.JSON(w, r, &res)
+		return
+	}
+
+	res.Data.Auth = true
+	res.Data.URI = authLoginPath
 	render.JSON(w, r, &res)
+}
+
+// tryOAuthUser attempts to get user from OAuth token, returns nil on failure
+func (a *api) tryOAuthUser(ctx context.Context, accessToken, oauthToken string) *User {
+	// Try staffio OAuth endpoint first (uses accessToken from cookie)
+	if accessToken != "" {
+		it, err := staffio.RequestInfoToken(ctx, &staffio.O2Token{
+			AccessToken: accessToken,
+			TokenType:   "Bearer",
+		})
+		if err == nil {
+			if user, ok := it.GetUser(); ok {
+				return user
+			}
+		}
+	}
+
+	// Try custom OAuth me endpoint (uses oauthToken from header)
+	uriMe := settings.Current.OAuthPathMe
+	if uriMe == "" || oauthToken == "" {
+		return nil
+	}
+	uriMe = staffio.FixURI(staffio.GetPrefix(), uriMe)
+
+	var ores struct {
+		Message string    `json:"message"`
+		Status  int       `json:"status"`
+		Result  *oAccount `json:"result"`
+	}
+	if err := staffio.RequestWith(ctx, uriMe, &staffio.O2Token{
+		AccessToken: oauthToken,
+		TokenType:   "Bearer",
+	}, &ores); err != nil {
+		logger().Infow("request oauth me fail", "err", err, "uri", uriMe)
+		return nil
+	}
+	if ores.Status > 0 {
+		logger().Infow("got account fail", "ores", &ores)
+		return nil
+	}
+
+	return ores.Result.toUser()
 }
 
 type verifyReq struct {

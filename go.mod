@@ -5,14 +5,15 @@ go 1.25.0
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.1
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
+	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/cupogo/andvari v0.0.0-20251217045646-73c6e90dcef0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/render v1.0.3
 	github.com/jpillora/eventsource v1.2.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/liut/simpauth v0.1.16
-	github.com/liut/staffio-client v0.2.7
+	github.com/liut/simpauth v0.1.18
+	github.com/liut/staffio-client v0.2.9
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/mark3labs/mcp-go v0.45.0
 	github.com/pmezard/go-difflib v1.0.0
@@ -23,12 +24,12 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/wgarunap/url-query-binder v1.0.0
 	go.uber.org/zap v1.27.1
+	golang.org/x/net v0.51.0
 	golang.org/x/text v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.11.0 // indirect
 	github.com/ajg/form v1.7.1 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
@@ -71,8 +72,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/net v0.51.0 // indirect
-	golang.org/x/oauth2 v0.35.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	mellium.im/sasl v0.3.2 // indirect
 )
