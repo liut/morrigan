@@ -201,7 +201,7 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	// Try OAuth info endpoint
 	if user = a.tryOAuthUser(ctx, accessToken, oauthToken); user != nil {
 		a.syncUserToCache(ctx, user, oauthToken, w)
-		fillUserResponse(&res, user, oauthToken)
+		fillUserResponse(&res, user, "")
 		render.JSON(w, r, &res)
 		return
 	}
