@@ -243,11 +243,13 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *
 				return user
 			}
 		}
+		logger().Infow("request infn fail", "err", err, "token", accessToken)
 	}
 
 	// Try custom OAuth me endpoint (uses siteToken from header)
 	uriMe := settings.Current.SitePathMe
 	if uriMe == "" || siteToken == "" {
+		logger().Infow("empty uri or token", "uriMe", uriMe, "token", siteToken)
 		return nil
 	}
 	uriMe = staffio.FixURI(staffio.GetPrefix(), uriMe)
