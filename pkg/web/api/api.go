@@ -110,7 +110,7 @@ func newapi(sto stores.Storage) *api {
 func (a *api) Strap(router chi.Router) {
 	// staffio 认证路由
 	router.Get(authLoginPath, staffio.LoginHandler)
-	router.Get(authLogoutPath, staffio.LogoutHandler)
+	router.Get(authLogoutPath, handleLogout)
 	router.Method(http.MethodGet, authCallbackPath, (&staffio.CodeCallback{
 		OnTokenGot: a.handleTokenGot,
 	}).Handler())

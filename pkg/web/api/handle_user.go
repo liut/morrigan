@@ -67,6 +67,16 @@ func buildTokenCookie(value string) *http.Cookie {
 	}
 }
 
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   tokenCN,
+		Value:  "",
+		MaxAge: -1,
+		Path:   settings.Current.CookiePath,
+	})
+	staffio.Signout(w)
+}
+
 func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
 	logger().Debugw("got token", "tokenInfo", it)
 	// TODO: use it.AccessToken directly
