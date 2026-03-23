@@ -193,11 +193,14 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 	siteToken := r.Header.Get(settings.Current.SiteTokenKey)
 
-	// Try existing session first
-	user, err := staffio.UserFromRequest(r)
-	if err != nil && siteToken != "" {
+	var user *User
+	var err error
+	if len(siteToken) > 0 {
 		user, err = stores.LoadUserFromToken(ctx, siteToken)
+	} else {
+		user, err = staffio.UserFromRequest(r)
 	}
+
 	logger().Debugw("handle session", "user", user, "err", err)
 
 	if err == nil {
