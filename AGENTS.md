@@ -38,4 +38,4 @@ make test-stores    # stores 包测试（含集成测试）
 
 ## 注意
 
-- 每次提交之前都要确认
+- 每次提交之前都要确认并先执行 make vet lint
