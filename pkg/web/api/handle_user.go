@@ -69,7 +69,13 @@ func buildTokenCookie(value string) *http.Cookie {
 
 func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
 	logger().Debugw("got token", "tokenInfo", it)
-	http.SetCookie(w, buildTokenCookie(it.AccessToken))
+	// TODO: use it.AccessToken directly
+	ot := staffio.TokenFromContext(ctx)
+	if ot != nil {
+		logger().Infow("got token", "it", it, "ot", ot)
+		http.SetCookie(w, buildTokenCookie(ot.AccessToken))
+	}
+	// http.SetCookie(w, buildTokenCookie(it.AccessToken))
 
 	if user, uok := it.GetUser(); uok {
 		a.storeUser(ctx, user)

@@ -17,7 +17,39 @@ const (
 )
 
 func thisMoment() string {
-	return "Current Date: " + time.Now().Format("2006-01-02 15:04")
+	now := time.Now()
+	hour := now.Hour()
+
+	// 十二时辰顺序：子丑寅卯辰巳午未申酉戌亥
+	var shichen string
+	switch {
+	case hour >= 23 || hour < 1:
+		shichen = "子时"
+	case hour >= 1 && hour < 3:
+		shichen = "丑时"
+	case hour >= 3 && hour < 5:
+		shichen = "寅时"
+	case hour >= 5 && hour < 7:
+		shichen = "卯时"
+	case hour >= 7 && hour < 9:
+		shichen = "辰时"
+	case hour >= 9 && hour < 11:
+		shichen = "巳时"
+	case hour >= 11 && hour < 13:
+		shichen = "午时"
+	case hour >= 13 && hour < 15:
+		shichen = "未时"
+	case hour >= 15 && hour < 17:
+		shichen = "申时"
+	case hour >= 17 && hour < 19:
+		shichen = "酉时"
+	case hour >= 19 && hour < 21:
+		shichen = "戌时"
+	case hour >= 21 && hour < 23:
+		shichen = "亥时"
+	}
+
+	return "当前时辰: " + now.Format("2006-01-02") + " " + shichen
 }
 
 type ChatRequest struct {

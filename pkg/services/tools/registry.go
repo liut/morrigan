@@ -119,7 +119,7 @@ func (r *Registry) Invoke(ctx context.Context, name string, params map[string]an
 	// 延迟初始化 OAuth MCP 工具列表
 	if r.oauthMCPEnabled && !r.oauthMCPInited {
 		if err := r.initOAuthMCPTools(ctx); err != nil {
-			logger().Warnw("failed to init OAuth MCP tools", "err", err)
+			logger().Infow("failed to init OAuth MCP tools", "err", err)
 		}
 	}
 
@@ -188,7 +188,7 @@ func (r *Registry) ToolsFor(ctx context.Context) []mcps.ToolDescriptor {
 	// 延迟初始化 OAuth MCP 工具列表（当有 context 时尝试获取）
 	if r.oauthMCPEnabled && !r.oauthMCPInited {
 		if err := r.initOAuthMCPTools(ctx); err != nil {
-			logger().Warnw("failed to init OAuth MCP tools", "err", err)
+			logger().Infow("failed to init OAuth MCP tools", "err", err)
 		}
 	}
 
@@ -222,7 +222,7 @@ func (r *Registry) initOAuthMCPTools(ctx context.Context) error {
 	// 使用 getOAuthClient 获取已初始化好的 client
 	c, err := r.getOAuthClient(ctx)
 	if err != nil {
-		logger().Warnw("failed to get OAuth MCP client", "err", err)
+		logger().Infow("failed to get OAuth MCP client", "err", err)
 		return err
 	}
 	if c == nil {
@@ -233,7 +233,7 @@ func (r *Registry) initOAuthMCPTools(ctx context.Context) error {
 	// 获取工具列表
 	result, err := c.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
-		logger().Warnw("failed to list OAuth MCP tools", "err", err)
+		logger().Infow("failed to list OAuth MCP tools", "err", err)
 		return err
 	}
 
@@ -308,6 +308,7 @@ func (r *Registry) getOAuthClient(ctx context.Context) (*client.Client, error) {
 			ClientInfo:      r.clientInfo,
 		},
 	}); err != nil {
+		logger().Warnw("initialize OAuth MCP fail", "err", err)
 		return nil, fmt.Errorf("failed to initialize OAuth MCP: %w", err)
 	}
 
