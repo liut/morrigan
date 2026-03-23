@@ -24,17 +24,19 @@ type Config struct {
 	APIPrefix    string `envconfig:"API_PREFIX" default:"/api" desc:"API path prefix"`
 	RedisURI     string `envconfig:"redis_uri" default:"redis://localhost:6379/1" required:"true"`
 
-	AllowOrigins  []string `envconfig:"allow_origins" default:"*" desc:"cors"` // CORS: 允许的 Origin 调用来源
-	AuthRequired  bool     `envconfig:"Auth_Required"`
-	AuthSecret    string   `envconfig:"Auth_Secret" desc:"for chatgpt-web session only"`
-	CookieName    string   `envconfig:"Cookie_Name" default:"oaic" desc:"for oauth client"`
-	CookiePath    string   `envconfig:"Cookie_Path" default:"/" desc:"for oauth client"`
-	CookieDomain  string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
-	CookieMaxAge  int      `envconfig:"Cookie_MaxAge" desc:"seconds of cookie maxAge"`
-	OAuthPathMCP  string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
-	OAuthPathMe   string   `envconfig:"OAuth_Path_Me" desc:"OAuth SP Path of /api/me"`
-	OAuthTokenKey string   `envconfig:"OAuth_Token_Key" default:"token"`
-	StrataMCPURL  string   `envconfig:"Strata_MCP_URL"`
+	AllowOrigins []string `envconfig:"allow_origins" default:"*" desc:"cors"` // CORS: 允许的 Origin 调用来源
+	AuthRequired bool     `envconfig:"Auth_Required"`
+	AuthSecret   string   `envconfig:"Auth_Secret" desc:"for chatgpt-web session only"`
+	CookieName   string   `envconfig:"Cookie_Name" default:"oaic" desc:"for oauth client"`
+	CookiePath   string   `envconfig:"Cookie_Path" default:"/" desc:"for oauth client"`
+	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
+	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"seconds of cookie maxAge"`
+	OAuthPathMCP string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
+
+	SitePathMe   string `envconfig:"Site_Path_Me" desc:"OAuth SP Path of /api/me in whole site"`
+	SiteTokenKey string `envconfig:"Site_Token_Key" default:"token" desc:"token key in whole site"`
+
+	StrataMCPURL string `envconfig:"Strata_MCP_URL"`
 
 	WebAppPath string `envconfig:"Web_App_Path" default:"/" desc:"web app path for oauth redirect"`
 

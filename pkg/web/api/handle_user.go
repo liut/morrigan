@@ -181,12 +181,12 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	if ct, err := r.Cookie(tokenCN); err == nil {
 		accessToken = ct.Value
 	}
-	oauthToken := r.Header.Get(settings.Current.OAuthTokenKey)
+	siteToken := r.Header.Get(settings.Current.SiteTokenKey)
 
 	// Try existing session first
 	user, err := staffio.UserFromRequest(r)
-	if err != nil && oauthToken != "" {
-		user, err = stores.LoadUserFromToken(ctx, oauthToken)
+	if err != nil && siteToken != "" {
+		user, err = stores.LoadUserFromToken(ctx, siteToken)
 	}
 	logger().Debugw("handle session", "user", user, "err", err)
 
@@ -197,7 +197,7 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// No valid session, try OAuth token
-	if oauthToken == "" {
+	if siteToken == "" {
 		res.Data.Auth = true
 		res.Data.URI = authLoginPath
 		render.JSON(w, r, &res)
@@ -205,8 +205,8 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try OAuth info endpoint
-	if user = a.tryOAuthUser(ctx, accessToken, oauthToken); user != nil {
-		a.syncUserToCache(ctx, user, oauthToken, w)
+	if user = a.tryOAuthUser(ctx, accessToken, siteToken); user != nil {
+		a.syncUserToCache(ctx, user, siteToken, w)
 		fillUserResponse(&res, user, "")
 		render.JSON(w, r, &res)
 		return
@@ -218,7 +218,7 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // tryOAuthUser attempts to get user from OAuth token, returns nil on failure
-func (a *api) tryOAuthUser(ctx context.Context, accessToken, oauthToken string) *User {
+func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *User {
 	// Try staffio OAuth endpoint first (uses accessToken from cookie)
 	if accessToken != "" {
 		it, err := staffio.RequestInfoToken(ctx, &staffio.O2Token{
@@ -232,9 +232,9 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, oauthToken string) 
 		}
 	}
 
-	// Try custom OAuth me endpoint (uses oauthToken from header)
-	uriMe := settings.Current.OAuthPathMe
-	if uriMe == "" || oauthToken == "" {
+	// Try custom OAuth me endpoint (uses siteToken from header)
+	uriMe := settings.Current.SitePathMe
+	if uriMe == "" || siteToken == "" {
 		return nil
 	}
 	uriMe = staffio.FixURI(staffio.GetPrefix(), uriMe)
@@ -245,7 +245,7 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, oauthToken string) 
 		Result  *oAccount `json:"result"`
 	}
 	if err := staffio.RequestWith(ctx, uriMe, &staffio.O2Token{
-		AccessToken: oauthToken,
+		AccessToken: siteToken,
 		TokenType:   "Bearer",
 	}, &ores); err != nil {
 		logger().Infow("request oauth me fail", "err", err, "uri", uriMe)
@@ -255,6 +255,7 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, oauthToken string) 
 		logger().Infow("got account fail", "ores", &ores)
 		return nil
 	}
+	logger().Infow("got account ok", "acc", ores.Result)
 
 	return ores.Result.toUser()
 }
