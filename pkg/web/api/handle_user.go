@@ -188,6 +188,7 @@ func (a *api) syncUserToCache(ctx context.Context, user *User, token string, w h
 	if err := stores.SaveUserWithToken(ctx, user, token); err != nil {
 		logger().Infow("save user to redis failed", "error", err, "uid", user.UID)
 	}
+	user.Refresh()
 	staffio.Signin(user, w)
 }
 
