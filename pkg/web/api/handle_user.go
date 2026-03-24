@@ -155,6 +155,25 @@ func (a *oAccount) toUser() *User {
 	return nil
 }
 
+type oRes struct {
+	Message string    `json:"message"`
+	Status  int       `json:"status"`
+	Result  *oAccount `json:"result"`
+	Extra   *struct {
+		Avatar string `json:"avatar"`
+	} `json:"extra"`
+}
+
+func (or *oRes) getUser() *User {
+	u := or.Result.toUser()
+	if u != nil {
+		if or.Extra != nil && len(or.Extra.Avatar) > 0 {
+			u.Avatar = or.Extra.Avatar
+		}
+	}
+	return u
+}
+
 // @Tags 用户 认证
 // @Summary 获取会话信息
 // @Description 获取当前登录状态和用户信息 for github.com/Chanzhaoyu/chatgpt-web
@@ -259,11 +278,7 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *
 	}
 	uriMe = staffio.FixURI(staffio.GetPrefix(), uriMe)
 
-	var ores struct {
-		Message string    `json:"message"`
-		Status  int       `json:"status"`
-		Result  *oAccount `json:"result"`
-	}
+	var ores oRes
 	if err := staffio.RequestWith(ctx, uriMe, &staffio.O2Token{
 		AccessToken: siteToken,
 		TokenType:   "Bearer",
@@ -277,7 +292,7 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *
 	}
 	logger().Infow("got account ok", "acc", ores.Result)
 
-	return ores.Result.toUser()
+	return ores.getUser()
 }
 
 type verifyReq struct {
