@@ -434,7 +434,7 @@ func (r *Registry) AddServer(ctx context.Context, server *mcps.Server) error {
 		return fmt.Errorf("failed to start MCP client: %w", err)
 	}
 
-	logger().Debugw("initializing", "uri", server.URL, "type", server.TransType)
+	logger().Debugw("MCP initializing", "name", server.Name, "uri", server.URL, "type", server.TransType)
 	// 初始化 MCP 协议
 	if _, err := c.Initialize(ctx, mcp.InitializeRequest{
 		Params: mcp.InitializeParams{
@@ -482,13 +482,13 @@ func (r *Registry) AddServer(ctx context.Context, server *mcps.Server) error {
 			return r.callServerTool(ctx, server.Name, tool.Name, params)
 		}
 		toolNames = append(toolNames, toolKey)
-		logger().Infow("registered MCP tool", "server", server.Name, "tool", tool.Name)
+		logger().Infow("MCP tool registered", "server", server.Name, "tool", tool.Name)
 	}
 	mcpc.toolNames = toolNames
 	r.servers[server.Name] = mcpc
 	r.serversMu.Unlock()
 
-	logger().Infow("MCP server added", "name", server.Name, "url", server.URL, "tools", len(result.Tools))
+	logger().Debugw("MCP server added", "name", server.Name, "url", server.URL, "tools", len(result.Tools))
 	return nil
 }
 

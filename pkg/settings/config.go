@@ -31,7 +31,10 @@ type Config struct {
 	CookiePath   string   `envconfig:"Cookie_Path" default:"/" desc:"for oauth client"`
 	CookieDomain string   `envconfig:"Cookie_Domain" desc:"for oauth client"`
 	CookieMaxAge int      `envconfig:"Cookie_MaxAge" desc:"seconds of cookie maxAge"`
-	OAuthPathMCP string   `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
+
+	OAuthAuthMCP bool   `envconfig:"OAuth_Auth_MCP" desc:"OAuth MCP need authorized first"`
+	OAuthName    string `envconfig:"OAuth_Name" default:"oauth" desc:"Name of OAuth SP"`
+	OAuthPathMCP string `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
 
 	SitePathMe   string `envconfig:"Site_Path_Me" desc:"OAuth SP Path of /api/me in whole site"`
 	SiteTokenKey string `envconfig:"Site_Token_Key" default:"token" desc:"token key in whole site"`
@@ -69,6 +72,13 @@ type Provider struct {
 	URL    string `envconfig:"url" required:"true"`
 	Model  string `envconfig:"MODEL" required:"true"`
 	Type   string `envconfig:"type" default:"openai" desc:"provider type: openai, anthropic, openrouter, ollama"`
+}
+
+func (c *Config) GetOAuthName() string {
+	if len(c.OAuthName) > 0 {
+		return c.OAuthName
+	}
+	return "oauth"
 }
 
 var (

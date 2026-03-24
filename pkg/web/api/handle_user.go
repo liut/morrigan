@@ -205,7 +205,7 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 		user, err = staffio.UserFromRequest(r)
 	}
 
-	logger().Debugw("handle session", "user", user, "err", err)
+	logger().Debugw("handle session", "user", user, "err", err, "siteToken", siteToken)
 
 	if err == nil {
 		fillUserResponse(&res, user, accessToken)

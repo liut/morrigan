@@ -70,13 +70,27 @@ func newapi(sto stores.Storage) *api {
 		tools.WithClientInfo(settings.Current.Name, settings.Version()),
 	}
 
-	if settings.Current.OAuthPathMCP != "" {
+	if settings.Current.OAuthPathMCP != "" && settings.Current.OAuthAuthMCP {
 		opts = append(opts, tools.WithOAuthMCP(
 			staffio.GetPrefix()+settings.Current.OAuthPathMCP, stores.OAuthTokenFromContext),
 		)
 	}
 	toolreg := tools.NewRegistry(sto, opts...)
 	toolreg.ApplyToolDescriptions(preset.Tools)
+
+	if settings.Current.OAuthPathMCP != "" && !settings.Current.OAuthAuthMCP {
+		sb := mcps.ServerBasic{
+			TransType:  mcps.TransTypeStreamable,
+			Name:       settings.Current.GetOAuthName(),
+			URL:        staffio.GetPrefix() + settings.Current.OAuthPathMCP,
+			HeaderCate: mcps.HeaderCateAuthorization,
+		}
+		mcpsrv := &mcps.Server{ServerBasic: sb}
+		stores.PatchMCPServer(mcpsrv)
+		if err := toolreg.AddServer(context.Background(), mcpsrv); err != nil {
+			logger().Infow("add oauth mcp server fail", "err", err)
+		}
+	}
 
 	if settings.Current.StrataMCPURL != "" {
 		var mcpsrv = mcps.NewServerWithBasic(mcps.ServerBasic{
@@ -87,7 +101,7 @@ func newapi(sto stores.Storage) *api {
 		})
 		stores.PatchMCPServer(mcpsrv)
 		if err := toolreg.AddServer(context.Background(), mcpsrv); err != nil {
-			logger().Infow("add mcp server fail", "err", err)
+			logger().Infow("add strata mcp server fail", "err", err)
 		}
 	}
 
