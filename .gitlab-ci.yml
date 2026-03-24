@@ -9,7 +9,7 @@ services:
   - name: redis:5-alpine
     alias: redis
   - name: fhyx/postgresql:16e
-    alias: morrigandb
+    alias: morigndb
 variables:
   DEVELOP_HOST: moon
   DEPLOY_HOST: earth
@@ -22,15 +22,16 @@ variables:
   GOPROXY: https://goproxy.cn,direct
   NAME: morrigan
   ROOF: github.com/liut/morign
-  DB_NAME: morrigantest
-  DB_USER: morrigan
+  DB_NAME: morrigntest
+  DB_USER: morign
   DB_PASS: develop
   PG_EXTENSIONS: 'btree_gin btree_gist pg_trgm vector'
-  MORIGN_PG_STORE_DSN: postgres://morrigan:develop@morrigandb:5432/morrigantest?sslmode=disable
+  MORIGN_PG_STORE_DSN: postgres://morign:develop@morigndb:5432/morrigntest?sslmode=disable
   MORIGN_REDIS_URI: 'redis://redis:6379/0'
-  M_TEST_DB_HOST: morrigandb
-  M_TEST_DB_NAME: morrigantest
+  M_TEST_DB_HOST: morigndb
+  M_TEST_DB_NAME: morrigntest
   M_TEST_DB_PASSWORD: develop
+  M_TEST_DB_USER: morign
 
 before_script:
   # SSH

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/render"
 	staffio "github.com/liut/staffio-client"
@@ -324,5 +325,11 @@ func patchImageURI(uri, prefix string) string {
 		return uri
 	}
 	// 如果是相对路径，添加 prefix
-	return prefix + uri
+	if strings.HasPrefix(uri, "/") {
+		return prefix + uri
+	}
+	if !strings.HasPrefix(uri, "/images/") || strings.HasPrefix(uri, "avatar/") {
+		return prefix + "/images/" + uri
+	}
+	return prefix + "/" + uri
 }
