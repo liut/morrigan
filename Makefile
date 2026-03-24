@@ -1,6 +1,11 @@
 .SILENT :
 .PHONY: docs
 
+ifneq (,$(wildcard .env))
+  include .env
+  export
+endif
+
 NAME:=morign
 ROOF:=github.com/liut/morign
 DATE := $(shell date '+%Y%m%d')

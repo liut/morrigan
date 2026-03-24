@@ -153,12 +153,12 @@ tools:
 ### 准备数据库
 
 ```sql
-CREATE USER morrigan WITH LOGIN PASSWORD 'mydbusersecret';
-CREATE DATABASE morrigan WITH OWNER = morrigan ENCODING = 'UTF8';
-GRANT ALL PRIVILEGES ON DATABASE morrigan to morrigan;
+CREATE USER morign WITH LOGIN PASSWORD 'mydbusersecret';
+CREATE DATABASE morign WITH OWNER = morign ENCODING = 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE morign to morign;
 
 
-\c morrigan
+\c morign
 
 # 可选：安装扩展 https://github.com/pgvector/pgvector
 CREATE EXTENSION vector;
@@ -234,7 +234,7 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `MORIGN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL 连接串 |
+| `MORIGN_PG_STORE_DSN` | postgres://morign@localhost/morign | PostgreSQL 连接串 |
 | `MORIGN_REDIS_URI` | redis://localhost:6379/1 | Redis 连接串 |
 | `MORIGN_HTTP_LISTEN` | :5001 | HTTP 监听地址 |
 | `MORIGN_AUTH_REQUIRED` | false | 是否启用认证 |

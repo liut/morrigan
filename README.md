@@ -153,12 +153,12 @@ See [data/preset.example.yaml](./data/preset.example.yaml) for a complete exampl
 ### Prepare database
 
 ```sql
-CREATE USER morrigan WITH LOGIN PASSWORD 'mydbusersecret';
-CREATE DATABASE morrigan WITH OWNER = morrigan ENCODING = 'UTF8';
-GRANT ALL PRIVILEGES ON DATABASE morrigan to morrigan;
+CREATE USER morign WITH LOGIN PASSWORD 'mydbusersecret';
+CREATE DATABASE morign WITH OWNER = morign ENCODING = 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE morign to morign;
 
 
-\c morrigan
+\c morign
 
 -- optional: install extension from https://github.com/pgvector/pgvector
 CREATE EXTENSION vector;
@@ -235,7 +235,7 @@ HTTPS_PROXY=socks5://proxy.my-company.xyz:1081
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MORIGN_PG_STORE_DSN` | postgres://morrigan@localhost/morrigan | PostgreSQL connection string |
+| `MORIGN_PG_STORE_DSN` | postgres://morign@localhost/morign | PostgreSQL connection string |
 | `MORIGN_REDIS_URI` | redis://localhost:6379/1 | Redis connection string |
 | `MORIGN_HTTP_LISTEN` | :5001 | HTTP listen address |
 | `MORIGN_AUTH_REQUIRED` | false | Enable authentication |

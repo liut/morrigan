@@ -1,17 +1,20 @@
 
-CREATE USER morrigan WITH LOGIN PASSWORD 'Develop2023';
-CREATE DATABASE morrigan WITH OWNER = morrigan ENCODING = 'UTF8';
-GRANT ALL PRIVILEGES ON DATABASE morrigan to morrigan;
+CREATE USER morign WITH LOGIN PASSWORD 'Develop2023';
+CREATE DATABASE morign WITH OWNER = morign ENCODING = 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE morign to morign;
 
 
-\c morrigan
+\c morign
 
-ALTER SCHEMA public OWNER TO morrigan;
+ALTER SCHEMA public OWNER TO morign;
 
-CREATE EXTENSION vector;
-
+CREATE EXTENSION IF NOT EXISTS vector;
 
 
 -- testing
-CREATE DATABASE morrigan_test WITH OWNER = morrigan ENCODING = 'UTF8';
-\c morrigan_test
+CREATE DATABASE morign_test WITH OWNER = morign ENCODING = 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE morign to morign_test;
+
+\c morign_test
+
+CREATE EXTENSION IF NOT EXISTS vector;

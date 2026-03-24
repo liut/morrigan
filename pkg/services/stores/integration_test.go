@@ -5,11 +5,11 @@
 // Prerequisites (本地测试前必须执行):
 //
 //  1. 创建测试数据库:
-//     psql -U morrigan -c "CREATE DATABASE morrigan_test;"
+//     psql -U morign -c "CREATE DATABASE morign_test;"
 //
 //  2. 安装 vector 扩展（需要管理员权限）:
-//     psql -U postgres -d morrigan_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
-//     psql -U postgres -d morrigan_test -c "ALTER EXTENSION vector SET SCHEMA public;"
+//     psql -U postgres -d morign_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+//     psql -U postgres -d morign_test -c "ALTER EXTENSION vector SET SCHEMA public;"
 //
 //  3. 运行集成测试:
 //     go test -tags=integration -v ./pkg/services/stores/...
@@ -19,9 +19,9 @@
 //	M_TEST_DB_DSN      - 完整连接字符串 (优先级最高)
 //	M_TEST_DB_HOST     - 数据库主机 (默认 localhost)
 //	M_TEST_DB_PORT     - 数据库端口 (默认 5432)
-//	M_TEST_DB_USER     - 数据库用户 (默认 morrigan)
+//	M_TEST_DB_USER     - 数据库用户 (默认 morign)
 //	M_TEST_DB_PASSWORD - 数据库密码
-//	M_TEST_DB_NAME     - 数据库名 (默认 morrigan_test)
+//	M_TEST_DB_NAME     - 数据库名 (默认 morign_test)
 package stores
 
 import (
@@ -72,9 +72,9 @@ func getTestDBDSN() string {
 
 	host := getEnvOrDefault("M_TEST_DB_HOST", "localhost")
 	port := getEnvOrDefault("M_TEST_DB_PORT", "5432")
-	user := getEnvOrDefault("M_TEST_DB_USER", "morrigan")
+	user := getEnvOrDefault("M_TEST_DB_USER", "morign")
 	password := getEnvOrDefault("M_TEST_DB_PASSWORD", "")
-	dbname := getEnvOrDefault("M_TEST_DB_NAME", "morrigan_test")
+	dbname := getEnvOrDefault("M_TEST_DB_NAME", "morign_test")
 
 	if password != "" {
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
@@ -195,7 +195,7 @@ func TestIntegration_DocVectorCRUD(t *testing.T) {
 	vec, err := sto.Corpus().CreateDocVector(ctx, corpus.DocVectorBasic{
 		DocID:   doc.ID,
 		Subject: "test-subject",
-		Vector:  corpus.Vector{0.1, 0.2, 0.3},
+		Vector:  make(corpus.Vector, 1024),
 	})
 	if err != nil {
 		t.Fatalf("CreateDocVector failed: %v", err)
