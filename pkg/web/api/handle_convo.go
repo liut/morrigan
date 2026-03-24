@@ -28,6 +28,9 @@ import (
 
 func init() {
 
+	regHI(true, "GET", "/config", "", func(a *api) http.HandlerFunc {
+		return a.getConfig
+	})
 	regHI(true, "GET", "/welcome", "", func(a *api) http.HandlerFunc {
 		return a.getWelcome
 	})
@@ -539,10 +542,22 @@ func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, 
 }
 
 // @Tags 聊天
+// @Summary 获取配置信息
+// @Accept json
+// @Produce json
+// @Success 200 {object} Done{result=string}
+// @Router /api/config [get]
+func (a *api) getConfig(w http.ResponseWriter, r *http.Request) {
+	apiOk(w, r, M{
+		"apiModel": settings.Current.Interact.Model,
+	})
+}
+
+// @Tags 聊天
 // @Summary 获取欢迎信息
 // @Accept json
 // @Produce json
-// @Success 200 {object} Done{result=aigc.Message}
+// @Success 200 {object} Done{result=string}
 // @Router /api/welcome [get]
 func (a *api) getWelcome(w http.ResponseWriter, r *http.Request) {
 	content := a.preset.Welcome
