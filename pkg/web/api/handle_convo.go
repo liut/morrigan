@@ -21,6 +21,7 @@ import (
 	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/services/stores"
+	"github.com/liut/morign/pkg/services/tools"
 	toolsvc "github.com/liut/morign/pkg/services/tools"
 	"github.com/liut/morign/pkg/settings"
 	"github.com/liut/morign/pkg/utils/words"
@@ -96,11 +97,11 @@ func convertMCPToolsToLLMTools(tools []mcps.ToolDescriptor) []llm.ToolDefinition
 }
 
 // prepareSystemMessage 准备系统消息，包括基础 prompt、记忆、工具或知识库
-func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores.Conversation) (llm.Message, []llm.ToolDefinition) {
+func prepareSystemMessage(ctx context.Context, sto stores.Storage, toolreg *tools.Registry, prompt string, cs stores.Conversation) (llm.Message, []llm.ToolDefinition) {
 	var sb strings.Builder
 
-	if len(a.preset.SystemPrompt) > 0 {
-		sb.WriteString(a.preset.SystemPrompt)
+	if len(sto.Preset().SystemPrompt) > 0 {
+		sb.WriteString(sto.Preset().SystemPrompt)
 	} else {
 		sb.WriteString(dftSystemMsg)
 	}
@@ -110,6 +111,8 @@ func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores
 		sb.WriteString(thisMoment())
 	}
 
+	fmt.Fprintf(&sb, "\nCurrent SessionID: %s\n", cs.GetID())
+
 	if user, ok := UserFromContext(ctx); ok {
 		sb.WriteString("\nCurrent User:\n")
 		if user.UID == user.Name {
@@ -118,32 +121,30 @@ func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores
 			fmt.Fprintf(&sb, "Name: %s\nuid: %s\n", user.Name, user.UID)
 		}
 		fmt.Fprintf(&sb, "ID: %s\n", user.OID)
-	}
 
-	fmt.Fprintf(&sb, "\nCurrent SessionID: %s\n", cs.GetID())
-
-	momories, _, err := a.sto.Convo().ListMemory(ctx, &stores.ConvoMemorySpec{IsOwner: true})
-	if err == nil {
-		mtext := momories.PrettyTextForOwner()
-		logger().Debugw("load memories", "keys", momories.Keys(), "text", words.TakeTail(mtext, 10, ".."))
-		sb.WriteString("\n")
-		sb.WriteString(mtext)
-	} else {
-		logger().Infow("ListMemory fail", "err", err)
+		momories, _, err := sto.Convo().ListMemory(ctx, &stores.ConvoMemorySpec{IsOwner: true})
+		if err == nil {
+			mtext := momories.PrettyTextForOwner()
+			logger().Debugw("load memories", "keys", momories.Keys(), "text", words.TakeTail(mtext, 10, ".."))
+			sb.WriteString("\n")
+			sb.WriteString(mtext)
+		} else {
+			logger().Infow("ListMemory fail", "err", err)
+		}
 	}
 
 	// 转换 MCP 工具为 LLM 工具定义
-	tools := convertMCPToolsToLLMTools(a.toolreg.ToolsFor(ctx))
+	tools := convertMCPToolsToLLMTools(toolreg.ToolsFor(ctx))
 	if len(tools) > 0 {
 		toolsPrompt := dftToolsMsg
-		if len(a.preset.ToolsPrompt) > 0 {
-			toolsPrompt = a.preset.ToolsPrompt
+		if len(sto.Preset().ToolsPrompt) > 0 {
+			toolsPrompt = sto.Preset().ToolsPrompt
 		}
 		sb.WriteString("\n")
 		sb.WriteString(toolsPrompt)
 		cs.SetTools(llm.Tools(tools).Names()...)
 	} else {
-		docs, err := a.sto.Corpus().MatchDocments(ctx, stores.MatchSpec{
+		docs, err := sto.Corpus().MatchDocments(ctx, stores.MatchSpec{
 			Query: prompt,
 			Limit: 5,
 		})
@@ -172,7 +173,7 @@ func (a *api) prepareSystemMessage(ctx context.Context, prompt string, cs stores
 func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatRequest {
 	cs := stores.NewConversation(ctx, param.GetConversionID())
 
-	sysMsg, tools := a.prepareSystemMessage(ctx, param.Prompt, cs)
+	sysMsg, tools := prepareSystemMessage(ctx, a.sto, a.toolreg, param.Prompt, cs)
 	messages := []llm.Message{sysMsg}
 
 	data, err := cs.ListHistory(ctx)

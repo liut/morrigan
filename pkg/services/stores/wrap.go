@@ -11,6 +11,7 @@ import (
 	"github.com/cupogo/andvari/utils"
 
 	"github.com/liut/morign/data/schemas"
+	"github.com/liut/morign/pkg/models/aigc"
 	"github.com/liut/morign/pkg/settings"
 )
 
@@ -98,6 +99,7 @@ var (
 type Wrap struct {
 	db *pgx.DB
 
+	preset     aigc.Preset
 	stateStore *stateStore
 
 	corpuStore *corpuStore // gened
@@ -110,6 +112,8 @@ func NewWithDB(db *pgx.DB) *Wrap {
 	w := &Wrap{
 		db: db,
 	}
+	w.preset, _ = LoadPreset()
+
 	w.stateStore = &stateStore{rc: SgtRC()}
 
 	w.corpuStore = &corpuStore{w: w} // gened
@@ -171,6 +175,8 @@ func InitDB(ctx context.Context) error {
 
 	return nil
 }
+
+func (w *Wrap) Preset() aigc.Preset { return w.preset }
 
 func (w *Wrap) Corpus() CorpuStore { return w.corpuStore } // Corpu gened
 func (w *Wrap) KB() CorpuStore     { return w.corpuStore } // Corpu alias

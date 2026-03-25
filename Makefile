@@ -33,7 +33,7 @@ generate:
 	GO111MODULE=$(GOMOD) $(GO) generate ./...
 
 vet:
-	echo "Checking ./pkg/... ./cmd/... , with GOMOD=$(GOMOD)"
+	echo "Checking ./pkg/... , with GOMOD=$(GOMOD)"
 	GO111MODULE=$(GOMOD) $(GO) vet -all ./pkg/...
 
 deps:
