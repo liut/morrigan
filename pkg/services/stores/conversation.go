@@ -34,6 +34,24 @@ func NewConversation(ctx context.Context, id any) Conversation {
 	return newConversation(ctx, id, SgtRC())
 }
 
+const sessionKeyCSIDPrefix = "platform:csid:"
+
+// GetOrCreateConversationBySessionKey 根据渠道 sessionKey 查找或创建 Conversation
+// sessionKey 格式: "{channel}:{chatID}:{userID}" 或 "{channel}:{userID}"
+// 查找 Redis 映射获取已绑定的 Conversation OID，若无则创建新 Conversation 并写入映射
+func GetOrCreateConversationBySessionKey(ctx context.Context, sessionKey string) Conversation {
+	key := sessionKeyCSIDPrefix + sessionKey
+	oidStr, _ := SgtRC().Get(ctx, key).Result()
+
+	cs := NewConversation(ctx, oidStr)
+	if oidStr == "" {
+		SgtRC().Set(ctx, key, cs.GetID(), 30*24*time.Hour)
+	} else {
+		SgtRC().Expire(ctx, key, 30*24*time.Hour)
+	}
+	return cs
+}
+
 // newConversation is internal constructor, supports injecting Redis client (for testing)
 func newConversation(ctx context.Context, id any, rc RedisClient) Conversation {
 	sto := Sgt()

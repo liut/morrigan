@@ -11,4 +11,14 @@ type Preset struct {
 
 	// toolName -> description
 	Tools map[string]string `json:"tools,omitempty" yaml:"tools,omitempty"`
+
+	// Channels holds channel adapter configurations
+	Channels map[string]ChannelConfig `json:"channels,omitempty" yaml:"channels,omitempty"`
+}
+
+// ChannelConfig holds configuration for a single channel adapter.
+type ChannelConfig struct {
+	Enable bool              `json:"enable,omitempty" yaml:"enable,omitempty"`
+	Mode   string            `json:"mode,omitempty" yaml:"mode,omitempty"` // "websocket", "webhook"
+	Config map[string]any    `json:"config,omitempty" yaml:"config,omitempty"`
 }

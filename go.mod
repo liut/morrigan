@@ -10,8 +10,10 @@ require (
 	github.com/cupogo/andvari v0.0.0-20260314102041-168adc9ab3a6
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/render v1.0.3
+	github.com/gorilla/websocket v1.5.3
 	github.com/jpillora/eventsource v1.2.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/larksuite/oapi-sdk-go/v3 v3.5.3
 	github.com/liut/simpauth v0.1.18
 	github.com/liut/staffio-client v0.2.10
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
@@ -42,6 +44,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect

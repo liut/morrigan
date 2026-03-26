@@ -23,3 +23,46 @@ tools:
   kb_search: "在知识库中搜索相关内容。当遇到未知或不确定的问题时，优先查阅知识库。"
   kb_create: "创建新的知识库文档，所有参数必填。注意：除非用户明确要求补充内容，否则不要调用。"
   fetch: "从互联网获取 URL 内容并可选地提取为 markdown 格式"
+
+# 平台适配器配置（支持多实例）
+channels:
+  # WeCom WebSocket 长连接模式
+  wecom:
+    enable: true
+    mode: websocket
+    config:
+      bot_id: "YOUR_BOT_ID"
+      bot_secret: "YOUR_BOT_SECRET"
+      allow_from: "" # 可选，限制来源 UserID
+
+  # WeCom Webhook 回调模式
+  # wecom:
+  #   enable: true
+  #   mode: webhook
+  #   config:
+  #     corp_id: "YOUR_CORP_ID"
+  #     corp_secret: "YOUR_CORP_SECRET"
+  #     agent_id: "YOUR_AGENT_ID"
+  #     callback_token: "YOUR_CALLBACK_TOKEN"
+  #     callback_aes_key: "YOUR_CALLBACK_AES_KEY"
+  #     callback_path: "/wecom/callback"
+
+  # 飞书 WebSocket 长连接模式
+  # feishu:
+  #   enable: true
+  #   mode: websocket
+  #   config:
+  #     app_id: "YOUR_APP_ID"
+  #     app_secret: "YOUR_APP_SECRET"
+  #     allow_from: "" # 可选，限制来源 UserID
+
+  # 飞书 Webhook 回调模式
+  # feishu:
+  #   enable: true
+  #   mode: webhook
+  #   config:
+  #     app_id: "YOUR_APP_ID"
+  #     app_secret: "YOUR_APP_SECRET"
+  #     encrypt_key: "YOUR_ENCRYPT_KEY" # 可选，加密密钥
+  #     callback_path: "/feishu/callback"
+  #     allow_from: "" # 可选，限制来源 UserID
