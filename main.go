@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -252,6 +253,9 @@ func main() {
 }
 
 func webRun(cc *cli.Context) error {
+	if settings.InDevelop() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
 	if err := stores.InitDB(cc.Context); err != nil {
 		return err
 	}

@@ -23,6 +23,9 @@ import (
 	"github.com/liut/morign/pkg/settings"
 	"github.com/liut/morign/pkg/web/resp"
 	"github.com/liut/morign/pkg/web/routes"
+
+	_ "github.com/liut/morign/pkg/services/channels/feishu"
+	_ "github.com/liut/morign/pkg/services/channels/wecom"
 )
 
 var handles = []handleIn{}
@@ -50,6 +53,9 @@ type api struct {
 	llm     llm.Client
 	preset  aigc.Preset
 	toolreg *tools.Registry
+	toolExec *ToolExecutor
+
+	router chi.Router // 用于平台 HTTP 回调注册
 }
 
 func init() {
@@ -117,11 +123,14 @@ func newapi(sto stores.Storage) *api {
 		llm:     stores.GetLLMClient(),
 		preset:  preset,
 		toolreg: toolreg,
+		toolExec: NewToolExecutor(toolreg),
 	}
 }
 
 // Strap 注册路由到 chi.Router
 func (a *api) Strap(router chi.Router) {
+	a.router = router
+
 	// staffio 认证路由
 	router.Get(authLoginPath, staffio.LoginHandler)
 	router.Get(authLogoutPath, handleLogout)
@@ -178,6 +187,12 @@ func (a *api) Strap(router chi.Router) {
 		limited.Post("/chat", a.postChat)
 		limited.Post("/chat-{suffix}", a.postChat)
 	})
+
+	// 初始化平台适配器（HTTP webhook 回调等）
+	if err := InitChannels(a.router, &a.preset, a.sto, a.llm, a.toolreg); err != nil {
+		logger().Warnw("init channels failed", "err", err)
+	}
+
 }
 
 func (a *api) authPerm(permID string) func(next http.Handler) http.Handler {

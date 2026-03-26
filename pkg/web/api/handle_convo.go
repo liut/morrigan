@@ -740,68 +740,11 @@ func convertToolCallsForJSON(tcs []llm.ToolCall) []map[string]any {
 	return result
 }
 
-// chatExecutor 定义聊天执行函数类型，支持流式/非流式
-type chatExecutor func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error)
-
 // executeToolCallLoop 执行工具调用循环，直到没有 tool calls
 // - messages: 初始消息列表，会被修改
 // - tools: 工具定义
 // - exec: 执行聊天的函数（流式或非流式）
 // 返回最终的 answer、最后的 toolCalls（如果有）、usage
 func (a *api) executeToolCallLoop(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition, exec chatExecutor) (string, []llm.ToolCall, *llm.Usage, error) {
-	for {
-		answer, toolCalls, usage, err := exec(ctx, messages, tools)
-		if err != nil {
-			return "", nil, nil, err
-		}
-
-		if len(toolCalls) == 0 {
-			return answer, nil, usage, nil
-		}
-
-		// 添加 assistant 消息（带 tool calls）
-		messages = append(messages, llm.Message{
-			Role:      llm.RoleAssistant,
-			ToolCalls: toolCalls,
-		})
-
-		// 执行工具调用
-		for _, tc := range toolCalls {
-			logger().Infow("chat", "toolCallID", tc.ID, "toolCallType", tc.Type, "toolCallName", tc.Function.Name)
-
-			if tc.Type != "function" {
-				continue
-			}
-
-			var parameters map[string]any
-			args := string(tc.Function.Arguments)
-			if args != "" && args != "{}" {
-				if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
-					logger().Infow("chat", "toolCallID", tc.ID, "args", args, "err", err)
-					continue
-				}
-			}
-			// 空参数时使用空 map
-			if parameters == nil {
-				parameters = make(map[string]any)
-			}
-
-			content, err := a.toolreg.Invoke(ctx, tc.Function.Name, parameters)
-			if err != nil {
-				logger().Infow("invokeTool fail", "toolCallName", tc.Function.Name, "err", err)
-				continue
-			}
-
-			logger().Infow("invokeTool ok", "toolCallName", tc.Function.Name,
-				"content", toolsvc.ResultLogs(content))
-			messages = append(messages, llm.Message{
-				Role:       llm.RoleTool,
-				Content:    formatToolResult(content),
-				ToolCallID: tc.ID,
-			})
-		}
-
-		// 清除工具定义，避免死循环
-		tools = nil
-	}
+	return a.toolExec.ExecuteToolCallLoop(ctx, messages, tools, exec)
 }
