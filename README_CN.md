@@ -37,20 +37,24 @@ AI 聊天后端，集知识库问答、MCP 工具与 OAuth 认证于一体。
 
 ## API 接口
 
-### 获取欢迎消息和新会话 ID
+### 获取会话信息
 
 <details>
- <summary><code>GET</code> <code><b>/api/welcome</b></code></summary>
+ <summary><code>GET</code> <code><b>/api/session</b></code></summary>
 
 ##### 参数
 
 > 无
 
+##### 说明
+
+> 返回当前登录状态和用户信息。若未登录且 `auth` 为 true，前端应跳转到 `data.uri` 进行 OAuth 登录。
+
 ##### 响应
 
 > | http 状态码 | content-type                      | 响应                                           |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
-> | `200`         | `application/json`        | `{"message": "welcome message", "id": "new-cid"}`                                         |
+> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":false,"user":{...}}}`                                    |
 
 
 </details>

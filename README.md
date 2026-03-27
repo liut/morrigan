@@ -37,20 +37,24 @@ AI chat backend with knowledge base Q&A, MCP tools, and OAuth authentication.
 
 ## APIs
 
-### Get welcome message and new conversation ID
+### Get session information
 
 <details>
- <summary><code>GET</code> <code><b>/api/welcome</b></code></summary>
+ <summary><code>GET</code> <code><b>/api/session</b></code></summary>
 
 ##### Parameters
 
 > None
 
+##### Description
+
+> Returns current login status and user info. If not logged in and `auth` is true, redirect to the URI in `data.uri` for OAuth login.
+
 ##### Responses
 
 > | http code     | content-type                      | response                                           |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
-> | `200`         | `application/json`        | `{"message": "welcome message", "id": "new-cid"}`                                         |
+> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":false,"user":{...}}}`                                    |
 
 
 </details>

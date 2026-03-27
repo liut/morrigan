@@ -28,7 +28,7 @@ tools:
 channels:
   # WeCom WebSocket 长连接模式
   wecom:
-    enable: true
+    enable: false
     mode: websocket
     config:
       bot_id: "YOUR_BOT_ID"
