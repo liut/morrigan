@@ -54,7 +54,8 @@ AI chat backend with knowledge base Q&A, MCP tools, and OAuth authentication.
 
 > | http code     | content-type                      | response                                           |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
-> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":false,"user":{...}}}`                                    |
+> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":false,"user":{...}}}` (logged in)                        |
+> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":true,"uri":"/api/auth/login"}}` (not logged in)        |
 
 
 </details>

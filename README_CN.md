@@ -54,7 +54,8 @@ AI 聊天后端，集知识库问答、MCP 工具与 OAuth 认证于一体。
 
 > | http 状态码 | content-type                      | 响应                                           |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
-> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":false,"user":{...}}}`                                    |
+> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":false,"user":{...}}}` (已登录)                          |
+> | `200`         | `application/json`        | `{"status":"Success","data":{"auth":true,"uri":"/api/auth/login"}}` (未登录)                |
 
 
 </details>
