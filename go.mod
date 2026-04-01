@@ -15,7 +15,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/larksuite/oapi-sdk-go/v3 v3.5.3
 	github.com/liut/simpauth v0.1.18
-	github.com/liut/staffio-client v0.2.10
+	github.com/liut/staffio-client v0.2.11
 	github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09
 	github.com/mark3labs/mcp-go v0.45.0
 	github.com/pmezard/go-difflib v1.0.0

@@ -113,7 +113,7 @@ func prepareSystemMessage(ctx context.Context, sto stores.Storage, toolreg *tool
 
 	fmt.Fprintf(&sb, "\nCurrent SessionID: %s\n", cs.GetID())
 
-	if user, ok := UserFromContext(ctx); ok {
+	if user, ok := stores.UserFromContext(ctx); ok {
 		sb.WriteString("\nCurrent User:\n")
 		if user.UID == user.Name {
 			fmt.Fprintf(&sb, "Name and uid: %s\n", user.UID)

@@ -1,0 +1,3 @@
+
+ALTER TABLE IF EXISTS convo_user ADD IF NOT EXISTS email varchar(43) NOT NULl DEFAULT '';
+ALTER TABLE IF EXISTS convo_user ADD IF NOT EXISTS phone varchar(15) NOT NULl DEFAULT '';

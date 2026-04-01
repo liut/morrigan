@@ -20,11 +20,27 @@ func tokenUserKey(token string) string {
 	return "tk-o-user-" + token
 }
 
+type IUser interface {
+	auth.IUser
+
+	GetEmail() string
+	GetPhone() string
+}
+
+type Encoder = auth.Encoder
 type User = auth.User
 
 // UserFromContext gets user information from context
-func UserFromContext(ctx context.Context) (*User, bool) {
-	return auth.UserFromContext(ctx)
+func UserFromContext(ctx context.Context) (user *User, ok bool) {
+	if iu, iok := auth.UserFromContext(ctx); iok {
+		if user, ok = iu.(*User); ok {
+			return
+		}
+		au := auth.ToUser(iu)
+		user = &au
+		ok = true
+	}
+	return
 }
 
 // IsKeeper checks if the user in the current context has keeper role or UID
@@ -59,7 +75,7 @@ func OAuthContextWithToken(ctx context.Context, token string) context.Context {
 }
 
 // SaveUserWithToken saves user.Encode() into redis
-func SaveUserWithToken(ctx context.Context, user *User, token string) error {
+func SaveUserWithToken(ctx context.Context, user Encoder, token string) error {
 	s, err := user.Encode()
 	if err != nil {
 		logger().Infow("encode user failed", "err", err)
@@ -97,6 +113,19 @@ func DeleteUserToken(ctx context.Context, token string) error {
 		return err
 	}
 	return nil
+}
+
+type wecomUIDKey struct{}
+
+func WecomUIDFromContext(ctx context.Context) string {
+	if uid, ok := ctx.Value(wecomUIDKey{}).(string); ok {
+		return uid
+	}
+	return ""
+}
+
+func ContextWithWecomUID(ctx context.Context, uid string) context.Context {
+	return context.WithValue(ctx, wecomUIDKey{}, uid)
 }
 
 type ModelMeta = comm.ModelMeta

@@ -30,6 +30,7 @@ func init() {
 }
 
 type User = staffio.User
+type O2User = staffio.O2User
 
 // vars from staffio
 var (
@@ -83,17 +84,19 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *staffio.InfoToken) {
-	logger().Debugw("got token", "tokenInfo", it)
+
 	// TODO: use it.AccessToken directly
 	ot := staffio.TokenFromContext(ctx)
 	if ot != nil {
-		logger().Infow("got token", "it", it, "ot", ot)
+		logger().Infow("got o2 token", "it", it, "ot", ot)
 		http.SetCookie(w, buildTokenCookie(ot.AccessToken))
+	} else {
+		logger().Infow("got info token", "it", it)
 	}
 	// http.SetCookie(w, buildTokenCookie(it.AccessToken))
 
 	if user, uok := it.GetUser(); uok {
-		a.storeUser(ctx, user)
+		a.storeUserAndMeta(ctx, user, it.Meta)
 		if err := stores.SaveUserWithToken(ctx, user, it.AccessToken); err != nil {
 			logger().Infow("save user to redis failed", "error", err, "uid", user.UID)
 		}
@@ -101,8 +104,11 @@ func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *sta
 }
 
 // storeUser saves user to database via Convo().SyncUserFromOAuth
-func (a *api) storeUser(ctx context.Context, user *User) {
+func (a *api) storeUserAndMeta(ctx context.Context, user stores.IUser, meta staffio.Meta) {
 	ctx = staffio.ContextWithUser(ctx, user)
+	if wuid := meta.GetStr("wecomUID"); len(wuid) > 0 {
+		ctx = stores.ContextWithWecomUID(ctx, wuid)
+	}
 	_ = a.sto.Convo().SyncUserFromOAuth(ctx, user)
 }
 
@@ -141,16 +147,22 @@ type oAccount struct {
 	Name     string `json:"name"`
 	Nickname string `json:"nickname"`
 	Avatar   string `json:"avatar"`
+	Email    string `json:"email,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+
+	Meta map[string]any `json:"meta,omitempty"`
 }
 
-func (a *oAccount) toUser() *User {
+func (a *oAccount) toUser() *O2User {
 	if a != nil {
-		return &User{
-			OID:    a.ID,
-			UID:    a.Name,
-			Name:   a.Nickname,
-			Avatar: a.Avatar,
-		}
+		user := new(O2User)
+		user.OID = a.ID
+		user.UID = a.Name
+		user.Name = a.Nickname
+		user.Avatar = a.Avatar
+		user.Email = a.Email
+		user.Phone = a.Phone
+		return user
 	}
 	return nil
 }
@@ -164,7 +176,7 @@ type oRes struct {
 	} `json:"extra"`
 }
 
-func (or *oRes) getUser() *User {
+func (or *oRes) getUser() *O2User {
 	u := or.Result.toUser()
 	if u != nil {
 		if or.Extra != nil && len(or.Extra.Avatar) > 0 {
@@ -183,8 +195,7 @@ func (or *oRes) getUser() *User {
 // @Router /api/session [get]
 // @Router /api/session [post]
 // syncUserToCache syncs user to db and saves to Redis, then signs in
-func (a *api) syncUserToCache(ctx context.Context, user *User, token string, w http.ResponseWriter) {
-	a.storeUser(ctx, user)
+func (a *api) syncUserToCache(ctx context.Context, user *O2User, token string, w http.ResponseWriter) {
 	if err := stores.SaveUserWithToken(ctx, user, token); err != nil {
 		logger().Infow("save user to redis failed", "error", err, "uid", user.UID)
 	}
@@ -243,9 +254,9 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try OAuth info endpoint
-	if user = a.tryOAuthUser(ctx, accessToken, siteToken); user != nil {
-		a.syncUserToCache(ctx, user, siteToken, w)
-		fillUserResponse(&res, user, "")
+	if o2u := a.trySyncOAuthUser(ctx, accessToken, siteToken); o2u != nil {
+		a.syncUserToCache(ctx, o2u, siteToken, w)
+		fillUserResponse(&res, &o2u.User, "")
 		render.JSON(w, r, &res)
 		return
 	}
@@ -255,8 +266,8 @@ func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, &res)
 }
 
-// tryOAuthUser attempts to get user from OAuth token, returns nil on failure
-func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *User {
+// trySyncOAuthUser attempts to get user from OAuth token, returns nil on failure
+func (a *api) trySyncOAuthUser(ctx context.Context, accessToken, siteToken string) *O2User {
 	// Try staffio OAuth endpoint first (uses accessToken from cookie)
 	if accessToken != "" {
 		it, err := staffio.RequestInfoToken(ctx, &staffio.O2Token{
@@ -265,6 +276,7 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *
 		})
 		if err == nil {
 			if user, ok := it.GetUser(); ok {
+				a.storeUserAndMeta(ctx, user, it.Meta)
 				return user
 			}
 		}
@@ -293,7 +305,12 @@ func (a *api) tryOAuthUser(ctx context.Context, accessToken, siteToken string) *
 	}
 	logger().Infow("got account ok", "acc", ores.Result)
 
-	return ores.getUser()
+	if user := ores.getUser(); user != nil {
+		a.storeUserAndMeta(ctx, user, ores.Result.Meta)
+		return user
+	}
+
+	return nil
 }
 
 type verifyReq struct {

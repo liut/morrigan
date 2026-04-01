@@ -17,7 +17,7 @@ import (
 type ConvoStoreX interface {
 	SaveSession(ctx context.Context, sess *convo.Session) error
 	SaveUser(ctx context.Context, user *ConvoUser) error
-	SyncUserFromOAuth(ctx context.Context, user *User) error
+	SyncUserFromOAuth(ctx context.Context, user IUser) error
 
 	GetMyMemoryWithKey(ctx context.Context, key string) (*convo.Memory, error)
 	ListMyMomory(ctx context.Context, spec *ConvoMemorySpec) (convo.Memories, error)
@@ -61,9 +61,12 @@ func (s *convoStore) SaveUser(ctx context.Context, user *convo.User) error {
 		existing.SetWith(convo.UserSet{
 			Nickname:   &user.Nickname,
 			AvatarPath: &user.AvatarPath,
+			Email:      &user.Email,
+			Phone:      &user.Phone,
 		})
+		existing.MergeMeta(user.Meta)
 		dbMetaUp(ctx, s.w.db, existing)
-		return dbUpdate(ctx, s.w.db, existing)
+		return dbUpdate(ctx, s.w.db, existing, "meta")
 	}
 
 	if errors.Is(err, ErrNoRows) || errors.Is(err, ErrNotFound) {
@@ -77,16 +80,24 @@ func (s *convoStore) SaveUser(ctx context.Context, user *convo.User) error {
 	return err
 }
 
-func (s *convoStore) SyncUserFromOAuth(ctx context.Context, user *User) error {
-	cuser := convo.NewUserWithBasic(convo.UserBasic{
-		Username:   user.UID,
-		Nickname:   user.Name,
-		AvatarPath: user.Avatar,
-	})
-	_ = cuser.SetID(user.OID)
+func (s *convoStore) SyncUserFromOAuth(ctx context.Context, user IUser) error {
+	cub := convo.UserBasic{
+		Username:   user.GetUID(),
+		Nickname:   user.GetName(),
+		AvatarPath: user.GetAvatar(),
+		Email:      user.GetEmail(),
+		Phone:      user.GetPhone(),
+	}
+	if wuid := WecomUIDFromContext(ctx); len(wuid) > 0 {
+		logger().Infow("got wecomUID", "uid", wuid)
+		cub.MetaAddKVs("wecomUID", wuid)
+	}
+	cuser := convo.NewUserWithBasic(cub)
+	id := user.GetOID()
+	_ = cuser.SetID(id)
 	if err := s.SaveUser(ctx, cuser); err != nil {
 		logger().Infow("save user failed", "err", err,
-			"oid", user.OID, "uid", user.UID)
+			"oid", id, "uid", user.GetUID())
 		return err
 	}
 	return nil

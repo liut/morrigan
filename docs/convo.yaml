@@ -152,6 +152,19 @@ models:
         type: string
         tags: {json: 'avatar,omitempty', pg: 'avatar,notnull,type:varchar(125)'}
         isset: true
+      - comment: '邮箱'
+        name: Email
+        type: string
+        tags: {json: 'email,omitempty', pg: "email,notnull,use_zero,type:varchar(43)"}
+        isset: true
+        query: 'match'
+        sortable: true
+      - comment: '电话'
+        name: Phone
+        type: string
+        tags: {json: 'phone,omitempty', pg: "phone,notnull,use_zero,type:varchar(15)"}
+        isset: true
+        query: 'match'
 
       - type: comm.MetaField
 

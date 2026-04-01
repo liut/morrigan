@@ -96,14 +96,28 @@ type ConvoUserSpec struct {
 	Username string `extensions:"x-order=A" form:"username" json:"username"`
 	// 昵称
 	Nickname string `extensions:"x-order=B" form:"nickname" json:"nickname"`
+	// 邮箱
+	Email string `extensions:"x-order=C" form:"email" json:"email,omitempty"`
+	// 电话
+	Phone string `extensions:"x-order=D" form:"phone" json:"phone,omitempty"`
 }
 
 func (spec *ConvoUserSpec) Sift(q *ormQuery) *ormQuery {
 	q = spec.ModelSpec.Sift(q)
 	q, _ = siftMatch(q, "username", spec.Username, false)
 	q, _ = siftMatch(q, "nickname", spec.Nickname, false)
+	q, _ = siftMatch(q, "email", spec.Email, false)
+	q, _ = siftMatch(q, "phone", spec.Phone, false)
 
 	return q
+}
+func (spec *ConvoUserSpec) CanSort(k string) bool {
+	switch k {
+	case "email":
+		return true
+	default:
+		return spec.ModelSpec.CanSort(k)
+	}
 }
 
 type ConvoMemorySpec struct {

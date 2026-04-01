@@ -31,7 +31,7 @@ func (l *myLogger) logInternal(ctx context.Context, level slog.Level, args ...an
 		Message: msg + extra,
 		PC:      pcs[0],
 	}
-	l.log.Handler().Handle(ctx, *r)
+	_ = l.log.Handler().Handle(ctx, *r)
 }
 
 func (l *myLogger) Debug(ctx context.Context, args ...any) {

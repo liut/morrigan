@@ -387,6 +387,10 @@ type UserBasic struct {
 	Nickname string `bun:"nickname,notnull,type:varchar(45)" extensions:"x-order=B" form:"nickname" json:"nickname" pg:"nickname,notnull,type:varchar(45)"`
 	// 头像路径
 	AvatarPath string `bun:"avatar,notnull,type:varchar(125)" extensions:"x-order=C" form:"avatar" json:"avatar,omitempty" pg:"avatar,notnull,type:varchar(125)"`
+	// 邮箱
+	Email string `bun:"email,notnull,type:varchar(43)" extensions:"x-order=D" form:"email" json:"email,omitempty" pg:"email,notnull,use_zero,type:varchar(43)"`
+	// 电话
+	Phone string `bun:"phone,notnull,type:varchar(15)" extensions:"x-order=E" form:"phone" json:"phone,omitempty" pg:"phone,notnull,use_zero,type:varchar(15)"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name convoUserBasic
@@ -425,6 +429,10 @@ type UserSet struct {
 	Nickname *string `extensions:"x-order=B" json:"nickname"`
 	// 头像路径
 	AvatarPath *string `extensions:"x-order=C" form:"avatar" json:"avatar,omitempty"`
+	// 邮箱
+	Email *string `extensions:"x-order=D" form:"email" json:"email,omitempty"`
+	// 电话
+	Phone *string `extensions:"x-order=E" form:"phone" json:"phone,omitempty"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name convoUserSet
@@ -441,6 +449,14 @@ func (z *User) SetWith(o UserSet) {
 	if o.AvatarPath != nil && z.AvatarPath != *o.AvatarPath {
 		z.LogChangeValue("avatar", z.AvatarPath, o.AvatarPath)
 		z.AvatarPath = *o.AvatarPath
+	}
+	if o.Email != nil && z.Email != *o.Email {
+		z.LogChangeValue("email", z.Email, o.Email)
+		z.Email = *o.Email
+	}
+	if o.Phone != nil && z.Phone != *o.Phone {
+		z.LogChangeValue("phone", z.Phone, o.Phone)
+		z.Phone = *o.Phone
 	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")

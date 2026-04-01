@@ -25,3 +25,15 @@ fetch('/api/m/mcp/servers/fi-54ionou2hq0w/activate', {
 .then(console.log);
 
 ```
+
+```bash
+curl -X POST 'http://localhost:3002/api/m/mcp/servers' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "webpawm",
+    "transport": "streamable",
+    "url": "http://localhost:8087/mcp",
+    "remark": "用于搜索"
+  }'
+
+```

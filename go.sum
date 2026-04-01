@@ -82,8 +82,8 @@ github.com/larksuite/oapi-sdk-go/v3 v3.5.3 h1:xvf8Dv29kBXC5/DNDCLhHkAFW8l/0LlQJi
 github.com/larksuite/oapi-sdk-go/v3 v3.5.3/go.mod h1:ZEplY+kwuIrj/nqw5uSCINNATcH3KdxSN7y+UxYY5fI=
 github.com/liut/simpauth v0.1.18 h1:uPAeefL8mBXpOv1Cn5r3cHqzv/wuIyFFHGtpFJai8l4=
 github.com/liut/simpauth v0.1.18/go.mod h1:7DBCXACVqthUCo3T8rLX7v3DpMwQWctEhWpInmaphc4=
-github.com/liut/staffio-client v0.2.10 h1:CR7I7jJmozpNVuI4R82oePl6GM+pcZNbvVBsVp+wZPk=
-github.com/liut/staffio-client v0.2.10/go.mod h1:wExiAH2XNWx7VGxaugifjj941BPv54DvgiPs3YhXkAE=
+github.com/liut/staffio-client v0.2.11 h1:yczPjic/6x3hlCPFMJkmq/nzWlyzagGch4/h8cUxw8Y=
+github.com/liut/staffio-client v0.2.11/go.mod h1:wExiAH2XNWx7VGxaugifjj941BPv54DvgiPs3YhXkAE=
 github.com/mailru/easyjson v0.9.2 h1:dX8U45hQsZpxd80nLvDGihsQ/OxlvTkVUXH2r/8cb2M=
 github.com/mailru/easyjson v0.9.2/go.mod h1:1+xMtQp2MRNVL/V1bOzuP3aP8VNwRW55fQUto+XFtTU=
 github.com/marcsv/go-binder v0.0.0-20160121205837-a8bae0b66e09 h1:CjqjGVBDBV81zs1g3OiST9+GKeJJkUiy9e87940tVWQ=
