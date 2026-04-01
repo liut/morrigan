@@ -25,15 +25,8 @@ type Registry struct {
 	// 受限工具列表（需要 keeper 角色）
 	privTools []mcps.ToolDescriptor
 
-	// OAuth MCP 相关
-	oauthMCPEnabled bool
-	oauthMCPInited  bool // 是否已初始化工具列表
-	oauthGetToken   func(ctx context.Context) string
-	oauthEndpoint   string
-	oauthClients    map[string]*client.Client // token -> client 缓存
-	oauthClientsMu  sync.Mutex
-	clientInfo      mcp.Implementation // MCP 客户端信息
-	headerFunc      HeaderFunc
+	clientInfo mcp.Implementation // MCP 客户端信息
+	headerFunc HeaderFunc
 
 	// MCP Servers 连接容器（name -> connection）
 	servers   map[string]*MCPConnection
@@ -56,25 +49,12 @@ func WithHeaderFunc(hf HeaderFunc) RegistryOption {
 	}
 }
 
-// WithOAuthMCP 配置 OAuth MCP TODO: 可以合并到普通注册里
-func WithOAuthMCP(endpoint string, getToken func(ctx context.Context) string) RegistryOption {
-	return func(r *Registry) {
-		if endpoint != "" && getToken != nil {
-			r.oauthEndpoint = endpoint
-			r.oauthGetToken = getToken
-			r.oauthMCPEnabled = true
-			logger().Infow("OAuth MCP configured", "endpoint", endpoint)
-		}
-	}
-}
-
 // NewRegistry 创建工具注册表
 func NewRegistry(sto stores.Storage, opts ...RegistryOption) *Registry {
 	r := &Registry{
-		tools:        make([]mcps.ToolDescriptor, 0),
-		invokers:     make(map[string]Invoker),
-		oauthClients: make(map[string]*client.Client),
-		servers:      make(map[string]*MCPConnection),
+		tools:    make([]mcps.ToolDescriptor, 0),
+		invokers: make(map[string]Invoker),
+		servers:  make(map[string]*MCPConnection),
 	}
 	r.initTools(sto)
 
@@ -116,13 +96,6 @@ func (r *Registry) Invoke(ctx context.Context, name string, params map[string]an
 		return mcps.BuildToolErrorResult("tool name is empty"), nil
 	}
 
-	// 延迟初始化 OAuth MCP 工具列表
-	if r.oauthMCPEnabled && !r.oauthMCPInited {
-		if err := r.initOAuthMCPTools(ctx); err != nil {
-			logger().Infow("failed to init OAuth MCP tools", "err", err)
-		}
-	}
-
 	logger().Debugw("invoking", "toolName", name, "params", params)
 	for key, invoker := range r.invokers {
 		if strings.EqualFold(key, name) {
@@ -157,7 +130,7 @@ func (r *Registry) initTools(sto stores.Storage) {
 	r.tools = append(r.tools, fetchDescriptor)
 	r.invokers[ToolNameFetch] = r.callFetch
 
-	logger().Debugw("init tools", "tools", r.tools, "priv", len(r.privTools))
+	logger().Debugw("init tools", "tools", mcps.ToolNames(r.tools), "priv", len(r.privTools))
 }
 
 // ApplyToolDescriptions 应用 preset 中的自定义工具描述
@@ -185,167 +158,13 @@ func (r *Registry) ApplyToolDescriptions(descriptions map[string]string) {
 // ToolsFor 返回适合当前上下文的工具列表
 // 如果用户有 keeper 角色，返回所有工具；否则只返回公开工具
 func (r *Registry) ToolsFor(ctx context.Context) []mcps.ToolDescriptor {
-	// 延迟初始化 OAuth MCP 工具列表（当有 context 时尝试获取）
-	if r.oauthMCPEnabled && !r.oauthMCPInited {
-		if err := r.initOAuthMCPTools(ctx); err != nil {
-			logger().Infow("failed to init OAuth MCP tools", "err", err)
-		}
-	}
+	// TODO: 工具过滤器
 
 	if stores.IsKeeper(ctx) {
 		// 合并公开工具和受限工具
 		return append(r.tools, r.privTools...)
 	}
 	return r.tools
-}
-
-// InitOAuthMCP 初始化 OAuth MCP 连接（延迟获取工具列表）
-// initOAuthMCPTools 延迟初始化 OAuth MCP 工具列表
-// 只有在有有效 token 时才能获取工具列表
-func (r *Registry) initOAuthMCPTools(ctx context.Context) error {
-	if r.oauthMCPInited {
-		return nil
-	}
-
-	// 检查是否有 token
-	if r.oauthGetToken == nil {
-		return nil
-	}
-	tok := r.oauthGetToken(ctx)
-	if tok == "" {
-		logger().Infow("no token available for OAuth MCP, skipping tool list fetch")
-		return nil
-	}
-
-	logger().Infow("fetching OAuth MCP tools", "endpoint", r.oauthEndpoint)
-
-	// 使用 getOAuthClient 获取已初始化好的 client
-	c, err := r.getOAuthClient(ctx)
-	if err != nil {
-		logger().Infow("failed to get OAuth MCP client", "err", err)
-		return err
-	}
-	if c == nil {
-		logger().Infow("no OAuth MCP client available")
-		return nil
-	}
-
-	// 获取工具列表
-	result, err := c.ListTools(ctx, mcp.ListToolsRequest{})
-	if err != nil {
-		logger().Infow("failed to list OAuth MCP tools", "err", err)
-		return err
-	}
-
-	logger().Infow("OAuth MCP tools fetched", "count", len(result.Tools), "tools", func() []string {
-		names := make([]string, len(result.Tools))
-		for i, t := range result.Tools {
-			names[i] = t.Name
-		}
-		return names
-	}())
-
-	// 转换为本地 ToolDescriptor 并注册 invoker
-	for _, tool := range result.Tools {
-		toolKey := fmt.Sprintf("oauth_%s", tool.Name)
-		// InputSchema 是 ToolInputSchema 类型，需要转换
-		inputSchema := convertInputSchema(tool.InputSchema)
-		r.tools = append(r.tools, mcps.ToolDescriptor{
-			Name:        toolKey,
-			Description: tool.Description,
-			InputSchema: inputSchema,
-		})
-		r.invokers[toolKey] = func(ctx context.Context, params map[string]any) (map[string]any, error) {
-			return r.callOAuthTool(ctx, tool.Name, params)
-		}
-	}
-
-	r.oauthMCPInited = true
-
-	logger().Info("OAuth MCP tools initialized")
-	return nil
-}
-
-// getOAuthClient 获取或创建对应 token 的 MCP client
-func (r *Registry) getOAuthClient(ctx context.Context) (*client.Client, error) {
-	if r.oauthGetToken == nil {
-		return nil, nil
-	}
-	tok := r.oauthGetToken(ctx)
-	if tok == "" {
-		return nil, nil
-	}
-
-	// 加锁检查是否有缓存的 client
-	r.oauthClientsMu.Lock()
-	defer r.oauthClientsMu.Unlock()
-
-	if c, ok := r.oauthClients[tok]; ok {
-		return c, nil
-	}
-
-	// 创建新的 client
-	tp, err := transport.NewStreamableHTTP(r.oauthEndpoint,
-		transport.WithHTTPHeaderFunc(func(ctx context.Context) map[string]string {
-			if t := r.oauthGetToken(ctx); t != "" {
-				return map[string]string{"Authorization": "Bearer " + t}
-			}
-			return nil
-		}))
-	if err != nil {
-		return nil, err
-	}
-
-	c := client.NewClient(tp)
-	if err := c.Start(ctx); err != nil {
-		return nil, err
-	}
-
-	// Initialize MCP 协议
-	if _, err := c.Initialize(ctx, mcp.InitializeRequest{
-		Params: mcp.InitializeParams{
-			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
-			ClientInfo:      r.clientInfo,
-		},
-	}); err != nil {
-		logger().Warnw("initialize OAuth MCP fail", "err", err)
-		return nil, fmt.Errorf("failed to initialize OAuth MCP: %w", err)
-	}
-
-	r.oauthClients[tok] = c
-	logger().Debugw("created new OAuth MCP client", "token", tok[:min(8, len(tok))])
-	return c, nil
-}
-
-// callOAuthTool 调用 OAuth MCP 工具
-func (r *Registry) callOAuthTool(ctx context.Context, name string, params map[string]any) (map[string]any, error) {
-	c, err := r.getOAuthClient(ctx)
-	if err != nil {
-		logger().Errorw("failed to get OAuth MCP client", "err", err)
-		return mcps.BuildToolErrorResult(err.Error()), nil
-	}
-	if c == nil {
-		return mcps.BuildToolErrorResult("no OAuth token available"), nil
-	}
-
-	// 确保 params 不为空，避免 "empty arguments" 错误
-	if params == nil {
-		params = make(map[string]any)
-	}
-
-	result, err := c.CallTool(ctx, mcp.CallToolRequest{
-		Params: mcp.CallToolParams{
-			Name:      name,
-			Arguments: params,
-		},
-	})
-	if err != nil {
-		logger().Errorw("OAuth MCP tool call failed", "tool", name, "err", err)
-		return mcps.BuildToolErrorResult(err.Error()), nil
-	}
-
-	// 转换 MCP 结果为本地格式
-	return convertMCPToolResult(result), nil
 }
 
 // convertInputSchema 将 ToolInputSchema 转换为 map[string]any

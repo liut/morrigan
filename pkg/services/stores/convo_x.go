@@ -16,7 +16,7 @@ import (
 // ConvoStoreX is the conversation storage extension interface
 type ConvoStoreX interface {
 	SaveSession(ctx context.Context, sess *convo.Session) error
-	SaveUser(ctx context.Context, user *ConvoUser) error
+	SaveUser(ctx context.Context, ub convo.UserBasic, id string) error
 	SyncUserFromOAuth(ctx context.Context, user IUser) error
 	GetUserWith(ctx context.Context, uid string) (*ConvoUser, error)
 
@@ -73,33 +73,46 @@ func (s *convoStore) GetUserWith(ctx context.Context, uid string) (*ConvoUser, e
 }
 
 // SaveUser saves or updates user information
-func (s *convoStore) SaveUser(ctx context.Context, user *convo.User) error {
+func (s *convoStore) SaveUser(ctx context.Context, in convo.UserBasic, id string) error {
 	// 根据 username 查询用户是否存在
 	existing := new(convo.User)
-	err := dbGetWithUnique(ctx, s.w.db, existing, "username", user.Username)
+	err := dbGetWithUnique(ctx, s.w.db, existing, "username", in.Username)
 	if err == nil {
 		// 用户存在，更新
-		existing.SetIsUpdate(true)
-		existing.SetWith(convo.UserSet{
-			Nickname:   &user.Nickname,
-			AvatarPath: &user.AvatarPath,
-			Email:      &user.Email,
-			Phone:      &user.Phone,
-		})
-		existing.MergeMeta(user.Meta)
-		dbMetaUp(ctx, s.w.db, existing)
-		return dbUpdate(ctx, s.w.db, existing, "meta")
+		up := convo.UserSet{
+			Nickname:   &in.Nickname,
+			AvatarPath: &in.AvatarPath,
+			Email:      &in.Email,
+			Phone:      &in.Phone,
+		}
+		up.MetaDiff = in.MetaDiff
+		if err = s.UpdateUser(ctx, existing.StringID(), up); err != nil {
+			logger().Infow("update user fail", "err", err, "id", existing.ID)
+			return err
+		}
+		return nil
 	}
 
 	if errors.Is(err, ErrNoRows) || errors.Is(err, ErrNotFound) {
-		// 用户不存在，创建
-		dbMetaUp(ctx, s.w.db, user)
-		return dbInsert(ctx, s.w.db, user)
+		in.MetaAddKVs("oid", id)
+		var obj *ConvoUser
+		if obj, err = s.CreateUser(ctx, in); err != nil {
+			logger().Infow("create user fail", "err", err)
+		} else {
+			logger().Infow("create user ok", "id", obj.ID, "input.id", id)
+		}
 	}
 
-	logger().Infow("save user fail", "err", err, "user", user)
-
 	return err
+}
+
+func dbBeforeCreateUser(ctx context.Context, db ormDB, obj *convo.User) error {
+	if id, ok := obj.Meta.Get("oid"); ok {
+		if obj.SetID(id) {
+			obj.MetaUnset("oid")
+		}
+	}
+	return nil
 }
 
 func dbAfterSaveUser(ctx context.Context, db ormDB, obj *convo.User) error {
@@ -126,10 +139,8 @@ func (s *convoStore) SyncUserFromOAuth(ctx context.Context, user IUser) error {
 		logger().Infow("got wecomUID", "uid", wuid)
 		cub.MetaAddKVs(WecomUID, wuid)
 	}
-	cuser := convo.NewUserWithBasic(cub)
 	id := user.GetOID()
-	_ = cuser.SetID(id)
-	if err := s.SaveUser(ctx, cuser); err != nil {
+	if err := s.SaveUser(ctx, cub, id); err != nil {
 		logger().Infow("save user failed", "err", err,
 			"oid", id, "uid", user.GetUID())
 		return err

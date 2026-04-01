@@ -33,8 +33,8 @@ generate:
 	GO111MODULE=$(GOMOD) $(GO) generate ./...
 
 vet:
-	echo "Checking ./pkg/... , with GOMOD=$(GOMOD)"
-	GO111MODULE=$(GOMOD) $(GO) vet -all ./pkg/...
+	echo "Checking ./... , with GOMOD=$(GOMOD)"
+	GO111MODULE=$(GOMOD) $(GO) vet -all ./...
 
 deps:
 	GO111MODULE=on $(GO) install golang.org/x/tools/cmd/goimports@latest

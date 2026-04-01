@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -237,8 +238,8 @@ func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- Stream
 		}
 
 		// fmt.Fprintln(os.Stderr, string(line))
-		// slog.Info("streaming", "line", string(line))
-		logger().Debugw("streaming", "line", string(line))
+		slog.Debug("streaming", "line", string(line))
+		// logger().Debugw("streaming", "line", string(line))
 
 		data := bytes.TrimSpace(line[5:])
 		if string(data) == "[DONE]" {

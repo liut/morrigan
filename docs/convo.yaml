@@ -172,6 +172,7 @@ models:
     specNs: convo
     export1: true
     hooks:
+      beforeCreating: yes
       afterSaving: yes
 
   - name: ThirdUser
@@ -241,7 +242,7 @@ stores:
     hods:
       - { name: Session, type: LGUD }
       - { name: Message, type: LGD }
-      - { name: User, type: LGD, export: G }
+      - { name: User, type: LGCUD, export: G }
       - { name: ThirdUser, type: LGD }
       - { name: Memory, type: LGCUD }
       - { name: UsageRecord, type: LGCD }

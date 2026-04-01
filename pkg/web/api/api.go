@@ -50,9 +50,9 @@ func regHI(auth bool, method string, path string, rid string, hafn haFunc) {
 type api struct {
 	sto stores.Storage
 
-	llm     llm.Client
-	preset  aigc.Preset
-	toolreg *tools.Registry
+	llm      llm.Client
+	preset   aigc.Preset
+	toolreg  *tools.Registry
 	toolExec *ToolExecutor
 
 	router chi.Router // 用于平台 HTTP 回调注册
@@ -76,15 +76,10 @@ func newapi(sto stores.Storage) *api {
 		tools.WithClientInfo(settings.Current.Name, settings.Version()),
 	}
 
-	if settings.Current.OAuthPathMCP != "" && settings.Current.OAuthAuthMCP {
-		opts = append(opts, tools.WithOAuthMCP(
-			staffio.GetPrefix()+settings.Current.OAuthPathMCP, stores.OAuthTokenFromContext),
-		)
-	}
 	toolreg := tools.NewRegistry(sto, opts...)
 	toolreg.ApplyToolDescriptions(preset.Tools)
 
-	if settings.Current.OAuthPathMCP != "" && !settings.Current.OAuthAuthMCP {
+	if settings.Current.OAuthPathMCP != "" {
 		sb := mcps.ServerBasic{
 			TransType:  mcps.TransTypeStreamable,
 			Name:       settings.Current.GetOAuthName(),
@@ -119,10 +114,10 @@ func newapi(sto stores.Storage) *api {
 	staffio.RegisterStateStore(sto.State())
 
 	return &api{
-		sto:     sto,
-		llm:     stores.GetLLMClient(),
-		preset:  preset,
-		toolreg: toolreg,
+		sto:      sto,
+		llm:      stores.GetLLMClient(),
+		preset:   preset,
+		toolreg:  toolreg,
 		toolExec: NewToolExecutor(toolreg),
 	}
 }

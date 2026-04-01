@@ -34,6 +34,8 @@ type ConvoStore interface {
 
 	ListUser(ctx context.Context, spec *ConvoUserSpec) (data convo.Users, total int, err error)
 	GetUser(ctx context.Context, id string) (obj *convo.User, err error)
+	CreateUser(ctx context.Context, in convo.UserBasic) (obj *convo.User, err error)
+	UpdateUser(ctx context.Context, id string, in convo.UserSet) error
 	DeleteUser(ctx context.Context, id string) error
 
 	ListThirdUser(ctx context.Context, spec *ConvoThirdUserSpec) (data convo.ThirdUsers, total int, err error)
@@ -232,6 +234,40 @@ func (s *convoStore) GetUser(ctx context.Context, id string) (obj *convo.User, e
 	obj, err = GetUser(ctx, s.w.db, id)
 
 	return
+}
+func (s *convoStore) CreateUser(ctx context.Context, in convo.UserBasic) (obj *convo.User, err error) {
+	err = s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		obj = convo.NewUserWithBasic(in)
+		if err = dbBeforeCreateUser(ctx, tx, obj); err != nil {
+			return
+		}
+		if obj.Username == "" {
+			err = ErrEmptyKey
+			return
+		}
+		dbMetaUp(ctx, tx, obj)
+		err = dbInsert(ctx, tx, obj, "username")
+		if err == nil {
+			err = dbAfterSaveUser(ctx, tx, obj)
+		}
+		return err
+	})
+	return
+}
+func (s *convoStore) UpdateUser(ctx context.Context, id string, in convo.UserSet) error {
+	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		exist := new(convo.User)
+		if err = dbGetWithPKID(ctx, tx, exist, id); err != nil {
+			return err
+		}
+		exist.SetIsUpdate(true)
+		exist.SetWith(in)
+		dbMetaUp(ctx, tx, exist)
+		if err = dbUpdate(ctx, tx, exist); err != nil {
+			return err
+		}
+		return dbAfterSaveUser(ctx, tx, exist)
+	})
 }
 func (s *convoStore) DeleteUser(ctx context.Context, id string) error {
 	obj := new(convo.User)
