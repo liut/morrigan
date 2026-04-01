@@ -101,7 +101,9 @@ func (chh *channelHandler) MessageHandler(p channel.Channel, msg *channel.Messag
 	if err == nil {
 		logger().Debugw("found user", "id", user.ID, "userID", msg.UserID)
 		ctx = ContextWithUser(ctx, user)
-		// TODO: 还需要设置OAuth相关的令牌以方便基于OAuth的MCP连接
+		if token, err := stores.LoadTokenWithUser(ctx, user.StringID()); err == nil {
+			ctx = stores.OAuthContextWithToken(ctx, token)
+		}
 	} else {
 		logger().Infow("not found user", "userID", msg.UserID, "err", err)
 	}

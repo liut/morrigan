@@ -364,14 +364,14 @@ func (in *UsageRecordSet) MetaAddKVs(args ...any) *UsageRecordSet {
 // consts of User 用户
 const (
 	UserTable = "convo_user"
-	UserAlias = "au"
+	UserAlias = "u"
 	UserLabel = "user"
 	UserTypID = "convoUser"
 )
 
 // User 用户 来自 OAuth SP 的拷贝
 type User struct {
-	comm.BaseModel `bun:"table:convo_user,alias:au" json:"-"`
+	comm.BaseModel `bun:"table:convo_user,alias:u" json:"-"`
 
 	comm.DefaultModel
 
@@ -471,17 +471,89 @@ func (in *UserSet) MetaAddKVs(args ...any) *UserSet {
 	return in
 }
 
+// consts of ThirdUser 第三方用户
+const (
+	ThirdUserTable = "convo_third_user"
+	ThirdUserAlias = "tu"
+	ThirdUserLabel = "thirdUser"
+	ThirdUserTypID = "convoThirdUser"
+)
+
+// ThirdUser 第三方用户 来自不同平台 如微信和飞书等 PK为第三方平台标识+账号
+type ThirdUser struct {
+	comm.BaseModel `bun:"table:convo_third_user,alias:tu" json:"-"`
+
+	comm.DunceModel
+
+	ThirdUserBasic
+
+	comm.MetaField
+} // @name convoThirdUser
+
+type ThirdUserBasic struct {
+	// 所有人编号
+	OwnerID oid.OID `bun:"owner_id,notnull,type:bigint" extensions:"x-order=A" json:"ownerID" pg:"owner_id,notnull,type:bigint" swaggertype:"string"`
+	// for meta update
+	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
+} // @name convoThirdUserBasic
+
+type ThirdUsers []ThirdUser
+
+// Creating function call to it's inner fields defined hooks
+func (z *ThirdUser) Creating() error {
+	if z.IsZeroID() {
+		return comm.ErrEmptyID
+	}
+
+	return z.DunceModel.Creating()
+}
+func NewThirdUserWithBasic(in ThirdUserBasic) *ThirdUser {
+	obj := &ThirdUser{
+		ThirdUserBasic: in,
+	}
+	_ = obj.MetaUp(in.MetaDiff)
+	return obj
+}
+func NewThirdUserWithID(id any) *ThirdUser {
+	obj := new(ThirdUser)
+	_ = obj.SetID(id)
+	return obj
+}
+func (_ *ThirdUser) IdentityLabel() string { return ThirdUserLabel }
+func (_ *ThirdUser) IdentityModel() string { return ThirdUserTypID }
+func (_ *ThirdUser) IdentityTable() string { return ThirdUserTable }
+func (_ *ThirdUser) IdentityAlias() string { return ThirdUserAlias }
+
+type ThirdUserSet struct {
+	// for meta update
+	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
+} // @name convoThirdUserSet
+
+func (z *ThirdUser) SetWith(o ThirdUserSet) {
+	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
+		z.SetChange("meta")
+	}
+}
+func (in *ThirdUserBasic) MetaAddKVs(args ...any) *ThirdUserBasic {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+func (in *ThirdUserSet) MetaAddKVs(args ...any) *ThirdUserSet {
+	in.MetaDiff = comm.MetaDiffAddKVs(in.MetaDiff, args...)
+	return in
+}
+
 // consts of Memory 记忆
 const (
 	MemoryTable = "convo_memory"
-	MemoryAlias = "mm"
+	MemoryAlias = "m"
 	MemoryLabel = "memory"
 	MemoryTypID = "convoMemory"
 )
 
 // Memory 记忆
 type Memory struct {
-	comm.BaseModel `bun:"table:convo_memory,alias:mm" json:"-"`
+	comm.BaseModel `bun:"table:convo_memory,alias:m" json:"-"`
 
 	comm.DefaultModel
 

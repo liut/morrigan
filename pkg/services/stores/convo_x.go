@@ -102,6 +102,18 @@ func (s *convoStore) SaveUser(ctx context.Context, user *convo.User) error {
 	return err
 }
 
+func dbAfterSaveUser(ctx context.Context, db ormDB, obj *convo.User) error {
+	if wuid := obj.Meta.GetStr(WecomUID); len(wuid) > 0 {
+		tub := convo.ThirdUserBasic{OwnerID: obj.ID}
+		tub.MetaAddKVs("username", obj.Username)
+		tu := convo.NewThirdUserWithBasic(tub)
+		tu.SetID(WecomHead + wuid)
+		if err := dbInsert(ctx, db, tu, "id", "meta", "owner_id"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (s *convoStore) SyncUserFromOAuth(ctx context.Context, user IUser) error {
 	cub := convo.UserBasic{
 		Username:   user.GetUID(),

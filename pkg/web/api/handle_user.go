@@ -97,6 +97,7 @@ func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *sta
 	// http.SetCookie(w, buildTokenCookie(it.AccessToken))
 
 	if user, uok := it.GetUser(); uok {
+		_ = stores.SaveTokenWithUser(ctx, user.OID, it.AccessToken)
 		a.storeUserAndMeta(ctx, user, it.Meta)
 		if err := stores.SaveUserWithToken(ctx, user, it.AccessToken); err != nil {
 			logger().Infow("save user to redis failed", "error", err, "uid", user.UID)

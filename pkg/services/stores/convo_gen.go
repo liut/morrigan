@@ -13,10 +13,11 @@ type ConvoUser = convo.User
 // type ConvoMemory = convo.Memory
 // type ConvoMessage = convo.Message
 // type ConvoSession = convo.Session
+// type ConvoThirdUser = convo.ThirdUser
 // type ConvoUsageRecord = convo.UsageRecord
 
 func init() {
-	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.UsageRecord)(nil), (*convo.User)(nil), (*convo.Memory)(nil))
+	RegisterModel((*convo.Session)(nil), (*convo.Message)(nil), (*convo.UsageRecord)(nil), (*convo.User)(nil), (*convo.ThirdUser)(nil), (*convo.Memory)(nil))
 }
 
 type ConvoStore interface {
@@ -34,6 +35,10 @@ type ConvoStore interface {
 	ListUser(ctx context.Context, spec *ConvoUserSpec) (data convo.Users, total int, err error)
 	GetUser(ctx context.Context, id string) (obj *convo.User, err error)
 	DeleteUser(ctx context.Context, id string) error
+
+	ListThirdUser(ctx context.Context, spec *ConvoThirdUserSpec) (data convo.ThirdUsers, total int, err error)
+	GetThirdUser(ctx context.Context, id string) (obj *convo.ThirdUser, err error)
+	DeleteThirdUser(ctx context.Context, id string) error
 
 	ListMemory(ctx context.Context, spec *ConvoMemorySpec) (data convo.Memories, total int, err error)
 	GetMemory(ctx context.Context, id string) (obj *convo.Memory, err error)
@@ -118,6 +123,21 @@ func (spec *ConvoUserSpec) CanSort(k string) bool {
 	default:
 		return spec.ModelSpec.CanSort(k)
 	}
+}
+
+type ConvoThirdUserSpec struct {
+	PageSpec
+	ModelSpec
+
+	// 所有人编号
+	OwnerID string `extensions:"x-order=A" form:"ownerID" json:"ownerID"`
+}
+
+func (spec *ConvoThirdUserSpec) Sift(q *ormQuery) *ormQuery {
+	q = spec.ModelSpec.Sift(q)
+	q, _ = siftOID(q, "owner_id", spec.OwnerID, false)
+
+	return q
 }
 
 type ConvoMemorySpec struct {
@@ -215,6 +235,21 @@ func (s *convoStore) GetUser(ctx context.Context, id string) (obj *convo.User, e
 }
 func (s *convoStore) DeleteUser(ctx context.Context, id string) error {
 	obj := new(convo.User)
+	return s.w.db.DeleteModel(ctx, obj, id)
+}
+
+func (s *convoStore) ListThirdUser(ctx context.Context, spec *ConvoThirdUserSpec) (data convo.ThirdUsers, total int, err error) {
+	total, err = s.w.db.ListModel(ctx, spec, &data)
+	return
+}
+func (s *convoStore) GetThirdUser(ctx context.Context, id string) (obj *convo.ThirdUser, err error) {
+	obj = new(convo.ThirdUser)
+	err = dbGetWithPKID(ctx, s.w.db, obj, id)
+
+	return
+}
+func (s *convoStore) DeleteThirdUser(ctx context.Context, id string) error {
+	obj := new(convo.ThirdUser)
 	return s.w.db.DeleteModel(ctx, obj, id)
 }
 

@@ -2,6 +2,7 @@ package stores
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
@@ -18,6 +19,10 @@ const (
 
 func tokenUserKey(token string) string {
 	return "tk-o-user-" + token
+}
+
+func userTokenKey(id string) string {
+	return "user-o-token-" + id
 }
 
 type IUser interface {
@@ -115,8 +120,31 @@ func DeleteUserToken(ctx context.Context, token string) error {
 	return nil
 }
 
+func SaveTokenWithUser(ctx context.Context, id, token string) error {
+	if len(id) == 0 || len(token) == 0 {
+		return fmt.Errorf("empty id or token")
+	}
+	key := userTokenKey(id)
+	if err := SgtRC().Set(ctx, key, token, tokenExpire).Err(); err != nil {
+		logger().Infow("save token to redis failed", "key", key, "err", err)
+		return err
+	}
+	return nil
+}
+
+func LoadTokenWithUser(ctx context.Context, id string) (string, error) {
+	key := userTokenKey(id)
+	tok, err := SgtRC().Get(ctx, key).Result()
+	if err != nil {
+		logger().Infow("load token from redis failed", "key", key, "err", err)
+		return "", err
+	}
+	return tok, nil
+}
+
 const (
-	WecomUID = "wecomUID"
+	WecomUID  = "wecomUID"
+	WecomHead = "wecom:"
 )
 
 type wecomUIDKey struct{}

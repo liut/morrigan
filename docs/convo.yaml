@@ -131,7 +131,7 @@ models:
 
   - name: User
     comment: '用户 来自 OAuth SP 的拷贝'
-    tableTag: 'convo_user,alias:au'
+    tableTag: 'convo_user,alias:u'
     fields:
       - type: comm.DefaultModel
       - comment: '登录名 唯一'
@@ -171,11 +171,29 @@ models:
     oidcat: account
     specNs: convo
     export1: true
+    hooks:
+      afterSaving: yes
+
+  - name: ThirdUser
+    comment: '第三方用户 来自不同平台 如微信和飞书等 PK为第三方平台标识+账号'
+    tableTag: 'convo_third_user,alias:tu'
+    fields:
+      - type: comm.DunceModel
+      - comment: 所有人编号
+        name: OwnerID
+        type: oid.OID
+        tags: {json: 'ownerID', pg: 'owner_id,notnull,type:bigint'}
+        basic: true
+        query: equal
+      - type: comm.MetaField
+
+    oidcat: account
+    specNs: convo
 
 
   - name: Memory
     comment: '记忆'
-    tableTag: 'convo_memory,alias:mm'
+    tableTag: 'convo_memory,alias:m'
     fields:
       - type: comm.DefaultModel
       - comment: 所有人编号
@@ -224,6 +242,7 @@ stores:
       - { name: Session, type: LGUD }
       - { name: Message, type: LGD }
       - { name: User, type: LGD, export: G }
+      - { name: ThirdUser, type: LGD }
       - { name: Memory, type: LGCUD }
       - { name: UsageRecord, type: LGCD }
 
