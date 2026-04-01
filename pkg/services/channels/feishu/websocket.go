@@ -70,8 +70,9 @@ func (p *WSChannel) Start(handler channel.MessageHandler) error {
 
 	wsOpts := []larkws.ClientOption{
 		larkws.WithEventHandler(p.eventHandler),
-		larkws.WithLogLevel(larkcore.LogLevelDebug),
+		larkws.WithLogger(newDefaultLog()),
 	}
+
 	p.wsClient = larkws.NewClient(p.appID, p.appSecret, wsOpts...)
 
 	go func() {
