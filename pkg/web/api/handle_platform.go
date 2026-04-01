@@ -90,13 +90,21 @@ func StopChannels() {
 }
 
 // MessageHandler processes incoming messages from channel adapters.
-func (chandler *channelHandler) MessageHandler(p channel.Channel, msg *channel.Message) {
-	if chandler == nil {
+func (chh *channelHandler) MessageHandler(p channel.Channel, msg *channel.Message) {
+	if chh == nil {
 		slog.Error("channel: handler not initialized")
 		return
 	}
 
 	ctx := context.Background()
+	user, err := chh.sto.Convo().GetUserWith(ctx, msg.UserID)
+	if err == nil {
+		logger().Debugw("found user", "id", user.ID, "userID", msg.UserID)
+		ctx = ContextWithUser(ctx, user)
+		// TODO: 还需要设置OAuth相关的令牌以方便基于OAuth的MCP连接
+	} else {
+		logger().Infow("not found user", "userID", msg.UserID, "err", err)
+	}
 
 	// Build the chat request
 	cs := stores.GetOrCreateConversationBySessionKey(ctx, msg.SessionKey)
@@ -110,7 +118,7 @@ func (chandler *channelHandler) MessageHandler(p channel.Channel, msg *channel.M
 	)
 
 	// Prepare system message and tools
-	sysMsg, tools := prepareSystemMessage(ctx, stores.Sgt(), chandler.toolreg, msg.Content, cs)
+	sysMsg, tools := prepareSystemMessage(ctx, chh.sto, chh.toolreg, msg.Content, cs)
 
 	// Build user message with any attachments
 	content := msg.Content
@@ -141,13 +149,13 @@ func (chandler *channelHandler) MessageHandler(p channel.Channel, msg *channel.M
 
 	// Execute the chat with tool call loop
 	exec := func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error) {
-		result, err := chandler.llm.Chat(ctx, messages, tools)
+		result, err := chh.llm.Chat(ctx, messages, tools)
 		if err != nil {
 			return "", nil, nil, err
 		}
 		return result.Content, result.ToolCalls, result.Usage, nil
 	}
-	answer, _, _, err := chandler.executeToolCallLoop(ctx, messages, tools, exec)
+	answer, _, _, err := chh.executeToolCallLoop(ctx, messages, tools, exec)
 	if err != nil {
 		slog.Error("channel: chat execution failed",
 			"channel", p.Name(), "error", err)
@@ -180,8 +188,8 @@ func (chandler *channelHandler) MessageHandler(p channel.Channel, msg *channel.M
 }
 
 // executeToolCallLoop executes tool calls in a loop until no more tool calls
-func (chandler *channelHandler) executeToolCallLoop(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition, exec chatExecutor) (string, []llm.ToolCall, *llm.Usage, error) {
-	return chandler.toolExec.ExecuteToolCallLoop(ctx, messages, tools, exec)
+func (chh *channelHandler) executeToolCallLoop(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition, exec chatExecutor) (string, []llm.ToolCall, *llm.Usage, error) {
+	return chh.toolExec.ExecuteToolCallLoop(ctx, messages, tools, exec)
 }
 
 // channelReplyError sends an error message back to the channel.

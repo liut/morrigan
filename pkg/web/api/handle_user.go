@@ -35,6 +35,7 @@ type O2User = staffio.O2User
 // vars from staffio
 var (
 	UserFromContext = staffio.UserFromContext
+	ContextWithUser = staffio.ContextWithUser
 )
 
 // staffio 认证相关

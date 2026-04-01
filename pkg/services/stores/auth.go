@@ -115,6 +115,10 @@ func DeleteUserToken(ctx context.Context, token string) error {
 	return nil
 }
 
+const (
+	WecomUID = "wecomUID"
+)
+
 type wecomUIDKey struct{}
 
 func WecomUIDFromContext(ctx context.Context) string {

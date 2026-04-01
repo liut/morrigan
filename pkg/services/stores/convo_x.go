@@ -18,6 +18,7 @@ type ConvoStoreX interface {
 	SaveSession(ctx context.Context, sess *convo.Session) error
 	SaveUser(ctx context.Context, user *ConvoUser) error
 	SyncUserFromOAuth(ctx context.Context, user IUser) error
+	GetUserWith(ctx context.Context, uid string) (*ConvoUser, error)
 
 	GetMyMemoryWithKey(ctx context.Context, key string) (*convo.Memory, error)
 	ListMyMomory(ctx context.Context, spec *ConvoMemorySpec) (convo.Memories, error)
@@ -34,7 +35,7 @@ const defaultMemoryLimit = 5
 const maxMemoryLimit = 100
 
 // SaveSession saves the session to database
-func (s convoStore) SaveSession(ctx context.Context, obj *convo.Session) error {
+func (s *convoStore) SaveSession(ctx context.Context, obj *convo.Session) error {
 	if !obj.IsZeroID() {
 		exist := new(convo.Session)
 		if err := dbGetWithPKID(ctx, s.w.db, exist, obj.ID); err == nil {
@@ -48,6 +49,27 @@ func (s convoStore) SaveSession(ctx context.Context, obj *convo.Session) error {
 	}
 	dbMetaUp(ctx, s.w.db, obj)
 	return dbInsert(ctx, s.w.db, obj)
+}
+
+func (s *convoStore) GetUserWith(ctx context.Context, uid string) (*ConvoUser, error) {
+	user, err := s.GetUser(ctx, uid)
+	if err == nil {
+		return user, nil
+	}
+	if errors.Is(err, ErrNoRows) || errors.Is(err, ErrNotFound) {
+		user = new(convo.User)
+		err = s.w.db.NewSelect().Model(user).
+			Where("meta->>'wecomUID' = ?", uid).Limit(1).
+			Scan(ctx)
+		if err == nil {
+			logger().Infow("got user with mismatch uid", "uid", uid, "name", user.Username)
+			return user, nil
+		}
+	}
+
+	logger().Infow("get user fail", "uid", uid, "err", err)
+
+	return nil, err
 }
 
 // SaveUser saves or updates user information
@@ -90,7 +112,7 @@ func (s *convoStore) SyncUserFromOAuth(ctx context.Context, user IUser) error {
 	}
 	if wuid := WecomUIDFromContext(ctx); len(wuid) > 0 {
 		logger().Infow("got wecomUID", "uid", wuid)
-		cub.MetaAddKVs("wecomUID", wuid)
+		cub.MetaAddKVs(WecomUID, wuid)
 	}
 	cuser := convo.NewUserWithBasic(cub)
 	id := user.GetOID()

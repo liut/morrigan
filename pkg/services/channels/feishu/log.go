@@ -12,26 +12,20 @@ type myLogger struct {
 }
 
 func (l *myLogger) logInternal(ctx context.Context, level slog.Level, args ...any) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if !l.log.Enabled(ctx, level) {
+		return
+	}
+
 	pcs := make([]uintptr, 1)
 	// skip=3: skip runtime.Callers → runtime.CallersFrames → logInternal → SDK's c.logger.Debug call site
 	runtime.Callers(3, pcs)
 
-	msg := ""
-	extra := ""
-	if len(args) > 0 {
-		msg = args[0].(string)
-		if len(args) > 1 {
-			extra = " " + args[1].(string)
-		}
-	}
-
-	r := &slog.Record{
-		Time:    time.Now(),
-		Level:   level,
-		Message: msg + extra,
-		PC:      pcs[0],
-	}
-	_ = l.log.Handler().Handle(ctx, *r)
+	r := slog.NewRecord(time.Now(), level, "lark", pcs[0])
+	r.Add(args...)
+	_ = l.log.Handler().Handle(ctx, r)
 }
 
 func (l *myLogger) Debug(ctx context.Context, args ...any) {
