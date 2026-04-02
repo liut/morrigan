@@ -2,6 +2,9 @@
 welcome: "你好，我是你的 AI 助手"
 systemPrompt: "你是一个有帮用的助手"
 toolsPrompt: "根据用户的问题选择合适的工具，区分读写操作，提取必要参数进行调用，使用中文关键词进行搜索，必要时翻译英文内容。"
+channelPrompt: |
+  When a tool call returns a 401 token error, it usually means the user's login session has expired or the token is invalid.
+  Please inform the user: “Your session appears to have expired. Please open the assistant page in a web browser, log in again, and then return to continue.”
 
 keywordTpl: |
   Summarize and extract key phrases; for questions, ignore interrogative forms and return only keywords, space-separated, single line output.:

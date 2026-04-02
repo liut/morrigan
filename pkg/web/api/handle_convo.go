@@ -97,7 +97,9 @@ func convertMCPToolsToLLMTools(tools []mcps.ToolDescriptor) []llm.ToolDefinition
 }
 
 // prepareSystemMessage 准备系统消息，包括基础 prompt、记忆、工具或知识库
-func prepareSystemMessage(ctx context.Context, sto stores.Storage, toolreg *tools.Registry, prompt string, cs stores.Conversation) (llm.Message, []llm.ToolDefinition) {
+func prepareSystemMessage(ctx context.Context, sto stores.Storage,
+	toolreg *tools.Registry, prompt string, cs stores.Conversation) (
+	llm.Message, []llm.ToolDefinition) {
 	var sb strings.Builder
 
 	if len(sto.Preset().SystemPrompt) > 0 {
@@ -160,6 +162,11 @@ func prepareSystemMessage(ctx context.Context, sto stores.Storage, toolreg *tool
 			logger().Warnw("match fail", "err", err)
 			sb.WriteString("\n知识库查询服务暂时不可用，请稍后再试或联系管理员。")
 		}
+	}
+
+	if len(cs.GetChannel()) > 0 && len(sto.Preset().ChannelPrompt) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(sto.Preset().ChannelPrompt)
 	}
 
 	msg := llm.Message{
