@@ -81,6 +81,8 @@ type SessionBasic struct {
 	Status SessionStatus `bson:"status" bun:",notnull,type:smallint" enums:"open,closed" extensions:"x-order=C" form:"status" json:"status" pg:",notnull,type:smallint" swaggertype:"string"`
 	// 工具
 	Tools []string `bson:"tools" bun:",notnull,default:'[]'" extensions:"x-order=D" json:"tools" pg:",notnull,default:'[]'"`
+	// 频道
+	Channel string `bson:"channel" bun:",notnull,type:varchat(23)" extensions:"x-order=E" form:"channel" json:"channel" pg:",notnull,type:varchat(23)"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name convoSessionBasic
@@ -127,10 +129,12 @@ type SessionSet struct {
 	Status *SessionStatus `enums:"open,closed" extensions:"x-order=C" json:"status" swaggertype:"string"`
 	// 工具
 	Tools *[]string `extensions:"x-order=D" json:"tools"`
+	// 频道
+	Channel *string `extensions:"x-order=E" json:"channel"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 	// 仅用于更新所有者(负责人)
-	OwnerID *string `extensions:"x-order=E" json:"ownerID,omitempty"`
+	OwnerID *string `extensions:"x-order=F" json:"ownerID,omitempty"`
 } // @name convoSessionSet
 
 func (z *Session) SetWith(o SessionSet) {
@@ -149,6 +153,10 @@ func (z *Session) SetWith(o SessionSet) {
 	if o.Tools != nil {
 		z.LogChangeValue("tools", z.Tools, o.Tools)
 		z.Tools = *o.Tools
+	}
+	if o.Channel != nil && z.Channel != *o.Channel {
+		z.LogChangeValue("channel", z.Channel, o.Channel)
+		z.Channel = *o.Channel
 	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")

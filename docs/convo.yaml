@@ -51,6 +51,12 @@ models:
         type: '[]string'
         tags: {bson: 'tools', json: 'tools', pg: ",notnull,default:'[]'"}
         isset: true
+      - comment: 频道
+        name: Channel
+        type: string
+        tags: {bson: 'channel', json: 'channel', pg: ",notnull,type:varchat(23)"}
+        isset: true
+        query: 'ice'
 
       - type: comm.MetaField
       - type: comm.OwnerField

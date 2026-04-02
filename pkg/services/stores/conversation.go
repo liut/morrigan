@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cupogo/andvari/models/oid"
@@ -21,6 +22,7 @@ const (
 type Conversation interface {
 	GetID() string
 	GetOID() oid.OID
+	GetChannel() string
 	SetTools(names ...string)
 	Save(ctx context.Context) error
 	CountHistory(ctx context.Context) int
@@ -43,11 +45,20 @@ func GetOrCreateConversationBySessionKey(ctx context.Context, sessionKey string)
 	key := sessionKeyCSIDPrefix + sessionKey
 	oidStr, _ := SgtRC().Get(ctx, key).Result()
 
-	cs := NewConversation(ctx, oidStr)
+	cs := newConversation(ctx, oidStr, SgtRC())
 	if oidStr == "" {
 		SgtRC().Set(ctx, key, cs.GetID(), 30*24*time.Hour)
 	} else {
 		SgtRC().Expire(ctx, key, 30*24*time.Hour)
+	}
+
+	// 从 sessionKey 提取 channel 和 chatID
+	parts := strings.SplitN(sessionKey, ":", 3)
+	if len(parts) >= 2 {
+		cs.sess.SetWith(convo.SessionSet{Channel: &parts[0]})
+		if len(parts) >= 3 {
+			cs.sess.MetaSet("chatID", parts[1])
+		}
 	}
 	return cs
 }
@@ -59,7 +70,7 @@ func ResetSessionBySessionKey(ctx context.Context, sessionKey string) error {
 }
 
 // newConversation is internal constructor, supports injecting Redis client (for testing)
-func newConversation(ctx context.Context, id any, rc RedisClient) Conversation {
+func newConversation(ctx context.Context, id any, rc RedisClient) *conversation {
 	sto := Sgt()
 	cid := oid.Cast(id)
 	var sess *convo.Session
@@ -99,6 +110,11 @@ func (s *conversation) GetID() string {
 // GetOID returns the conversation OID
 func (s *conversation) GetOID() oid.OID {
 	return s.id
+}
+
+// GetChannel returns the channel for the conversation
+func (s *conversation) GetChannel() string {
+	return s.sess.Channel
 }
 
 // SetTools sets the tool list for the conversation

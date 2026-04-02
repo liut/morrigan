@@ -64,14 +64,17 @@ type ConvoSessionSpec struct {
 	//  * `open` - 开启
 	//  * `closed` - 关闭
 	Status convo.SessionStatus `extensions:"x-order=B" form:"status" json:"status" swaggertype:"string"`
+	// 频道
+	Channel string `extensions:"x-order=C" form:"channel" json:"channel"`
 	// 所有者编号 (多值使用逗号分隔)
-	OwnerID string `extensions:"x-order=C" form:"owner" json:"owner,omitempty"`
+	OwnerID string `extensions:"x-order=D" form:"owner" json:"owner,omitempty"`
 }
 
 func (spec *ConvoSessionSpec) Sift(q *ormQuery) *ormQuery {
 	q = spec.ModelSpec.Sift(q)
 	q, _ = siftMatch(q, "title", spec.Title, false)
 	q, _ = siftEqual(q, "status", spec.Status, false)
+	q, _ = siftICE(q, "channel", spec.Channel, false)
 	q, _ = siftOIDs(q, "owner_id", spec.OwnerID, false)
 
 	return q
