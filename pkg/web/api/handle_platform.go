@@ -108,6 +108,24 @@ func (chh *channelHandler) MessageHandler(p channel.Channel, msg *channel.Messag
 		logger().Infow("not found user", "userID", msg.UserID, "err", err)
 	}
 
+	// Check for commands at the beginning of content
+	if cmd := DetectCommand(msg.Content); cmd.Name != "" {
+		handled, err := cmd.Action(ctx, msg)
+		if handled {
+			replyMsg := "会话已重置，开始新对话"
+			if err != nil {
+				replyMsg = "指令执行失败，请重试"
+			}
+			if err := p.Reply(ctx, msg.ReplyCtx, replyMsg); err != nil {
+				logger().Warnw("reply after command failed", "err", err)
+			}
+			return
+		}
+		if err != nil {
+			logger().Warnw("command execution failed", "cmd", cmd.Name, "err", err)
+		}
+	}
+
 	// Build the chat request
 	cs := stores.GetOrCreateConversationBySessionKey(ctx, msg.SessionKey)
 
