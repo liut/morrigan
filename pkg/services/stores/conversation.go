@@ -52,6 +52,12 @@ func GetOrCreateConversationBySessionKey(ctx context.Context, sessionKey string)
 	return cs
 }
 
+// ResetSessionBySessionKey 删除 sessionKey -> csid 的映射，强制重建会话
+func ResetSessionBySessionKey(ctx context.Context, sessionKey string) error {
+	key := sessionKeyCSIDPrefix + sessionKey
+	return SgtRC().Del(ctx, key).Err()
+}
+
 // newConversation is internal constructor, supports injecting Redis client (for testing)
 func newConversation(ctx context.Context, id any, rc RedisClient) Conversation {
 	sto := Sgt()
