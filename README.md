@@ -128,15 +128,11 @@ forego run go run . web
 ### Prepare preset data file in YAML
 
 ```yaml
-# Simple preset
 welcome: "Hello, I am your virtual assistant. How can I help you?"
 systemPrompt: "You are a helpful assistant."
 toolsPrompt: "You will select the appropriate tool based on the user's question and call the tool to solve the problem."
 
 # Or with custom tool descriptions
-welcome: "Hello, I am your virtual assistant. How can I help you?"
-systemPrompt: "You are a helpful assistant."
-toolsPrompt: "You will select the appropriate tool based on the user's question and call the tool to solve the problem."
 tools:
   kb_search: "Search documents in knowledge base with subject. When faced with unknown or uncertain issues, prioritize consulting the knowledge base."
   kb_create: "Create new document of knowledge base, all parameters are required. Note: Unless the user explicitly requests supplementary content, do not invoke it."
@@ -165,7 +161,7 @@ GRANT ALL PRIVILEGES ON DATABASE morign to morign;
 
 \c morign
 
--- optional: install extension from https://github.com/pgvector/pgvector
+-- install extension from https://github.com/pgvector/pgvector
 CREATE EXTENSION vector;
 
 ```
