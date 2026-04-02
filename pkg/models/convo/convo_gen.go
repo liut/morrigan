@@ -82,7 +82,7 @@ type SessionBasic struct {
 	// 工具
 	Tools []string `bson:"tools" bun:",notnull,default:'[]'" extensions:"x-order=D" json:"tools" pg:",notnull,default:'[]'"`
 	// 频道
-	Channel string `bson:"channel" bun:",notnull,type:varchat(23)" extensions:"x-order=E" form:"channel" json:"channel" pg:",notnull,type:varchat(23)"`
+	Channel string `bson:"channel" bun:",notnull,type:varchar(23)" extensions:"x-order=E" form:"channel" json:"channel" pg:",notnull,type:varchar(23)"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name convoSessionBasic

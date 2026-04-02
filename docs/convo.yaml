@@ -54,7 +54,7 @@ models:
       - comment: 频道
         name: Channel
         type: string
-        tags: {bson: 'channel', json: 'channel', pg: ",notnull,type:varchat(23)"}
+        tags: {bson: 'channel', json: 'channel', pg: ",notnull,type:varchar(23)"}
         isset: true
         query: 'ice'
 
