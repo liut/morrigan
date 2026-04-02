@@ -97,21 +97,21 @@ func (a *api) handleTokenGot(ctx context.Context, w http.ResponseWriter, it *sta
 	// http.SetCookie(w, buildTokenCookie(it.AccessToken))
 
 	if user, uok := it.GetUser(); uok {
-		_ = stores.SaveTokenWithUser(ctx, user.OID, it.AccessToken)
-		a.storeUserAndMeta(ctx, user, it.Meta)
+		a.storeUserWith(ctx, user, it.Meta, it.AccessToken)
 		if err := stores.SaveUserWithToken(ctx, user, it.AccessToken); err != nil {
 			logger().Infow("save user to redis failed", "error", err, "uid", user.UID)
 		}
 	}
 }
 
-// storeUser saves user to database via Convo().SyncUserFromOAuth
-func (a *api) storeUserAndMeta(ctx context.Context, user stores.IUser, meta staffio.Meta) {
+// storeUserWith saves user to database and associates token via Convo().SyncUserFromOAuth
+func (a *api) storeUserWith(ctx context.Context, user stores.IUser, meta staffio.Meta, token string) {
 	ctx = staffio.ContextWithUser(ctx, user)
 	if wuid := meta.GetStr("wecomUID"); len(wuid) > 0 {
 		ctx = stores.ContextWithWecomUID(ctx, wuid)
 	}
 	_ = a.sto.Convo().SyncUserFromOAuth(ctx, user)
+	_ = stores.SaveTokenWithUser(ctx, user.GetOID(), token)
 }
 
 // @Tags 用户 认证
@@ -188,14 +188,6 @@ func (or *oRes) getUser() *O2User {
 	return u
 }
 
-// @Tags 用户 认证
-// @Summary 获取会话信息
-// @Description 获取当前登录状态和用户信息 for github.com/Chanzhaoyu/chatgpt-web
-// @Accept json
-// @Produce json
-// @Success 200 {object} Done{result=respSession}
-// @Router /api/session [get]
-// @Router /api/session [post]
 // syncUserToCache syncs user to db and saves to Redis, then signs in
 func (a *api) syncUserToCache(ctx context.Context, user *O2User, token string, w http.ResponseWriter) {
 	if err := stores.SaveUserWithToken(ctx, user, token); err != nil {
@@ -214,6 +206,13 @@ func fillUserResponse(res *respSession, user *User, token string) {
 	}
 }
 
+// @Tags 用户 认证
+// @Summary 获取会话信息
+// @Description 获取当前登录状态和用户信息 for github.com/liut/calisyn
+// @Accept json
+// @Produce json
+// @Success 200 {object} Done{result=respSession}
+// @Router /api/session [get]
 func (a *api) handleSession(w http.ResponseWriter, r *http.Request) {
 	var res respSession
 	res.Status = "Success"
@@ -278,7 +277,7 @@ func (a *api) trySyncOAuthUser(ctx context.Context, accessToken, siteToken strin
 		})
 		if err == nil {
 			if user, ok := it.GetUser(); ok {
-				a.storeUserAndMeta(ctx, user, it.Meta)
+				a.storeUserWith(ctx, user, it.Meta, it.AccessToken)
 				return user
 			}
 		}
@@ -308,7 +307,7 @@ func (a *api) trySyncOAuthUser(ctx context.Context, accessToken, siteToken strin
 	logger().Infow("got account ok", "acc", ores.Result)
 
 	if user := ores.getUser(); user != nil {
-		a.storeUserAndMeta(ctx, user, ores.Result.Meta)
+		a.storeUserWith(ctx, user, ores.Result.Meta, siteToken)
 		return user
 	}
 
