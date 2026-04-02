@@ -77,12 +77,16 @@ package-darwin: dist/darwin_amd64/$(NAME)
 	ls dist/darwin_amd64 | xargs tar -cvJf $(NAME)-darwin-amd64-$(DATE)-$(TAG).tar.xz -C dist/darwin_amd64
 
 docs/swagger.json: $(WEBAPIS)
-	GO111MODULE=on swag init -g ./pkg/web/docs.go -d ./ --ot json,yaml --parseDependency --parseInternal
+	GO111MODULE=on swag init -g ./pkg/web/server.go -d ./ --ot json --parseDependency
+# 	GO111MODULE=on swag init -d ./ --ot json --parseDependency
+
+docs/swagger.yaml: $(WEBAPIS) docs/swagger.json
+	test -f docs/swagger.json && which yq && yq -Poy docs/swagger.json > docs/swagger.yaml
 
 touch-web-api:
-	touch pkg/web/docs.go
+	touch pkg/web/server.go
 
-gen-apidoc: touch-web-api docs/swagger.json
+gen-apidoc: touch-web-api docs/swagger.json docs/swagger.yaml
 
 test-models:
 	go test -v -cover ./pkg/models/...

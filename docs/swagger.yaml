@@ -1,0 +1,2089 @@
+swagger: "2.0"
+info:
+  description: Main API interfaces, including chat, session management, authentication, etc..
+  title: Morign API
+  contact:
+    name: liut
+    url: https://github.com/liut
+  version: "1.0"
+paths:
+  /api/chat:
+    post:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 聊天
+      summary: 发送聊天消息
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+        - description: 聊天请求
+          name: chatRequest
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/api.ChatRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/api.ChatMessage'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "500":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/config:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 聊天
+      summary: 获取配置信息
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: string
+  /api/conversation/{csid}/title:
+    patch:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 聊天
+      summary: 生成会话标题
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+        - type: string
+          description: 会话ID
+          name: csid
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: string
+        "400":
+          description: 请求错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "500":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/messages:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 列出消息
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          example: aaa,bbb,ccc
+          x-order: "0"
+          description: 主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:"aaa,bbb,ccc"
+          name: ids
+          in: query
+        - type: string
+          x-order: "2"
+          description: 创建者ID
+          name: creatorID
+          in: query
+        - type: string
+          x-order: "3"
+          description: 创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: created
+          in: query
+        - type: string
+          x-order: "4"
+          description: 更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: updated
+          in: query
+        - type: boolean
+          x-order: "5"
+          description: IsDelete 查询删除的记录
+          name: isDelete
+          in: query
+        - type: string
+          x-order: A
+          description: 会话编号
+          name: session
+          in: query
+        - type: string
+          x-order: B
+          description: 角色
+          name: role
+          in: query
+        - type: integer
+          example: 1
+          x-order: '['
+          description: 第几页
+          name: page
+          in: query
+        - type: integer
+          x-order: ']'
+          description: 跳过多少条记录，如果提供 page 此项跳过
+          name: skip
+          in: query
+        - type: integer
+          x-order: _
+          description: 分页大小，默认20
+          name: limit
+          in: query
+        - type: string
+          x-order: '|'
+          description: 排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]
+          name: sort
+          in: query
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    allOf:
+                      - $ref: '#/definitions/api.ResultData'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/definitions/convoMessage'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/messages/{id}:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 获取消息
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/convoMessage'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    delete:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "删除消息 \U0001F511"
+      operationId: convo-messages-id-delete
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Done'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/sessions:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 列出会话
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          example: aaa,bbb,ccc
+          x-order: "0"
+          description: 主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:"aaa,bbb,ccc"
+          name: ids
+          in: query
+        - type: string
+          x-order: "2"
+          description: 创建者ID
+          name: creatorID
+          in: query
+        - type: string
+          x-order: "3"
+          description: 创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: created
+          in: query
+        - type: string
+          x-order: "4"
+          description: 更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: updated
+          in: query
+        - type: boolean
+          x-order: "5"
+          description: IsDelete 查询删除的记录
+          name: isDelete
+          in: query
+        - type: string
+          x-order: A
+          description: 标题
+          name: title
+          in: query
+        - type: string
+          x-order: B
+          description: |-
+            状态
+             * `open` - 开启
+             * `closed` - 关闭
+          name: status
+          in: query
+        - type: string
+          x-order: C
+          description: 所有者编号 (多值使用逗号分隔)
+          name: owner
+          in: query
+        - type: integer
+          example: 1
+          x-order: '['
+          description: 第几页
+          name: page
+          in: query
+        - type: integer
+          x-order: ']'
+          description: 跳过多少条记录，如果提供 page 此项跳过
+          name: skip
+          in: query
+        - type: integer
+          x-order: _
+          description: 分页大小，默认20
+          name: limit
+          in: query
+        - type: string
+          x-order: '|'
+          description: 排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]
+          name: sort
+          in: query
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    allOf:
+                      - $ref: '#/definitions/api.ResultData'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/definitions/convoSession'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/sessions/{id}:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 获取会话
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/convoSession'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    delete:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "删除会话 \U0001F511"
+      operationId: convo-sessions-id-delete
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Done'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/usagerecords:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 列出使用情况
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          example: aaa,bbb,ccc
+          x-order: "0"
+          description: 主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:"aaa,bbb,ccc"
+          name: ids
+          in: query
+        - type: string
+          x-order: "2"
+          description: 创建者ID
+          name: creatorID
+          in: query
+        - type: string
+          x-order: "3"
+          description: 创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: created
+          in: query
+        - type: string
+          x-order: "4"
+          description: 更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: updated
+          in: query
+        - type: boolean
+          x-order: "5"
+          description: IsDelete 查询删除的记录
+          name: isDelete
+          in: query
+        - type: string
+          x-order: A
+          description: 会话编号
+          name: session
+          in: query
+        - type: integer
+          example: 1
+          x-order: '['
+          description: 第几页
+          name: page
+          in: query
+        - type: integer
+          x-order: ']'
+          description: 跳过多少条记录，如果提供 page 此项跳过
+          name: skip
+          in: query
+        - type: integer
+          x-order: _
+          description: 分页大小，默认20
+          name: limit
+          in: query
+        - type: string
+          x-order: '|'
+          description: 排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]
+          name: sort
+          in: query
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    allOf:
+                      - $ref: '#/definitions/api.ResultData'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/definitions/convoUsageRecord'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/usagerecords/{id}:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 获取使用情况
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/convoUsageRecord'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    delete:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "删除使用情况 \U0001F511"
+      operationId: convo-usagerecords-id-delete
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Done'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/users:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 列出用户
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          example: aaa,bbb,ccc
+          x-order: "0"
+          description: 主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:"aaa,bbb,ccc"
+          name: ids
+          in: query
+        - type: string
+          x-order: "2"
+          description: 创建者ID
+          name: creatorID
+          in: query
+        - type: string
+          x-order: "3"
+          description: 创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: created
+          in: query
+        - type: string
+          x-order: "4"
+          description: 更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: updated
+          in: query
+        - type: boolean
+          x-order: "5"
+          description: IsDelete 查询删除的记录
+          name: isDelete
+          in: query
+        - type: string
+          x-order: A
+          description: 登录名 唯一
+          name: username
+          in: query
+        - type: string
+          x-order: B
+          description: 昵称
+          name: nickname
+          in: query
+        - type: string
+          x-order: C
+          description: 邮箱
+          name: email
+          in: query
+        - type: string
+          x-order: D
+          description: 电话
+          name: phone
+          in: query
+        - type: integer
+          example: 1
+          x-order: '['
+          description: 第几页
+          name: page
+          in: query
+        - type: integer
+          x-order: ']'
+          description: 跳过多少条记录，如果提供 page 此项跳过
+          name: skip
+          in: query
+        - type: integer
+          x-order: _
+          description: 分页大小，默认20
+          name: limit
+          in: query
+        - type: string
+          x-order: '|'
+          description: 排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]
+          name: sort
+          in: query
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    allOf:
+                      - $ref: '#/definitions/api.ResultData'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/definitions/convoUser'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/convo/users/{id}:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: 获取用户
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/convoUser'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    delete:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "删除用户 \U0001F511"
+      operationId: convo-users-id-delete
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Done'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/history/{cid}:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 聊天
+      summary: 获取会话历史
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+        - type: string
+          description: 会话ID
+          name: cid
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/aigc.HistoryItem'
+        "500":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/m1/ping:
+    get:
+      description: API health check
+      produces:
+        - text/plain
+      summary: API health check
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+  /api/mcp/servers:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "列出服务器 \U0001F511"
+      operationId: mcp-servers-get
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          example: aaa,bbb,ccc
+          x-order: "0"
+          description: 主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:"aaa,bbb,ccc"
+          name: ids
+          in: query
+        - type: string
+          x-order: "2"
+          description: 创建者ID
+          name: creatorID
+          in: query
+        - type: string
+          x-order: "3"
+          description: 创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: created
+          in: query
+        - type: string
+          x-order: "4"
+          description: 更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months
+          name: updated
+          in: query
+        - type: boolean
+          x-order: "5"
+          description: IsDelete 查询删除的记录
+          name: isDelete
+          in: query
+        - type: string
+          x-order: A
+          description: 名称
+          name: name
+          in: query
+        - type: string
+          x-order: B
+          description: |-
+            传输类型 (支持混合解码)
+             * `stdIO` - 标准IO
+             * `sse`
+             * `streamable`
+             * `inMemory` - 内部运行
+          name: transType
+          in: query
+        - type: string
+          x-order: C
+          description: 是否激活
+          name: isActive
+          in: query
+        - type: string
+          x-order: D
+          description: |-
+            连接状态
+             * `disconnected` - 断开
+             * `connecting` - 连接中
+             * `connected` - 已连接
+          name: status
+          in: query
+        - type: integer
+          example: 1
+          x-order: '['
+          description: 第几页
+          name: page
+          in: query
+        - type: integer
+          x-order: ']'
+          description: 跳过多少条记录，如果提供 page 此项跳过
+          name: skip
+          in: query
+        - type: integer
+          x-order: _
+          description: 分页大小，默认20
+          name: limit
+          in: query
+        - type: string
+          x-order: '|'
+          description: 排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]
+          name: sort
+          in: query
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    allOf:
+                      - $ref: '#/definitions/api.ResultData'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/definitions/mcpsServer'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    post:
+      consumes:
+        - application/json
+        - multipart/form-data
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "录入服务器 \U0001F511"
+      operationId: mcp-servers-post
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - description: Object
+          name: query
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/mcpsServerBasic'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/api.ResultID'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/mcp/servers/{id}:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "获取服务器 \U0001F511"
+      operationId: mcp-servers-id-get
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/mcpsServer'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "404":
+          description: 目标未找到
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    put:
+      consumes:
+        - application/json
+        - multipart/form-data
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "更新服务器 \U0001F511"
+      operationId: mcp-servers-id-put
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+        - description: Object
+          name: query
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/mcpsServerSet'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: string
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+    delete:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 默认 文档生成
+      summary: "删除服务器 \U0001F511"
+      operationId: mcp-servers-id-delete
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Done'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/mcp/servers/{id}/activate:
+    put:
+      description: 将 MCP Server 添加到工具注册表
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - MCP
+      summary: "激活服务器 \U0001F511"
+      operationId: mcp-servers-id-activate
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: string
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/mcp/servers/{id}/deactivate:
+    put:
+      description: 从工具注册表中移除 MCP Server
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - MCP
+      summary: "停用服务器 \U0001F511"
+      operationId: mcp-servers-id-deactivate
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+          required: true
+        - type: string
+          description: 编号
+          name: id
+          in: path
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: string
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "503":
+          description: 服务端错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/me:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 用户 认证
+      summary: 获取当前用户
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/api.User'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/session:
+    get:
+      description: 获取当前登录状态和用户信息 for github.com/liut/calisyn
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 用户 认证
+      summary: 获取会话信息
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/api.respSession'
+  /api/summary:
+    post:
+      description: 根据聊天记录生成简短标题
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      summary: 生成聊天记录摘要
+      parameters:
+        - description: 请求参数
+          name: request
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/api.SummaryRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/resp.Done'
+  /api/tools:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 聊天
+      summary: 获取可用工具列表
+      parameters:
+        - type: string
+          description: 登录票据凭证
+          name: token
+          in: header
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/definitions/mcps.ToolDescriptor'
+  /api/verify:
+    post:
+      description: 验证用户Token for github.com/Chanzhaoyu/chatgpt-web
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 用户 认证
+      summary: 验证Token
+      parameters:
+        - description: 验证Token
+          name: token
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/api.verifyReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    $ref: '#/definitions/api.M'
+        "400":
+          description: 请求或参数错误
+          schema:
+            $ref: '#/definitions/api.Failure'
+        "401":
+          description: Token验证失败
+          schema:
+            $ref: '#/definitions/api.Failure'
+  /api/welcome:
+    get:
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      tags:
+        - 聊天
+      summary: 获取欢迎信息
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.Done'
+              - type: object
+                properties:
+                  result:
+                    type: string
+definitions:
+  Meta:
+    type: object
+    additionalProperties: {}
+  aigc.HistoryChatItem:
+    type: object
+    properties:
+      a:
+        type: string
+      u:
+        type: string
+  aigc.HistoryItem:
+    type: object
+    properties:
+      ci:
+        description: chat
+        allOf:
+          - $ref: '#/definitions/aigc.HistoryChatItem'
+      ts:
+        type: integer
+      uid:
+        type: string
+  api.ChatMessage:
+    type: object
+    properties:
+      csid:
+        type: string
+      delta:
+        type: string
+      finishReason:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+      text:
+        type: string
+      think:
+        type: string
+      title:
+        type: string
+      tool_call_id:
+        description: For Role=tool prompts this should be set to the ID given in the assistant's prior request to call a tool.
+        type: string
+      tool_calls:
+        description: For Role=assistant prompts this may be set to the tool calls generated by the model, such as function calls.
+        type: array
+        items:
+          type: object
+          additionalProperties: {}
+  api.ChatRequest:
+    type: object
+    properties:
+      csid:
+        type: string
+      mcps:
+        type: array
+        items:
+          type: string
+      options:
+        description: 'deprecated: for github.com/Chanzhaoyu/chatgpt-web only'
+        type: object
+        properties:
+          conversationId:
+            type: string
+      pmid:
+        description: 'TODO: rename to PreviousMessageID'
+        type: string
+      prompt:
+        type: string
+      regen:
+        type: boolean
+      stream:
+        type: boolean
+  api.Done:
+    type: object
+    properties:
+      extra:
+        description: 附加数据,可选
+      result:
+        description: 主体数据,可选
+      status:
+        description: 状态值，0=ok
+        type: integer
+        example: 0
+      t:
+        description: 时间戳
+        type: integer
+  api.Failure:
+    type: object
+    properties:
+      field:
+        description: 错误字段,可选,多用于表单校验
+        type: string
+        example: 错误字段
+      message:
+        description: 错误信息
+        type: string
+        example: 错误信息
+      status:
+        description: 状态值
+        type: integer
+        example: 1
+      t:
+        description: 时间戳
+        type: integer
+  api.M:
+    type: object
+    additionalProperties: true
+  api.ResultData:
+    type: object
+    properties:
+      data:
+        description: 数据集数组
+      total:
+        description: 符合条件的总记录数
+        type: integer
+  api.ResultID:
+    type: object
+    properties:
+      id:
+        description: 主键值，多数时候是字串
+  api.SummaryRequest:
+    type: object
+    properties:
+      text:
+        type: string
+      tips:
+        type: string
+  api.User:
+    type: object
+    properties:
+      avatar:
+        type: string
+      hit:
+        type: integer
+      name:
+        description: nickname, realname, display name
+        type: string
+      oid:
+        description: pk id, objectID, see define in andvari
+        type: string
+      roles:
+        type: array
+        items:
+          type: string
+      tid:
+        type: integer
+      uid:
+        description: username, login name
+        type: string
+      watching:
+        type: array
+        items:
+          type: string
+  api.respSession:
+    type: object
+    properties:
+      data:
+        type: object
+        properties:
+          auth:
+            description: need auth
+            type: boolean
+          model:
+            description: for chatgpt-web
+            type: string
+          token:
+            description: token from oauth2 provider
+            type: string
+          uri:
+            description: uri of auth
+            type: string
+          user:
+            description: logined user
+            allOf:
+              - $ref: '#/definitions/api.User'
+      status:
+        type: string
+  api.verifyReq:
+    type: object
+    properties:
+      token:
+        type: string
+  convoMessage:
+    type: object
+    required:
+      - content
+      - role
+      - session
+    properties:
+      createdAt:
+        description: 创建时间
+        type: string
+        x-order: ""
+      id:
+        description: 主键
+        type: string
+        x-order: '!'
+      updatedAt:
+        description: 变更时间
+        type: string
+        x-order: .
+      session:
+        description: 会话编号
+        type: string
+        x-order: A
+      role:
+        description: 角色
+        type: string
+        x-order: B
+      content:
+        description: 内容
+        type: string
+        x-order: C
+      tokenCount:
+        description: TokenCount
+        type: integer
+        x-order: D
+      creatorID:
+        description: 创建者ID
+        type: string
+        x-order: _
+      meta:
+        description: Meta 元信息
+        allOf:
+          - $ref: '#/definitions/Meta'
+        x-order: '|'
+  convoSession:
+    type: object
+    properties:
+      createdAt:
+        description: 创建时间
+        type: string
+        x-order: ""
+      id:
+        description: 主键
+        type: string
+        x-order: '!'
+      updatedAt:
+        description: 变更时间
+        type: string
+        x-order: .
+      ownerID:
+        description: 所有者OID 默认为当前登录账号主键
+        type: string
+        x-order: '@'
+      title:
+        description: 标题
+        type: string
+        x-order: A
+      msgCount:
+        description: 消息数
+        type: integer
+        x-order: B
+      status:
+        description: |-
+          状态
+           * `open` - 开启
+           * `closed` - 关闭
+        type: string
+        enum:
+          - open
+          - closed
+        x-order: C
+      tools:
+        description: 工具
+        type: array
+        items:
+          type: string
+        x-order: D
+      creatorID:
+        description: 创建者ID
+        type: string
+        x-order: _
+      meta:
+        description: Meta 元信息
+        allOf:
+          - $ref: '#/definitions/Meta'
+        x-order: '|'
+  convoUsageRecord:
+    type: object
+    required:
+      - session
+    properties:
+      createdAt:
+        description: 创建时间
+        type: string
+        x-order: ""
+      id:
+        description: 主键
+        type: string
+        x-order: '!'
+      updatedAt:
+        description: 变更时间
+        type: string
+        x-order: .
+      session:
+        description: 会话编号
+        type: string
+        x-order: A
+      msgCount:
+        description: 消息数
+        type: integer
+        x-order: B
+      inputTokens:
+        description: 输入Token数
+        type: integer
+        x-order: C
+      outputTokens:
+        description: 输出Token数
+        type: integer
+        x-order: D
+      totalTokens:
+        description: 总Token数
+        type: integer
+        x-order: E
+      model:
+        description: 模型
+        type: string
+        x-order: F
+      creatorID:
+        description: 创建者ID
+        type: string
+        x-order: _
+      meta:
+        description: Meta 元信息
+        allOf:
+          - $ref: '#/definitions/Meta'
+        x-order: '|'
+  convoUser:
+    type: object
+    properties:
+      createdAt:
+        description: 创建时间
+        type: string
+        x-order: ""
+      id:
+        description: 主键
+        type: string
+        x-order: '!'
+      updatedAt:
+        description: 变更时间
+        type: string
+        x-order: .
+      username:
+        description: 登录名 唯一
+        type: string
+        x-order: A
+      nickname:
+        description: 昵称
+        type: string
+        x-order: B
+      avatar:
+        description: 头像路径
+        type: string
+        x-order: C
+      email:
+        description: 邮箱
+        type: string
+        x-order: D
+      phone:
+        description: 电话
+        type: string
+        x-order: E
+      creatorID:
+        description: 创建者ID
+        type: string
+        x-order: _
+      meta:
+        description: Meta 元信息
+        allOf:
+          - $ref: '#/definitions/Meta'
+        x-order: '|'
+  mcps.ToolDescriptor:
+    type: object
+    properties:
+      description:
+        type: string
+      inputSchema:
+        type: object
+        additionalProperties: {}
+      name:
+        type: string
+  mcpsServer:
+    type: object
+    required:
+      - name
+    properties:
+      createdAt:
+        description: 创建时间
+        type: string
+        x-order: ""
+      id:
+        description: 主键
+        type: string
+        x-order: '!'
+      updatedAt:
+        description: 变更时间
+        type: string
+        x-order: .
+      name:
+        description: 名称
+        type: string
+        x-order: A
+      transType:
+        description: |-
+          传输类型
+           * `stdIO` - 标准IO
+           * `sse`
+           * `streamable`
+           * `inMemory` - 内部运行
+        type: string
+        enum:
+          - stdIO
+          - sse
+          - streamable
+          - inMemory
+        x-order: B
+      command:
+        description: 指令 仅对 TransType 为 StdIO 时有效
+        type: string
+        x-order: C
+      url:
+        description: 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
+        type: string
+        x-order: D
+      isActive:
+        description: 是否激活
+        type: boolean
+        x-order: E
+      status:
+        description: |-
+          连接状态
+           * `disconnected` - 断开
+           * `connecting` - 连接中
+           * `connected` - 已连接
+        type: string
+        enum:
+          - disconnected
+          - connecting
+          - connected
+        x-order: F
+      remark:
+        description: 备注
+        type: string
+        x-order: G
+      headerCate:
+        description: |-
+          头分类
+           * `authorization`
+           * `ownerID`
+           * `sessionID`
+        type: string
+        enum:
+          - authorization
+          - ownerID
+          - sessionID
+        x-order: H
+      creatorID:
+        description: 创建者ID
+        type: string
+        x-order: _
+      meta:
+        description: Meta 元信息
+        allOf:
+          - $ref: '#/definitions/Meta'
+        x-order: '|'
+  mcpsServerBasic:
+    type: object
+    required:
+      - name
+    properties:
+      name:
+        description: 名称
+        type: string
+        x-order: A
+      transType:
+        description: |-
+          传输类型
+           * `stdIO` - 标准IO
+           * `sse`
+           * `streamable`
+           * `inMemory` - 内部运行
+        type: string
+        enum:
+          - stdIO
+          - sse
+          - streamable
+          - inMemory
+        x-order: B
+      command:
+        description: 指令 仅对 TransType 为 StdIO 时有效
+        type: string
+        x-order: C
+      url:
+        description: 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
+        type: string
+        x-order: D
+      isActive:
+        description: 是否激活
+        type: boolean
+        x-order: E
+      status:
+        description: |-
+          连接状态
+           * `disconnected` - 断开
+           * `connecting` - 连接中
+           * `connected` - 已连接
+        type: string
+        enum:
+          - disconnected
+          - connecting
+          - connected
+        x-order: F
+      remark:
+        description: 备注
+        type: string
+        x-order: G
+      headerCate:
+        description: |-
+          头分类
+           * `authorization`
+           * `ownerID`
+           * `sessionID`
+        type: string
+        enum:
+          - authorization
+          - ownerID
+          - sessionID
+        x-order: H
+  mcpsServerSet:
+    type: object
+    properties:
+      name:
+        description: 名称
+        type: string
+        x-order: A
+      transType:
+        description: |-
+          传输类型
+           * `stdIO` - 标准IO
+           * `sse`
+           * `streamable`
+           * `inMemory` - 内部运行
+        type: string
+        enum:
+          - stdIO
+          - sse
+          - streamable
+          - inMemory
+        x-order: B
+      command:
+        description: 指令 仅对 TransType 为 StdIO 时有效
+        type: string
+        x-order: C
+      url:
+        description: 完整网址 仅对 TransType 为 SSE 或 HTTP 时有效
+        type: string
+        x-order: D
+      isActive:
+        description: 是否激活
+        type: boolean
+        x-order: E
+      status:
+        description: |-
+          连接状态
+           * `disconnected` - 断开
+           * `connecting` - 连接中
+           * `connected` - 已连接
+        type: string
+        enum:
+          - disconnected
+          - connecting
+          - connected
+        x-order: F
+      remark:
+        description: 备注
+        type: string
+        x-order: G
+      headerCate:
+        description: |-
+          头分类
+           * `authorization`
+           * `ownerID`
+           * `sessionID`
+        type: string
+        enum:
+          - authorization
+          - ownerID
+          - sessionID
+        x-order: H
+  resp.Done:
+    type: object
+    properties:
+      extra:
+        description: 附加数据,可选
+      result:
+        description: 主体数据,可选
+      status:
+        description: 状态值，0=ok
+        type: integer
+        example: 0
+      t:
+        description: 时间戳
+        type: integer

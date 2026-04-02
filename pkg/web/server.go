@@ -127,3 +127,11 @@ func (s *server) strapRouter(ar chi.Router) {
 func handleNoContent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
+
+// for swagger only
+// @title Morign API
+// @version 1.0
+// @description Main API interfaces, including chat, session management, authentication, etc..
+
+// @contact.name   liut
+// @contact.url    https://github.com/liut

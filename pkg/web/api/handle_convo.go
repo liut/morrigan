@@ -233,7 +233,6 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 // @Param token header string false "登录票据凭证"
 // @Param chatRequest body ChatRequest true "聊天请求"
 // @Success 200 {object} Done{result=ChatMessage}
-// @Success 200 {object} Done{result=ConversationResponse}
 // @Failure 400 {object} Failure "请求或参数错误"
 // @Failure 500 {object} Failure "服务端错误"
 // @Router /api/chat [post]
@@ -657,7 +656,7 @@ func (a *api) patchConversationTitle(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param token header string false "登录票据凭证"
 // @Param cid path string true "会话ID"
-// @Success 200 {object} Done{result=aigc.History}
+// @Success 200 {object} Done{result=aigc.HistoryItem}
 // @Failure 500 {object} Failure "服务端错误"
 // @Router /api/history/{cid} [get]
 func (a *api) getHistory(w http.ResponseWriter, r *http.Request) {
@@ -676,7 +675,7 @@ func (a *api) getHistory(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param token header string false "登录票据凭证"
-// @Success 200 {object} Done{result=[]Tool}
+// @Success 200 {object} Done{result=[]mcps.ToolDescriptor}
 // @Router /api/tools [get]
 func (a *api) getTools(w http.ResponseWriter, r *http.Request) {
 	apiOk(w, r, a.toolreg.ToolsFor(r.Context()), 0)
