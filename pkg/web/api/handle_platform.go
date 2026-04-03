@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -13,6 +15,7 @@ import (
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/services/stores"
 	"github.com/liut/morign/pkg/services/tools"
+	"github.com/liut/morign/pkg/settings"
 )
 
 // channelHandler holds dependencies for handling channel messages.
@@ -137,35 +140,220 @@ func (chh *channelHandler) MessageHandler(p channel.Channel, msg *channel.Messag
 		"content_len", len(msg.Content),
 	)
 
-	// Prepare system message and tools
-	sysMsg, tools := prepareSystemMessage(ctx, chh.sto, chh.toolreg, msg.Content, cs)
-
-	// Build user message with any attachments
-	content := msg.Content
-	if len(msg.Images) > 0 {
-		content += "\n[User sent an image]"
+	// Detect streaming support
+	if sr, ok := p.(channel.StreamReplier); ok {
+		chh.handleStreamingReply(ctx, p, msg, sr, cs)
+	} else {
+		chh.handleRegularReply(ctx, p, msg, cs)
 	}
-	if msg.Audio != nil {
-		content += "\n[User sent a voice message]"
+}
+
+// handleStreamingReply handles reply with streaming support (e.g., WeCom WebSocket).
+// It uses a loop similar to chatStreamResponseLoop to handle tool calls.
+func (chh *channelHandler) handleStreamingReply(ctx context.Context, p channel.Channel, msg *channel.Message, sr channel.StreamReplier, cs stores.Conversation) {
+	// Build messages and get tools
+	messages, tools := chh.buildChatMessagesAndTools(ctx, msg, cs)
+
+	// MaxLoopIterations limits tool call chain depth to prevent infinite loops (default: 5)
+	maxLoopIterations := settings.Current.MaxLoopIterations
+	iter := 0
+	var fullAnswer string
+	var streamID string
+
+	for {
+		iter++
+		if iter > maxLoopIterations {
+			slog.Info("channel: streaming loop iteration limit reached", "maxIter", maxLoopIterations)
+			break
+		}
+
+		// Do one streaming round
+		answer, toolCalls, newStreamID, err := chh.doChannelStream(ctx, p, msg, sr, messages, tools)
+		if err != nil {
+			channelReplyError(p, msg, "AI processing failed")
+			return
+		}
+		slog.Info("channel: stream round done",
+			"iter", iter,
+			"answer_len", len(answer),
+			"toolCalls_len", len(toolCalls),
+			"newStreamID", newStreamID,
+			"streamID", streamID)
+
+		// Only update fullAnswer if we got actual content
+		if answer != "" {
+			fullAnswer = answer
+		}
+		// Only set streamID if we don't have one yet
+		if streamID == "" && newStreamID != "" {
+			streamID = newStreamID
+		}
+
+		// No more tool calls, we're done
+		if len(toolCalls) == 0 {
+			break
+		}
+
+		// Add assistant response to messages (with full answer content)
+		if fullAnswer != "" {
+			messages = append(messages, llm.Message{Role: llm.RoleAssistant, Content: fullAnswer})
+		}
+
+		// Execute tool calls and update messages with results
+		var hasToolCall bool
+		messages, hasToolCall = chh.executeChannelToolCalls(ctx, messages, toolCalls)
+		if !hasToolCall {
+			break
+		}
 	}
 
-	// Load conversation history
-	messages := []llm.Message{sysMsg}
-	history, _ := cs.ListHistory(ctx)
-	for _, hi := range history {
-		if hi.ChatItem != nil {
-			if hi.ChatItem.User != "" {
-				messages = append(messages, llm.Message{Role: llm.RoleUser, Content: hi.ChatItem.User})
-			}
-			if hi.ChatItem.Assistant != "" {
-				messages = append(messages, llm.Message{Role: llm.RoleAssistant, Content: hi.ChatItem.Assistant})
+	slog.Info("channel: streaming reply finishing",
+		"streamID", streamID,
+		"fullAnswer_len", len(fullAnswer))
+
+	// Finish the stream
+	if streamID != "" {
+		if err := sr.FinishStream(ctx, msg.ReplyCtx, streamID, fullAnswer); err != nil {
+			slog.Warn("channel: finish stream failed", "err", err)
+		}
+	} else if fullAnswer != "" {
+		// Edge case: stream was never started but we have content
+		// This shouldn't normally happen, but handle it gracefully
+		slog.Warn("channel: stream not started, using Reply instead")
+		if err := p.Reply(ctx, msg.ReplyCtx, fullAnswer); err != nil {
+			slog.Error("channel: fallback reply failed", "err", err)
+		}
+	}
+
+	// Save to history
+	if fullAnswer != "" {
+		hi := &aigc.HistoryItem{
+			Time: time.Now().Unix(),
+			UID:  msg.UserID,
+			ChatItem: &aigc.HistoryChatItem{
+				User:      msg.Content,
+				Assistant: fullAnswer,
+			},
+		}
+		if err := cs.AddHistory(ctx, hi); err == nil {
+			if err := cs.Save(ctx); err != nil {
+				slog.Warn("channel: save history failed", "err", err)
 			}
 		}
 	}
+}
+
+// doChannelStream performs one streaming chat round, returns answer, tool calls, and streamID.
+func (chh *channelHandler) doChannelStream(ctx context.Context, p channel.Channel, msg *channel.Message, sr channel.StreamReplier, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, string, error) {
+	stream, err := chh.llm.StreamChat(ctx, messages, tools)
+	if err != nil {
+		slog.Error("channel: stream chat failed", "channel", p.Name(), "error", err)
+		return "", nil, "", err
+	}
+
+	var contentBuilder strings.Builder
+	var currentToolCalls []llm.ToolCall
+	var currentStreamID string
+	chunkCount := 0
+
+	for result := range stream {
+		chunkCount++
+		if result.Error != nil {
+			slog.Warn("channel: stream error", "err", result.Error)
+			break
+		}
+
+		contentBuilder.WriteString(result.Delta)
+
+		// Only send to channel when we have content
+		if result.Delta != "" {
+			content := contentBuilder.String()
+			if currentStreamID == "" {
+				sid, err := sr.StartStream(ctx, msg.ReplyCtx, content)
+				if err != nil {
+					slog.Error("channel: start stream failed", "err", err)
+					return "", nil, "", err
+				}
+				currentStreamID = sid
+				slog.Debug("channel: stream started", "streamID", sid, "content_len", len(content))
+			} else {
+				if err := sr.AppendStream(ctx, msg.ReplyCtx, currentStreamID, content); err != nil {
+					slog.Warn("channel: append stream failed", "err", err)
+				}
+			}
+		}
+
+		// Capture tool calls when Done=true (LLM signaled end with tool calls)
+		if result.Done {
+			currentToolCalls = result.ToolCalls
+			slog.Debug("channel: stream Done received", "toolCalls_len", len(result.ToolCalls))
+		}
+	}
+
+	slog.Info("channel: doChannelStream result",
+		"chunkCount", chunkCount,
+		"content_len", contentBuilder.Len(),
+		"toolCalls_len", len(currentToolCalls),
+		"streamID", currentStreamID)
+
+	// Stream ended (EOF). If Done was never true, there are no tool calls.
+	// currentToolCalls remains nil, which is correct.
+	return contentBuilder.String(), currentToolCalls, currentStreamID, nil
+}
+
+// executeChannelToolCalls executes tool calls and appends results to messages.
+// Returns updated messages slice and whether any tool was successfully executed.
+func (chh *channelHandler) executeChannelToolCalls(ctx context.Context, messages []llm.Message, toolCalls []llm.ToolCall) ([]llm.Message, bool) {
+	slog.Info("channel: executing tool calls", "count", len(toolCalls))
+
+	if len(toolCalls) == 0 {
+		return messages, false
+	}
+
+	// First append the assistant message with tool calls
 	messages = append(messages, llm.Message{
-		Role:    llm.RoleUser,
-		Content: content,
+		Role:      llm.RoleAssistant,
+		ToolCalls: toolCalls,
 	})
+
+	hasToolCall := false
+	for _, tc := range toolCalls {
+		if tc.Type != "function" {
+			continue
+		}
+
+		var parameters map[string]any
+		args := string(tc.Function.Arguments)
+		if args != "" && args != "{}" {
+			if err := json.Unmarshal(tc.Function.Arguments, &parameters); err != nil {
+				slog.Warn("channel: unmarshal tool args failed", "err", err)
+				continue
+			}
+		}
+		if parameters == nil {
+			parameters = make(map[string]any)
+		}
+
+		content, err := chh.toolreg.Invoke(ctx, tc.Function.Name, parameters)
+		if err != nil {
+			slog.Warn("channel: invoke tool failed", "tool", tc.Function.Name, "err", err)
+			continue
+		}
+
+		messages = append(messages, llm.Message{
+			Role:       llm.RoleTool,
+			Content:    formatToolResult(content),
+			ToolCallID: tc.ID,
+		})
+		hasToolCall = true
+	}
+
+	return messages, hasToolCall
+}
+
+// handleRegularReply handles reply without streaming (non-WebSocket channels).
+func (chh *channelHandler) handleRegularReply(ctx context.Context, p channel.Channel, msg *channel.Message, cs stores.Conversation) {
+	messages, tools := chh.buildChatMessagesAndTools(ctx, msg, cs)
 
 	// Execute the chat with tool call loop
 	exec := func(ctx context.Context, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, *llm.Usage, error) {
@@ -219,4 +407,33 @@ func channelReplyError(p channel.Channel, msg *channel.Message, errorText string
 		slog.Error("channel: send error reply failed",
 			"channel", p.Name(), "error", err)
 	}
+}
+
+// buildChatMessagesAndTools builds the message list and returns tools for the chat.
+func (chh *channelHandler) buildChatMessagesAndTools(ctx context.Context, msg *channel.Message, cs stores.Conversation) ([]llm.Message, []llm.ToolDefinition) {
+	sysMsg, tools := prepareSystemMessage(ctx, chh.sto, chh.toolreg, msg.Content, cs)
+
+	content := msg.Content
+	if len(msg.Images) > 0 {
+		content += "\n[User sent an image]"
+	}
+	if msg.Audio != nil {
+		content += "\n[User sent a voice message]"
+	}
+
+	messages := []llm.Message{sysMsg}
+	history, _ := cs.ListHistory(ctx)
+	for _, hi := range history {
+		if hi.ChatItem != nil {
+			if hi.ChatItem.User != "" {
+				messages = append(messages, llm.Message{Role: llm.RoleUser, Content: hi.ChatItem.User})
+			}
+			if hi.ChatItem.Assistant != "" {
+				messages = append(messages, llm.Message{Role: llm.RoleAssistant, Content: hi.ChatItem.Assistant})
+			}
+		}
+	}
+	messages = append(messages, llm.Message{Role: llm.RoleUser, Content: content})
+
+	return messages, tools
 }

@@ -80,6 +80,24 @@ type wsMsgCallbackBody struct {
 	CreateTime int64 `json:"create_time"`
 }
 
+// wsStreamFrame is the frame structure for streaming message responses.
+type wsStreamFrame struct {
+	Cmd     string         `json:"cmd"`
+	Headers wsFrameHeaders `json:"headers"`
+	Body    wsStreamBody   `json:"body"`
+}
+
+type wsStreamBody struct {
+	MsgType string          `json:"msgtype"`
+	Stream  wsStreamContent `json:"stream"`
+}
+
+type wsStreamContent struct {
+	ID      string `json:"id"`
+	Finish  bool   `json:"finish"`
+	Content string `json:"content"`
+}
+
 func newWebSocket(opts map[string]any) (channel.Channel, error) {
 	botID, _ := opts["bot_id"].(string)
 	secret, _ := opts["bot_secret"].(string)
@@ -98,9 +116,15 @@ func newWebSocket(opts map[string]any) (channel.Channel, error) {
 
 func (p *WSChannel) generateReqID(prefix string) string {
 	id := oid.NewID(oid.OtEvent)
-	return id.String()
-	// seq := p.reqSeq.Add(1)
-	// return fmt.Sprintf("%s_%d", prefix, seq)
+	return fmt.Sprintf("%s_%s", prefix, id)
+}
+
+func (p *WSChannel) replyCtx(rctx any) (wsReplyContext, error) {
+	rc, ok := rctx.(wsReplyContext)
+	if !ok {
+		return wsReplyContext{}, fmt.Errorf("wecom-ws: invalid reply context type %T", rctx)
+	}
+	return rc, nil
 }
 
 func (p *WSChannel) Name() string { return "wecom" }
@@ -368,39 +392,82 @@ func (p *WSChannel) handleMsgCallback(frame wsFrame) {
 }
 
 func (p *WSChannel) Reply(ctx context.Context, rctx any, content string) error {
-	rc, ok := rctx.(wsReplyContext)
-	if !ok {
-		return fmt.Errorf("wecom-ws: invalid reply context type %T", rctx)
-	}
 	if content == "" {
 		return nil
 	}
+	streamID, err := p.StartStream(ctx, rctx, content)
+	if err != nil {
+		return err
+	}
+	return p.FinishStream(ctx, rctx, streamID, content)
+}
 
-	streamID := p.generateReqID("stream")
-	frame := map[string]any{
-		"cmd":     "aibot_respond_msg",
-		"headers": map[string]string{"req_id": rc.reqID},
-		"body": map[string]any{
-			"msgtype": "stream",
-			"stream": map[string]any{
-				"id":      streamID,
-				"finish":  true,
-				"content": content,
+// buildStreamFrame builds a streaming message frame.
+func (p *WSChannel) buildStreamFrame(rc wsReplyContext, streamID, content string, finish bool) wsStreamFrame {
+	return wsStreamFrame{
+		Cmd:     "aibot_respond_msg",
+		Headers: wsFrameHeaders{ReqID: rc.reqID},
+		Body: wsStreamBody{
+			MsgType: "stream",
+			Stream: wsStreamContent{
+				ID:      streamID,
+				Finish:  finish,
+				Content: content,
 			},
 		},
 	}
+}
+
+// StartStream starts a new streaming message, returns the stream ID.
+func (p *WSChannel) StartStream(ctx context.Context, rctx any, content string) (string, error) {
+	rc, err := p.replyCtx(rctx)
+	if err != nil {
+		return "", err
+	}
+	streamID := p.generateReqID("stream")
+	frame := p.buildStreamFrame(rc, streamID, content, false)
 	if err := p.writeJSON(frame); err != nil {
-		slog.Error("wecom-ws: reply failed", "user", rc.userID, "error", err)
+		slog.Error("wecom-ws: start stream failed", "user", rc.userID, "error", err)
+		return "", err
+	}
+	slog.Debug("wecom-ws: stream started", "user", rc.userID, "streamID", streamID, "len", len(content))
+	return streamID, nil
+}
+
+// AppendStream appends content to an existing stream.
+func (p *WSChannel) AppendStream(ctx context.Context, rctx any, streamID string, content string) error {
+	rc, err := p.replyCtx(rctx)
+	if err != nil {
 		return err
 	}
-	slog.Debug("wecom-ws: reply sent", "user", rc.userID, "len", len(content))
+	frame := p.buildStreamFrame(rc, streamID, content, false)
+	if err := p.writeJSON(frame); err != nil {
+		slog.Warn("wecom-ws: append stream failed", "user", rc.userID, "streamID", streamID, "error", err)
+		return err
+	}
+	slog.Debug("wecom-ws: stream appended", "user", rc.userID, "streamID", streamID, "len", len(content))
+	return nil
+}
+
+// FinishStream ends the streaming message with final content.
+func (p *WSChannel) FinishStream(ctx context.Context, rctx any, streamID string, finalContent string) error {
+	rc, err := p.replyCtx(rctx)
+	if err != nil {
+		return err
+	}
+	frame := p.buildStreamFrame(rc, streamID, finalContent, true)
+	if err := p.writeJSON(frame); err != nil {
+		slog.Error("wecom-ws: finish stream failed", "user", rc.userID, "streamID", streamID, "error", err)
+		return err
+	}
+	slog.Debug("wecom-ws: stream finished", "user", rc.userID, "streamID", streamID, "content_len", len(finalContent))
 	return nil
 }
 
 func (p *WSChannel) Send(ctx context.Context, rctx any, content string) error {
-	rc, ok := rctx.(wsReplyContext)
-	if !ok {
-		return fmt.Errorf("wecom-ws: invalid reply context type %T", rctx)
+	rc, err := p.replyCtx(rctx)
+	if err != nil {
+		return err
 	}
 	if content == "" {
 		return nil
