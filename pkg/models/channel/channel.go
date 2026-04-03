@@ -46,5 +46,13 @@ type MessageUpdater interface {
 	UpdateMessage(ctx context.Context, replyCtx any, content string) error
 }
 
+// StreamReplier is an optional interface for channels that support streaming message updates.
+// The channel accumulates content locally and sends full accumulated content on each update.
+type StreamReplier interface {
+	StartStream(ctx context.Context, replyCtx any, content string) (streamID string, err error)
+	AppendStream(ctx context.Context, replyCtx any, streamID string, content string) error
+	FinishStream(ctx context.Context, replyCtx any, streamID string, finalContent string) error
+}
+
 // MessageHandler is called by channels when a new message arrives.
 type MessageHandler func(p Channel, msg *Message)
