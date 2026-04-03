@@ -167,26 +167,37 @@ func (chh *channelHandler) handleStreamingReply(ctx context.Context, p channel.C
 			break
 		}
 
-		// Do one streaming round
-		answer, toolCalls, newStreamID, err := chh.doChannelStream(ctx, p, msg, sr, messages, tools)
+		// First iteration: start stream immediately to notify platform we're processing
+		if streamID == "" {
+			var err error
+			streamID, err = sr.StartStream(ctx, msg.ReplyCtx, "正在思考...")
+			if err != nil {
+				slog.Error("channel: start stream failed", "err", err)
+				channelReplyError(p, msg, "AI processing failed")
+				return
+			}
+		}
+
+		// Do one streaming round (stream lifecycle managed by this function)
+		answer, toolCalls, err := chh.doChannelStream(ctx, p, msg, sr, streamID, messages, tools)
 		if err != nil {
-			channelReplyError(p, msg, "AI processing failed")
+			slog.Error("channel: stream round failed", "iter", iter, "err", err)
+			finishErr := sr.FinishStream(ctx, msg.ReplyCtx, streamID, translateLLMErrorToUser(err))
+			if finishErr != nil {
+				slog.Warn("channel: finish stream after error failed, falling back to Reply", "err", finishErr)
+				channelReplyError(p, msg, "AI processing failed")
+			}
 			return
 		}
 		slog.Info("channel: stream round done",
 			"iter", iter,
 			"answer_len", len(answer),
 			"toolCalls_len", len(toolCalls),
-			"newStreamID", newStreamID,
 			"streamID", streamID)
 
 		// Only update fullAnswer if we got actual content
 		if answer != "" {
 			fullAnswer = answer
-		}
-		// Only set streamID if we don't have one yet
-		if streamID == "" && newStreamID != "" {
-			streamID = newStreamID
 		}
 
 		// No more tool calls, we're done
@@ -216,13 +227,6 @@ func (chh *channelHandler) handleStreamingReply(ctx context.Context, p channel.C
 		if err := sr.FinishStream(ctx, msg.ReplyCtx, streamID, fullAnswer); err != nil {
 			slog.Warn("channel: finish stream failed", "err", err)
 		}
-	} else if fullAnswer != "" {
-		// Edge case: stream was never started but we have content
-		// This shouldn't normally happen, but handle it gracefully
-		slog.Warn("channel: stream not started, using Reply instead")
-		if err := p.Reply(ctx, msg.ReplyCtx, fullAnswer); err != nil {
-			slog.Error("channel: fallback reply failed", "err", err)
-		}
 	}
 
 	// Save to history
@@ -244,16 +248,16 @@ func (chh *channelHandler) handleStreamingReply(ctx context.Context, p channel.C
 }
 
 // doChannelStream performs one streaming chat round, returns answer, tool calls, and streamID.
-func (chh *channelHandler) doChannelStream(ctx context.Context, p channel.Channel, msg *channel.Message, sr channel.StreamReplier, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, string, error) {
+// The stream lifecycle (Start/Finish) is managed by the caller (handleStreamingReply).
+func (chh *channelHandler) doChannelStream(ctx context.Context, p channel.Channel, msg *channel.Message, sr channel.StreamReplier, streamID string, messages []llm.Message, tools []llm.ToolDefinition) (string, []llm.ToolCall, error) {
 	stream, err := chh.llm.StreamChat(ctx, messages, tools)
 	if err != nil {
 		slog.Error("channel: stream chat failed", "channel", p.Name(), "error", err)
-		return "", nil, "", err
+		return "", nil, err
 	}
 
 	var contentBuilder strings.Builder
 	var currentToolCalls []llm.ToolCall
-	var currentStreamID string
 	chunkCount := 0
 
 	for result := range stream {
@@ -263,23 +267,12 @@ func (chh *channelHandler) doChannelStream(ctx context.Context, p channel.Channe
 			break
 		}
 
-		contentBuilder.WriteString(result.Delta)
-
-		// Only send to channel when we have content
+		// Only send to channel when we have content; accumulate locally for WeCom overwrite semantics
 		if result.Delta != "" {
+			contentBuilder.WriteString(result.Delta)
 			content := contentBuilder.String()
-			if currentStreamID == "" {
-				sid, err := sr.StartStream(ctx, msg.ReplyCtx, content)
-				if err != nil {
-					slog.Error("channel: start stream failed", "err", err)
-					return "", nil, "", err
-				}
-				currentStreamID = sid
-				slog.Debug("channel: stream started", "streamID", sid, "content_len", len(content))
-			} else {
-				if err := sr.AppendStream(ctx, msg.ReplyCtx, currentStreamID, content); err != nil {
-					slog.Warn("channel: append stream failed", "err", err)
-				}
+			if err := sr.AppendStream(ctx, msg.ReplyCtx, streamID, content); err != nil {
+				slog.Warn("channel: append stream failed", "err", err)
 			}
 		}
 
@@ -294,11 +287,11 @@ func (chh *channelHandler) doChannelStream(ctx context.Context, p channel.Channe
 		"chunkCount", chunkCount,
 		"content_len", contentBuilder.Len(),
 		"toolCalls_len", len(currentToolCalls),
-		"streamID", currentStreamID)
+		"streamID", streamID)
 
 	// Stream ended (EOF). If Done was never true, there are no tool calls.
 	// currentToolCalls remains nil, which is correct.
-	return contentBuilder.String(), currentToolCalls, currentStreamID, nil
+	return contentBuilder.String(), currentToolCalls, nil
 }
 
 // executeChannelToolCalls executes tool calls and appends results to messages.
@@ -406,6 +399,24 @@ func channelReplyError(p channel.Channel, msg *channel.Message, errorText string
 	if err := p.Reply(ctx, msg.ReplyCtx, errorText); err != nil {
 		slog.Error("channel: send error reply failed",
 			"channel", p.Name(), "error", err)
+	}
+}
+
+// translateLLMErrorToUser converts LLM errors to user-friendly messages.
+func translateLLMErrorToUser(err error) string {
+	if err == nil {
+		return ""
+	}
+	errStr := err.Error()
+	switch {
+	case strings.Contains(errStr, "context deadline exceeded"):
+		return "请求超时，请稍后重试"
+	case strings.Contains(errStr, "rate limit"):
+		return "请求过于频繁，请稍后重试"
+	case strings.Contains(errStr, "model not found"):
+		return "AI 服务暂时不可用"
+	default:
+		return "抱歉，发生了错误，请稍后重试"
 	}
 }
 
