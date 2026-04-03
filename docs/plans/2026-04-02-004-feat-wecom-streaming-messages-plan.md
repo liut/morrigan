@@ -1,8 +1,9 @@
 ---
 title: feat: WeCom WebSocket 流式消息支持
 type: feat
-status: active
+status: superseded
 date: 2026-04-02
+superseded_by: docs/plans/2026-04-03-001-feat-stream-start-earlier-plan.md
 ---
 
 # WeCom WebSocket 流式消息支持
