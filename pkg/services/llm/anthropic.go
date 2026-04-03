@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -200,7 +199,7 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 		defer resp.Body.Close()
 
 		// 解析流响应
-		if err := p.parseStreamResponse(resp.Body, ch); err != nil {
+		if err := p.parseStreamResponse(resp.Body, ch, cfg.debug); err != nil {
 			ch <- StreamResult{Error: err}
 		}
 	}()
@@ -209,7 +208,7 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 }
 
 // parseStreamResponse 解析流式响应
-func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult) error {
+func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult, debug bool) error {
 	var currentToolCalls []ToolCall
 	var currentText strings.Builder
 
@@ -237,9 +236,9 @@ func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- Stream
 			continue
 		}
 
-		// fmt.Fprintln(os.Stderr, string(line))
-		slog.Debug("streaming", "line", string(line))
-		// logger().Debugw("streaming", "line", string(line))
+		if debug {
+			fmt.Fprintln(os.Stderr, string(line))
+		}
 
 		data := bytes.TrimSpace(line[5:])
 		if string(data) == "[DONE]" {

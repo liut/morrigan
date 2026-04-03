@@ -209,7 +209,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 		defer resp.Body.Close()
 
 		// 解析流响应
-		if err := p.parseStreamResponse(resp.Body, ch); err != nil {
+		if err := p.parseStreamResponse(resp.Body, ch, cfg.debug); err != nil {
 			ch <- StreamResult{Error: err}
 		}
 	}()
@@ -218,7 +218,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 }
 
 // parseStreamResponse 解析流式响应
-func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult) error {
+func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult, debug bool) error {
 	bufReader := bufio.NewReaderSize(body, 1024)
 
 	var currentToolCalls []ToolCall
@@ -241,6 +241,10 @@ func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamRes
 		// 跳过非 data: 开头的行
 		if len(noSpaceLine) < 5 || string(noSpaceLine[:5]) != "data:" {
 			continue
+		}
+
+		if debug {
+			fmt.Fprintln(os.Stderr, string(rawLine))
 		}
 
 		// 去除 data: 前缀和空格

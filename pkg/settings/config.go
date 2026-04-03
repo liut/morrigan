@@ -72,6 +72,7 @@ type Provider struct {
 	URL    string `envconfig:"url" required:"true"`
 	Model  string `envconfig:"MODEL" required:"true"`
 	Type   string `envconfig:"type" default:"openai" desc:"provider type: openai, anthropic, openrouter, ollama"`
+	Debug  bool   `envconfig:"debug" desc:"enable debug mode for this provider"`
 }
 
 func (c *Config) GetOAuthName() string {

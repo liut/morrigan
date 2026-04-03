@@ -16,6 +16,7 @@ type config struct {
 	timeout     time.Duration
 	httpClient  HTTPDoer
 	headers     map[string]string
+	debug       bool
 }
 
 // HTTPDoer HTTP 请求接口
@@ -109,6 +110,13 @@ func WithTools(tools []ToolDefinition) Option {
 func WithStream(stream bool) Option {
 	return func(c *config) {
 		_ = stream
+	}
+}
+
+// WithDebug 设置调试模式
+func WithDebug(debug bool) Option {
+	return func(c *config) {
+		c.debug = debug
 	}
 }
 
