@@ -17,6 +17,7 @@ type config struct {
 	httpClient  HTTPDoer
 	headers     map[string]string
 	debug       bool
+	logDir      string
 }
 
 // HTTPDoer HTTP 请求接口
@@ -117,6 +118,13 @@ func WithStream(stream bool) Option {
 func WithDebug(debug bool) Option {
 	return func(c *config) {
 		c.debug = debug
+	}
+}
+
+// WithLogDir 设置日志目录
+func WithLogDir(logDir string) Option {
+	return func(c *config) {
+		c.logDir = logDir
 	}
 }
 

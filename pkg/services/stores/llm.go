@@ -35,6 +35,7 @@ func init() {
 		llm.WithBaseURL(settings.Current.Embedding.URL),
 		llm.WithModel(settings.Current.Embedding.Model),
 		llm.WithDebug(settings.Current.Embedding.Debug),
+		llm.WithLogDir(settings.Current.Embedding.LogDir),
 	)
 	if err != nil {
 		logger().Fatalw("create llm embedding client failed", "err", err)
@@ -48,6 +49,7 @@ func init() {
 		llm.WithBaseURL(settings.Current.Interact.URL),
 		llm.WithModel(settings.Current.Interact.Model),
 		llm.WithDebug(settings.Current.Interact.Debug),
+		llm.WithLogDir(settings.Current.Interact.LogDir),
 	)
 	if err != nil {
 		logger().Fatalw("create llm interact client failed", "err", err)
@@ -61,6 +63,7 @@ func init() {
 		llm.WithBaseURL(settings.Current.Summarize.URL),
 		llm.WithModel(settings.Current.Summarize.Model),
 		llm.WithDebug(settings.Current.Summarize.Debug),
+		llm.WithLogDir(settings.Current.Summarize.LogDir),
 	)
 	if err != nil {
 		logger().Fatalw("create llm summarize client failed", "err", err)

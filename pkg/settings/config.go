@@ -73,6 +73,7 @@ type Provider struct {
 	Model  string `envconfig:"MODEL" required:"true"`
 	Type   string `envconfig:"type" default:"openai" desc:"provider type: openai, anthropic, openrouter, ollama"`
 	Debug  bool   `envconfig:"debug" desc:"enable debug mode for this provider"`
+	LogDir string `envconfig:"log_dir" desc:"directory to log LLM interactions, files named by date (jsonl format)"`
 }
 
 func (c *Config) GetOAuthName() string {
