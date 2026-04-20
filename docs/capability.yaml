@@ -1,0 +1,131 @@
+depends:
+  comm: 'github.com/cupogo/andvari/models/comm'
+  oid: 'github.com/cupogo/andvari/models/oid'
+  corpus: 'github.com/liut/morign/pkg/models/corpus'
+
+dbcode: bun
+modelpkg: capability
+
+models:
+
+  - name: Capability
+    comment: 'API 能力描述'
+    tableTag: 'api_capability,alias:ac'
+    fields:
+      - type: comm.DefaultModel
+      - comment: operationId（可为空，公开接口无此字段）
+        name: OperationID
+        type: string
+        tags: {bson: 'operationID', json: 'operationID', pg: ',notnull,type:varchar(63)'}
+        isset: true
+        query: 'equal'
+      - comment: API 路径，如 /api/accounts/{id}
+        name: Endpoint
+        type: string
+        tags: {bson: 'endpoint', json: 'endpoint', pg: ',notnull,type:varchar(125)'}
+        isset: true
+        query: 'match'
+      - comment: HTTP 方法 GET/POST/PUT/DELETE 等
+        name: Method
+        type: string
+        tags: {bson: 'method', json: 'method', pg: ',notnull,type:varchar(10)'}
+        isset: true
+        query: 'equal'
+      - comment: 简短描述
+        name: Summary
+        type: string
+        tags: {bson: 'summary', json: 'summary', pg: ',notnull,type:text'}
+        isset: true
+      - comment: 详细描述
+        name: Description
+        type: string
+        tags: {bson: 'description', json: 'description', pg: ',notnull,type:text'}
+        isset: true
+      - comment: 参数结构 JSON
+        name: Parameters
+        type: '[]SwaggerParam'
+        tags: {bson: 'parameters', json: 'parameters,omitempty', pg: ",notnull,type:jsonb,default:'[]'"}
+        isset: true
+      - comment: 响应结构 JSON
+        name: Responses
+        type: string
+        tags: {bson: 'responses', json: 'responses,omitempty', pg: ",notnull,type:jsonb,default:'{}'"}
+        isset: true
+      - comment: API 标签
+        name: Tags
+        type: '[]string'
+        tags: {bson: 'tags', json: 'tags,omitempty', pg: ",notnull,type:jsonb,default:'[]'"}
+        isset: true
+      - type: comm.MetaField
+    oidcat: file
+    specNs: Cap
+    hooks:
+      afterCreated: yes
+      afterLoad: yes
+      afterList: yes
+
+  - name: CapabilityVector
+    comment: 'API 能力向量'
+    tableTag: 'api_capability_vector,alias:cv'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 关联的 Capability ID
+        name: CapID
+        type: oid.OID
+        tags: {bson: 'capID', json: 'capID', pg: 'cap_id,notnull'}
+        isset: true
+        query: 'equal'
+      - comment: 主题 基于 summary + description 等生成
+        name: Subject
+        type: string
+        tags: {bson: 'subject', json: 'subject', pg: 'subject,notnull,type:text'}
+        isset: true
+      - comment: 语义向量 1024 维
+        name: Vector
+        type: corpus.Vector
+        tags: {bson: 'vector', json: 'vector', pg: 'embedding,notnull,type:vector(1024)'}
+        isset: true
+      - type: comm.MetaField
+    oidcat: event
+    specNs: Cap
+
+  - name: SwaggerParam
+    comment: swagger 参数定义
+    fields:
+      - comment: 参数类型
+        name: Type
+        type: string
+        tags: {json: 'type', yaml: 'type'}
+      - comment: 参数描述
+        name: Description
+        type: string
+        tags: {json: 'description', yaml: 'description'}
+      - comment: 参数名称
+        name: Name
+        type: string
+        tags: {json: 'name', yaml: 'name'}
+      - comment: 参数位置 header/query/body/path
+        name: In
+        type: string
+        tags: {json: 'in', yaml: 'in'}
+      - comment: 是否必填
+        name: Required
+        type: bool
+        tags: {json: 'required', yaml: 'required'}
+      - comment: 参数示例
+        name: Example
+        type: string
+        tags: {json: 'example,omitempty', yaml: 'example'}
+      - comment: schema 定义
+        name: Schema
+        type: any
+        tags: {json: 'schema,omitempty', yaml: 'schema'}
+
+stores:
+  - name: capabilityStore
+    iname: CapabilityStore
+    embed: CapabilityStoreX
+    siname: Capability
+    hods:
+      - { name: Capability, type: LGCUD }
+      - { name: CapabilityVector, type: LGC }

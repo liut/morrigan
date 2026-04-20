@@ -1,0 +1,432 @@
+package stores
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/cupogo/andvari/models/oid"
+	"github.com/liut/morign/pkg/models/capability"
+	"github.com/liut/morign/pkg/models/corpus"
+	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/settings"
+	"github.com/liut/morign/pkg/utils/words"
+)
+
+// CapabilityStoreX is the capability storage extension interface
+type CapabilityStoreX interface {
+	CountCapability(ctx context.Context) (int, error)
+	GetCapabilityWith(ctx context.Context, method, endpoint string) (*capability.Capability, error)
+	ImportCapabilities(ctx context.Context, r io.Reader, lw io.Writer) error
+	SyncEmbeddingCapabilities(ctx context.Context, spec *CapCapabilitySpec) error
+	MatchCapabilities(ctx context.Context, ms MatchSpec) (data capability.Capabilities, err error)
+	MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data []capability.CapabilityMatch, err error)
+	InvokerForMatch() mcps.Invoker
+	InvokerForInvoke(invoker *CapabilityInvoker) mcps.Invoker
+}
+
+// swaggerDoc represents a swagger document structure
+type swaggerDoc struct {
+	Swagger string `json:"swagger" yaml:"swagger"`
+	Info    struct {
+		Title string `json:"title" yaml:"title"`
+	} `json:"info" yaml:"info"`
+	Paths map[string]map[string]struct {
+		OperationID string                    `json:"operationId" yaml:"operationId"`
+		Summary     string                    `json:"summary" yaml:"summary"`
+		Description string                    `json:"description" yaml:"description"`
+		Parameters  []capability.SwaggerParam `json:"parameters" yaml:"parameters"`
+		Responses   map[string]any            `json:"responses" yaml:"responses"`
+		Tags        []string                  `json:"tags" yaml:"tags"`
+	} `json:"paths" yaml:"paths"`
+}
+
+// decodeSwaggerDoc decodes swagger document from JSON or YAML format
+func decodeSwaggerDoc(r io.Reader) (*swaggerDoc, error) {
+	// Read all content first
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("read data: %w", err)
+	}
+
+	doc := new(swaggerDoc)
+	// Try JSON first
+	if err := json.Unmarshal(data, doc); err == nil && doc.Paths != nil {
+		return doc, nil
+	}
+
+	// Try YAML
+	if err := yaml.Unmarshal(data, doc); err != nil {
+		return nil, fmt.Errorf("decode swagger (tried JSON and YAML): %w", err)
+	}
+	return doc, nil
+}
+
+func (s *capabilityStore) afterCreatedCapability(ctx context.Context, obj *capability.Capability) error {
+	subject := obj.GetSubject()
+	cvb := capability.CapabilityVectorBasic{
+		CapID:   obj.ID,
+		Subject: subject,
+	}
+	vec, err := GetEmbedding(ctx, cvb.Subject)
+	if err != nil {
+		return err
+	}
+	if len(vec) > 0 {
+		cvb.Vector = vec
+	}
+
+	_, err = s.CreateCapabilityVector(ctx, cvb)
+	if err != nil {
+		logger().Infow("create capability vector fail", "cvb", &cvb, "err", err)
+		return err
+	}
+	return nil
+}
+
+// afterLoadCapability implements after load hook
+func (s *capabilityStore) afterLoadCapability(ctx context.Context, obj *capability.Capability) error {
+	return nil
+}
+
+// afterListCapability implements after list hook
+func (s *capabilityStore) afterListCapability(ctx context.Context, spec *CapCapabilitySpec, data capability.Capabilities) error {
+	return nil
+}
+
+func (s *capabilityStore) CountCapability(ctx context.Context) (int, error) {
+	spec := &CapCapabilitySpec{}
+	spec.Limit = -1
+	_, count, err := s.ListCapability(ctx, spec)
+	return count, err
+}
+
+func (s *capabilityStore) GetCapabilityWith(ctx context.Context, method, endpoint string) (*capability.Capability, error) {
+	obj := new(capability.Capability)
+	err := dbGet(ctx, s.w.db, obj, "method = ? AND endpoint = ?", strings.ToUpper(method), endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+// MatchVectorWith matches capabilities using vector
+func (s *capabilityStore) MatchVectorWith(ctx context.Context, vec corpus.Vector, threshold float32, limit int) (data []capability.CapabilityMatch, err error) {
+	if len(vec) != corpus.VectorLen {
+		logger().Infow("mismatch length of vector", "a", len(vec), "b", corpus.VectorLen)
+		return
+	}
+	logger().Debugw("match capability with", "vec", vec[0:5])
+	err = s.w.db.NewRaw("SELECT * FROM vector_match_capability_4(?, ?, ?)", vec, threshold, limit).
+		Scan(ctx, &data)
+	if err != nil {
+		logger().Infow("match capability vector fail", "threshold", threshold, "limit", limit, "err", err)
+	} else {
+		logger().Debugw("match capability vector ok", "threshold", threshold, "limit", limit, "data", data)
+	}
+	return
+}
+
+// MatchCapabilities matches capabilities by query
+func (s *capabilityStore) MatchCapabilities(ctx context.Context, ms MatchSpec) (data capability.Capabilities, err error) {
+	ms.setDefaults()
+
+	var subject string
+	if ms.SkipKeywords {
+		subject = ms.Query
+	} else {
+		subject, err = GetSummary(ctx, ms.Query, GetTemplateForKeyword())
+		if err != nil {
+			return
+		}
+	}
+
+	if len(subject) == 0 {
+		logger().Infow("empty subject", "spec", ms)
+		return
+	}
+
+	vec, err := GetEmbedding(ctx, subject)
+	if err != nil {
+		logger().Infow("GetEmbedding fail", "err", err)
+		return
+	}
+	if len(vec) != corpus.VectorLen {
+		logger().Infow("embedding length mismatch", "a", len(vec), "b", corpus.VectorLen)
+		return
+	}
+
+	matches, err := s.MatchVectorWith(ctx, vec, ms.Threshold, ms.Limit)
+	if err != nil || len(matches) == 0 {
+		logger().Infow("no match capabilities", "subj", subject)
+		return
+	}
+
+	ids := make(oid.OIDs, 0, len(matches))
+	for _, m := range matches {
+		ids = append(ids, m.DocID)
+	}
+	logger().Infow("matched", "caps", ids, "err", err)
+
+	spec := &CapCapabilitySpec{}
+	spec.IDs = ids
+	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
+	if err != nil {
+		logger().Infow("list capabilities fail", "spec", spec, "err", err)
+	}
+
+	return
+}
+
+// SyncEmbeddingCapabilities generates vectors for capabilities
+func (s *capabilityStore) SyncEmbeddingCapabilities(ctx context.Context, spec *CapCapabilitySpec) error {
+	data, _, err := s.ListCapability(ctx, spec)
+	if err != nil {
+		return err
+	}
+
+	for _, cap := range data {
+		subject := cap.GetSubject()
+		vec, err := GetEmbedding(ctx, subject)
+		if err != nil {
+			logger().Warnw("skip capability due to embedding fail", "id", cap.ID, "err", err)
+			continue // Skip this capability, continue with next
+		}
+
+		// Check if vector already exists
+		existing := new(capability.CapabilityVector)
+		err = dbGetWithUnique(ctx, s.w.db, existing, "cap_id", cap.ID)
+		if err == nil {
+			// Update existing
+			if existing.Subject != subject {
+				logger().Infow("subject changed", "id", cap.ID, "old", existing.Subject, "new", subject)
+			}
+			existing.SetWith(capability.CapabilityVectorSet{
+				Subject: &subject,
+				Vector:  &vec,
+			})
+			if err = dbUpdate(ctx, s.w.db, existing); err != nil {
+				return err
+			}
+		} else {
+			// Create new
+			cvb := capability.CapabilityVectorBasic{
+				CapID:   cap.ID,
+				Subject: subject,
+				Vector:  vec,
+			}
+			_, err = s.CreateCapabilityVector(ctx, cvb)
+			if err != nil {
+				logger().Warnw("create capability vector fail", "capId", cap.ID, "err", err)
+				continue
+			}
+		}
+	}
+	return nil
+}
+
+// ImportCapabilities imports capabilities from swagger document (supports both JSON and YAML formats)
+func (s *capabilityStore) ImportCapabilities(ctx context.Context, r io.Reader, lw io.Writer) error {
+	doc, err := decodeSwaggerDoc(r)
+	if err != nil {
+		logger().Infow("decode swagger fail", "err", err)
+		return err
+	}
+
+	var imported, skipped int
+	for path, methods := range doc.Paths {
+		for method, api := range methods {
+			method = strings.ToUpper(method)
+			if method == "PARAMETERS" || method == "RESOLUTIONS" {
+				continue
+			}
+
+			basic := capability.CapabilityBasic{
+				OperationID: api.OperationID,
+				Endpoint:    path,
+				Method:      method,
+				Summary:     api.Summary,
+				Description: api.Description,
+				Tags:        api.Tags,
+			}
+
+			// Assign parameters and responses (filter out token header param)
+			basic.Parameters = capability.FilterParams(api.Parameters, "token")
+			if responses, err := json.Marshal(api.Responses); err == nil {
+				basic.Responses = string(responses)
+			}
+
+			// Skip if no valid subject (no tags, summary, or description)
+			basic.EnrichSortableFields()
+			if basic.GetSubject() == "" {
+				if lw != nil {
+					fmt.Fprintf(lw, "%s %s [skipped: empty subject]\n", method, path)
+				}
+				skipped++
+				continue
+			}
+
+			// Try to find existing by method+endpoint (unique constraint)
+			existing, err := s.GetCapabilityWith(ctx, method, path)
+			if err != nil && !errors.Is(err, ErrNoRows) {
+				logger().Warnw("check existing fail", "path", path, "method", method, "err", err)
+				continue
+			}
+
+			if existing != nil && existing.ID.Valid() {
+				// Update existing
+				err = s.UpdateCapability(ctx, existing.StringID(), capability.CapabilitySet{
+					OperationID: &api.OperationID,
+					Summary:     &api.Summary,
+					Description: &api.Description,
+					Parameters:  &basic.Parameters,
+					Responses:   &basic.Responses,
+					Tags:        &api.Tags,
+				})
+				if err != nil {
+					logger().Warnw("update capability fail", "path", path, "method", method, "err", err)
+					skipped++
+					continue
+				}
+				if lw != nil {
+					fmt.Fprintf(lw, "%s %s [updated]\n", method, path)
+				}
+			} else {
+				// Create new
+				_, err = s.CreateCapability(ctx, basic)
+				if err != nil {
+					logger().Warnw("create capability fail", "path", path, "method", method, "err", err)
+					skipped++
+					continue
+				}
+				if lw != nil {
+					fmt.Fprintf(lw, "%s %s [created]\n", method, path)
+				}
+			}
+			imported++
+		}
+	}
+
+	logger().Infow("import swagger", "imported", imported, "skipped", skipped)
+	return nil
+}
+
+// InvokerForMatch returns an invoker for matching capabilities
+func (s *capabilityStore) InvokerForMatch() mcps.Invoker {
+	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
+		intent, ok := args["intent"].(string)
+		if !ok || intent == "" {
+			return mcps.BuildToolErrorResult("missing required argument: intent"), nil
+		}
+
+		limit := 5
+		if l, ok := args["limit"].(float64); ok {
+			limit = int(l)
+		}
+
+		caps, err := s.MatchCapabilities(ctx, MatchSpec{
+			Query: intent,
+			Limit: limit,
+
+			SkipKeywords: true,
+		})
+		if err != nil {
+			return mcps.BuildToolErrorResult(err.Error()), nil
+		}
+		if len(caps) == 0 {
+			return mcps.BuildToolSuccessResult("No matching APIs found"), nil
+		}
+		logger().Infow("matched", "caps", len(caps), "endpoints", caps.Endpoints())
+
+		// Build result with capability details
+		result := make([]map[string]any, 0, len(caps))
+		for _, cap := range caps {
+			result = append(result, map[string]any{
+				"id":           cap.StringID(),
+				"operation_id": cap.OperationID,
+				"endpoint":     cap.Endpoint,
+				"method":       cap.Method,
+				"summary":      cap.Summary,
+				"description":  cap.Description,
+				"parameters":   cap.Parameters,
+				"subject":      cap.GetSubject(),
+			})
+		}
+		return mcps.BuildToolSuccessResult(result), nil
+	}
+}
+
+// InvokerForInvoke returns an invoker for invoking capabilities
+func (s *capabilityStore) InvokerForInvoke(invoker *CapabilityInvoker) mcps.Invoker {
+	const defaultBodyLimit = 20 * 1024 // 10KB
+
+	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
+		method, _ := args["method"].(string)
+		if method == "" {
+			return mcps.BuildToolErrorResult("missing required argument: method"), nil
+		}
+
+		endpoint, _ := args["endpoint"].(string)
+		if endpoint == "" {
+			return mcps.BuildToolErrorResult("missing required argument: endpoint"), nil
+		}
+
+		params, _ := args["params"].(map[string]any)
+		if params == nil {
+			params = make(map[string]any)
+		}
+
+		resp, err := invoker.Invoke(ctx, method, endpoint, params)
+		if err != nil {
+			logger().Infow("invoke fail", "err", err)
+			return mcps.BuildToolErrorResult(err.Error()), nil
+		}
+		if resp == nil {
+			return mcps.BuildToolErrorResult("nil response from invoker"), nil
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 403 {
+			return mcps.BuildToolErrorResult("Permission denied: no access to this API"), nil
+		}
+
+		// Limit body to 10KB by default, allow override via args
+		limit := defaultBodyLimit
+		if l, ok := args["limit"].(float64); ok {
+			limit = int(l)
+		}
+		limitedReader := io.LimitReader(resp.Body, int64(limit))
+		body, err := io.ReadAll(limitedReader)
+		if err != nil {
+			return mcps.BuildToolErrorResult(err.Error()), nil
+		}
+
+		if settings.InDevelop() {
+			fmt.Fprintf(os.Stderr, "\n%s\n", (body))
+		}
+
+		// Check if response was truncated by reading 1 more byte
+		truncated := false
+		if b := make([]byte, 1); len(body) == limit {
+			if n, _ := resp.Body.Read(b); n > 0 {
+				truncated = true
+			}
+		}
+
+		logger().Infow("invoked", "sc", resp.StatusCode, "cl", len(body),
+			"truncated", truncated, "tail", words.TakeTail(string(body), 20))
+
+		result := map[string]any{"body": string(body)}
+		if truncated {
+			result["truncated"] = true
+			result["limit"] = limit
+		}
+		return mcps.BuildToolSuccessResult(result), nil
+	}
+}

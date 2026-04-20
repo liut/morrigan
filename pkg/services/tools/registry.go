@@ -13,6 +13,7 @@ import (
 
 	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/services/stores"
+	"github.com/liut/morign/pkg/settings"
 )
 
 type Invoker = mcps.Invoker
@@ -124,6 +125,14 @@ func (r *Registry) initTools(sto stores.Storage) {
 		r.invokers[ToolNameMemoryRecall] = sto.Convo().InvokerForMemoryRecall()
 		r.invokers[ToolNameMemoryStore] = sto.Convo().InvokerForMemoryStore()
 		r.invokers[ToolNameMemoryForget] = sto.Convo().InvokerForMemoryForget()
+
+		// Capability tools - type assert to get X interface
+		ctx := context.Background()
+		if count, err := sto.Capability().CountCapability(ctx); err == nil && count > 10 {
+			r.tools = append(r.tools, capabilityMatchDescriptor, capabilityInvokeDescriptor)
+			r.invokers[ToolNameCapabilityMatch] = sto.Capability().InvokerForMatch()
+			r.invokers[ToolNameCapabilityInvoke] = sto.Capability().InvokerForInvoke(stores.NewCapabilityInvoker(settings.Current.BusAPIURL))
+		}
 	}
 
 	// 公开工具：Fetch

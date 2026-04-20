@@ -374,7 +374,7 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 					event.Delta.PartialJSON...,
 				)
 			}
-			logger().Debugw("input json", "delta", event.Delta, "toolCalls", currentToolCalls)
+			// logger().Debugw("input json", "delta", event.Delta, "toolCalls", currentToolCalls)
 		}
 	case "content_block_stop":
 		// 内容块结束
