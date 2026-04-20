@@ -97,7 +97,22 @@ func (p *anthropicProvider) Chat(ctx context.Context, cfg *config, messages []Me
 		return nil, errMsg
 	}
 
-	return parseAnthropicResponse(body)
+	result, err := parseAnthropicResponse(body)
+	if err != nil {
+		return nil, err
+	}
+	// 写入交互日志
+	if cfg.logDir != "" {
+		go LogInteraction(cfg.logDir, "anthropic", &InteractionLog{
+			Model:     cfg.model,
+			Messages:  messages,
+			Tools:     tools,
+			Usage:     result.Usage,
+			Response:  result.Content,
+			ToolCalls: result.ToolCalls,
+		})
+	}
+	return result, nil
 }
 
 func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, messages []Message, tools []ToolDefinition) (<-chan StreamResult, error) {
@@ -199,7 +214,7 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 		defer resp.Body.Close()
 
 		// 解析流响应
-		if err := p.parseStreamResponse(resp.Body, ch, cfg.debug); err != nil {
+		if err := p.parseStreamResponse(resp.Body, ch, cfg.debug, cfg.logDir, cfg.model, messages, tools); err != nil {
 			ch <- StreamResult{Error: err}
 		}
 	}()
@@ -208,9 +223,10 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 }
 
 // parseStreamResponse 解析流式响应
-func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult, debug bool) error {
+func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult, debug bool, logDir, model string, messages []Message, tools []ToolDefinition) error {
 	var currentToolCalls []ToolCall
 	var currentText strings.Builder
+	var thinkContent string
 
 	bufReader := bufio.NewReaderSize(body, 1024)
 
@@ -253,7 +269,7 @@ func (p *anthropicProvider) parseStreamResponse(body io.Reader, ch chan<- Stream
 		// logger().Debugw("stream event parsed", "type", event.Type, "index", event.Index,
 		// 	"delta", &event.Delta)
 
-		done, toolCalls := p.handleStreamEvent(event, &currentText, currentToolCalls, ch)
+		done, toolCalls := p.handleStreamEvent(event, &currentText, currentToolCalls, ch, logDir, model, messages, tools, &thinkContent)
 		currentToolCalls = toolCalls
 
 		if done {
@@ -318,7 +334,7 @@ func (p *anthropicProvider) parseStreamEvent(data []byte) (streamEvent, error) {
 }
 
 // handleStreamEvent 处理流事件，返回是否结束及更新后的 toolCalls
-func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *strings.Builder, currentToolCalls []ToolCall, ch chan<- StreamResult) (bool, []ToolCall) {
+func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *strings.Builder, currentToolCalls []ToolCall, ch chan<- StreamResult, logDir, model string, messages []Message, tools []ToolDefinition, thinkContent *string) (bool, []ToolCall) {
 	switch event.Type {
 	case "content_block_start":
 		// 开始新的内容块，检查是否是 tool_use 类型
@@ -344,6 +360,7 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 				ToolCalls: currentToolCalls,
 			}
 		} else if event.Delta.Type == "thinking_delta" {
+			*thinkContent += event.Delta.Thinking
 			ch <- StreamResult{
 				Think:     event.Delta.Thinking,
 				ToolCalls: currentToolCalls,
@@ -370,13 +387,24 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 		}
 		// 发送完成信号
 		ch <- StreamResult{
-			Done:         true,
 			ToolCalls:    currentToolCalls,
 			FinishReason: stopReason,
 			Usage:        event.Usage.toUsage(),
 		}
-		return true, currentToolCalls
-	case "message_stop":
+		// 写入交互日志
+		if logDir != "" {
+			go LogInteraction(logDir, "anthropic", &InteractionLog{
+				Model:      model,
+				Messages:   messages,
+				Tools:      tools,
+				Usage:      event.Usage.toUsage(),
+				Response:   currentText.String(),
+				ToolCalls:  currentToolCalls,
+				Think:      *thinkContent,
+				StopReason: string(stopReason),
+			})
+		}
+	case "message_stop": // 在 message_delta 后会跟一个message_stop，里面没有实际信息
 		ch <- StreamResult{
 			Done:      true,
 			ToolCalls: currentToolCalls,

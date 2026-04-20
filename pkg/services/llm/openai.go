@@ -117,6 +117,23 @@ func (p *openAIProvider) Chat(ctx context.Context, cfg *config, messages []Messa
 		})
 	}
 
+	// 写入交互日志
+	if cfg.logDir != "" {
+		var thinkContent string
+		if resp.Choices[0].Message.ReasoningContent != "" {
+			thinkContent = resp.Choices[0].Message.ReasoningContent
+		}
+		go LogInteraction(cfg.logDir, "openai", &InteractionLog{
+			Model:     cfg.model,
+			Messages:  messages,
+			Tools:     tools,
+			Usage:     result.Usage,
+			Response:  result.Content,
+			ToolCalls: result.ToolCalls,
+			Think:     thinkContent,
+		})
+	}
+
 	return result, nil
 }
 
@@ -209,7 +226,7 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 		defer resp.Body.Close()
 
 		// 解析流响应
-		if err := p.parseStreamResponse(resp.Body, ch, cfg.debug); err != nil {
+		if err := p.parseStreamResponse(resp.Body, ch, cfg.debug, cfg.logDir, cfg.model, messages, tools); err != nil {
 			ch <- StreamResult{Error: err}
 		}
 	}()
@@ -218,12 +235,14 @@ func (p *openAIProvider) StreamChat(ctx context.Context, cfg *config, messages [
 }
 
 // parseStreamResponse 解析流式响应
-func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult, debug bool) error {
+func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamResult, debug bool, logDir, model string, messages []Message, tools []ToolDefinition) error {
 	bufReader := bufio.NewReaderSize(body, 1024)
 
 	var currentToolCalls []ToolCall
 	var finishReason FinishReason
 	var lines int
+	var responseText string
+	var thinkContent string
 
 	for {
 		lines++
@@ -320,6 +339,12 @@ func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamRes
 			result.Usage = chunk.Usage.toUsage()
 		}
 
+		// 累积响应内容
+		responseText += delta.Content
+		if delta.ReasoningContent != "" {
+			thinkContent += delta.ReasoningContent
+		}
+
 		// 检查是否需要结束流：
 		// 1. finish_reason 不为空（标准行为）
 		// 2. tool_calls_len 为 0 且之前累积了 tool_calls（DeepSeek 行为）
@@ -334,6 +359,19 @@ func (p *openAIProvider) parseStreamResponse(body io.Reader, ch chan<- StreamRes
 		if shouldEndStream {
 			logger().Infow("stream done", "finish_reason", finishReason,
 				"tool_calls_count", len(currentToolCalls), "lines", lines)
+			// 写入交互日志
+			if logDir != "" {
+				go LogInteraction(logDir, "openai", &InteractionLog{
+					Model:      model,
+					Messages:   messages,
+					Tools:      tools,
+					Usage:      result.Usage,
+					Response:   responseText,
+					ToolCalls:  currentToolCalls,
+					Think:      thinkContent,
+					StopReason: string(finishReason),
+				})
+			}
 			return nil
 		}
 	}
