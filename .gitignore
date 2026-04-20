@@ -106,6 +106,7 @@ htdocs/
 
 *.tar.*
 .env
+docs/brainstorms/*
 todos/*
 tests/
 
