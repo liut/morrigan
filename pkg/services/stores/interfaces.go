@@ -10,4 +10,5 @@ type Storage interface {
 	MCP() MCPStore      // gened
 	Convo() ConvoStore  // gened
 	State() StateStore
+	Capability() CapabilityStore // gened
 }

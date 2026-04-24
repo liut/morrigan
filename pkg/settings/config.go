@@ -36,6 +36,9 @@ type Config struct {
 	OAuthName    string `envconfig:"OAuth_Name" default:"oauth" desc:"Name of OAuth SP"`
 	OAuthPathMCP string `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
 
+	// BusAPIURL is the base URL for Bus API calls (used by capability invoke)
+	BusAPIURL string `envconfig:"Bus_API_URL" desc:"Base URL for Bus API"`
+
 	SitePathMe   string `envconfig:"Site_Path_Me" desc:"OAuth SP Path of /api/me in whole site"`
 	SiteTokenKey string `envconfig:"Site_Token_Key" default:"token" desc:"token key in whole site"`
 
@@ -57,10 +60,10 @@ type Config struct {
 	// 相似度阈值 建议范围 0.39 - 0.65, 数值越大条件越宽
 	VectorThreshold float32 `envconfig:"Vector_Threshold" default:"0.47"`
 	// 相似度匹配数量
-	VectorLimit int `envconfig:"Vector_Limit" default:"5"`
+	VectorLimit int `envconfig:"Vector_Limit" default:"6"`
 
 	// LLM调用循环次数限制，防止无限循环
-	MaxLoopIterations int `envconfig:"MAX_LOOP_ITERATIONS" default:"5"`
+	MaxLoopIterations int `envconfig:"MAX_LOOP_ITERATIONS" default:"12"`
 
 	Embedding Provider
 	Interact  Provider

@@ -61,6 +61,40 @@ func importDocs(cc *cli.Context) error {
 	return nil
 }
 
+func importSwagger(cc *cli.Context) error {
+	input := cc.Args().First()
+	if input == "" {
+		return fmt.Errorf("input file or directory is required")
+	}
+
+	file, err := os.Open(input)
+	if err != nil {
+		logger().Warnw("open fail", "input", input, "err", err)
+		return err
+	}
+	defer file.Close()
+
+	difflog := cc.String("diff")
+	var lw *os.File
+	if len(difflog) > 0 {
+		lw, err = os.Create(difflog)
+		if err != nil {
+			logger().Warnw("create fail", "difflog", difflog, "err", err)
+			return err
+		}
+		defer lw.Close()
+	} else {
+		lw = os.Stderr
+	}
+
+	err = stores.Sgt().Capability().ImportCapabilities(cc.Context, file, lw)
+	if err != nil {
+		logger().Warnw("import swagger fail", "input", input, "err", err)
+		return err
+	}
+	return nil
+}
+
 func exportDocs(cc *cli.Context) error {
 	output := cc.Args().First() // csv
 	file, err := os.OpenFile(output, os.O_RDWR|os.O_CREATE, 0644)
@@ -96,8 +130,13 @@ func embeddingDocVector(cc *cli.Context) error {
 		spec.Limit = cc.Int("limit")
 		spec.Sort = "id"
 		return stores.Sgt().Convo().SyncEmbeddingMemories(ctx, spec)
+	case "capability":
+		spec := &stores.CapCapabilitySpec{}
+		spec.Limit = cc.Int("limit")
+		spec.Sort = "id"
+		return stores.Sgt().Capability().SyncEmbeddingCapabilities(ctx, spec)
 	default:
-		return fmt.Errorf("unsupported target: %s (supported: doc, mem)", target)
+		return fmt.Errorf("unsupported target: %s (supported: doc, mem, capability)", target)
 	}
 }
 
@@ -195,6 +234,15 @@ func main() {
 				},
 			},
 			{
+				Name:    "import-swagger",
+				Usage:   "import API capabilities from swagger yaml/json",
+				Aliases: []string{"import-capability"},
+				Action:  importSwagger,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "diff", Aliases: []string{"diff-log"}, Value: "", Usage: "a filename of diff"},
+				},
+			},
+			{
 				Name:    "export",
 				Usage:   "export documents to a csv",
 				Aliases: []string{"exportDocs"},
@@ -209,7 +257,7 @@ func main() {
 				Aliases: []string{"embedding-doc-vec"},
 				Action:  embeddingDocVector,
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "target", Aliases: []string{"t"}, Value: "doc", Usage: "target to embed: doc|mem"},
+					&cli.StringFlag{Name: "target", Aliases: []string{"t"}, Value: "doc", Usage: "target to embed: doc|mem|capability"},
 					&cli.IntFlag{Name: "limit", Aliases: []string{"l"}, Value: 90, Usage: "limit for query"},
 				},
 			},

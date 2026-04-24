@@ -18,6 +18,9 @@ const (
 	ToolNameMemoryStore  = "memory_store"  // 记忆存储工具
 	ToolNameMemoryForget = "memory_forget" // 记忆删除工具
 
+	ToolNameCapabilityMatch  = "capability_match"  // API 能力匹配工具
+	ToolNameCapabilityInvoke = "capability_invoke" // API 能力调用工具
+
 	ToolNameStrataExec = "strata_exec"
 )
 
@@ -189,6 +192,60 @@ var (
 				},
 			},
 			"required": []string{"key"},
+		},
+	}
+
+	// capabilityMatchDescriptor API 能力匹配工具描述
+	capabilityMatchDescriptor = mcps.ToolDescriptor{
+		Name:        ToolNameCapabilityMatch,
+		Description: "Match API capabilities by user intent. Most APIs are RESTful, so each intent should target a single resource for best matching. Returns 3-5 relevant APIs based on semantic similarity.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"intent": map[string]any{
+					"type":        "string",
+					"description": "User's intent targeting a single resource (e.g., '查询我的订单', '创建文章')",
+				},
+				"limit": map[string]any{
+					"type":        "integer",
+					"description": "Max results to return (default: 5)",
+					"default":     5,
+					"minimum":     1,
+					"maximum":     10,
+				},
+			},
+			"required": []string{"intent"},
+		},
+	}
+
+	// capabilityInvokeDescriptor API 能力调用工具描述
+	capabilityInvokeDescriptor = mcps.ToolDescriptor{
+		Name:        ToolNameCapabilityInvoke,
+		Description: "Invoke a specific API capability. Returns the API response from Bus. Use the capability info from capability_match to construct the request. The method, endpoint are provided for LLM to construct the full URI. Note: Database fields use snake_case naming, not camelCase. For example, joiningAt in the model is joining_at in the database. This is especially useful when sorting.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"method": map[string]any{
+					"type":        "string",
+					"description": "HTTP method (GET, POST, PUT, DELETE, etc.)",
+				},
+				"endpoint": map[string]any{
+					"type":        "string",
+					"description": "API endpoint path (may contain path variables like /api/accounts/{id})",
+				},
+				"params": map[string]any{
+					"type":        "object",
+					"description": "API parameters values to fill in (path variables, query params, body, etc.)",
+				},
+				"limit": map[string]any{
+					"type":        "number",
+					"description": "Max bytes of response body to return (default: 204800, max: 204800)",
+					"default":     204800,
+					"minimum":     0,
+					"maximum":     204800,
+				},
+			},
+			"required": []string{"method", "endpoint"},
 		},
 	}
 

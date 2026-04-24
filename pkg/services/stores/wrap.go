@@ -102,9 +102,10 @@ type Wrap struct {
 	preset     aigc.Preset
 	stateStore *stateStore
 
-	corpuStore *corpuStore // gened
-	mcpStore   *mcpStore   // gened
-	convoStore *convoStore // gened
+	corpuStore      *corpuStore      // gened
+	mcpStore        *mcpStore        // gened
+	convoStore      *convoStore      // gened
+	capabilityStore *capabilityStore // gened
 }
 
 // NewWithDB return new instance of Wrap
@@ -116,9 +117,10 @@ func NewWithDB(db *pgx.DB) *Wrap {
 
 	w.stateStore = &stateStore{rc: SgtRC()}
 
-	w.corpuStore = &corpuStore{w: w} // gened
-	w.mcpStore = &mcpStore{w: w}     // gened
-	w.convoStore = &convoStore{w: w} // gened
+	w.corpuStore = &corpuStore{w: w}           // gened
+	w.mcpStore = &mcpStore{w: w}               // gened
+	w.convoStore = &convoStore{w: w}           // gened
+	w.capabilityStore = &capabilityStore{w: w} // gened
 
 	// more member stores
 	return w
@@ -178,8 +180,9 @@ func InitDB(ctx context.Context) error {
 
 func (w *Wrap) Preset() aigc.Preset { return w.preset }
 
-func (w *Wrap) Corpus() CorpuStore { return w.corpuStore } // Corpu gened
-func (w *Wrap) KB() CorpuStore     { return w.corpuStore } // Corpu alias
-func (w *Wrap) MCP() MCPStore      { return w.mcpStore }   // MCP gened
-func (w *Wrap) Convo() ConvoStore  { return w.convoStore } // Convo gened
-func (w *Wrap) State() StateStore  { return w.stateStore }
+func (w *Wrap) Corpus() CorpuStore          { return w.corpuStore } // Corpu gened
+func (w *Wrap) KB() CorpuStore              { return w.corpuStore } // Corpu alias
+func (w *Wrap) MCP() MCPStore               { return w.mcpStore }   // MCP gened
+func (w *Wrap) Convo() ConvoStore           { return w.convoStore } // Convo gened
+func (w *Wrap) State() StateStore           { return w.stateStore }
+func (w *Wrap) Capability() CapabilityStore { return w.capabilityStore } // Capability gened
