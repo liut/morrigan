@@ -90,6 +90,49 @@ func (s *capabilityStore) afterCreatedCapability(ctx context.Context, obj *capab
 	return nil
 }
 
+func (s *capabilityStore) afterUpdatedCapability(ctx context.Context, doc *capability.Capability) error {
+	subject := doc.GetSubject()
+
+	// Check if vector already exists
+	existing := new(capability.CapabilityVector)
+	err := dbGetWithUnique(ctx, s.w.db, existing, "cap_id", doc.ID)
+	if err == nil && existing.Subject == subject {
+		logger().Debugw("unchange vector", "subject", subject)
+		return nil
+	}
+	vec, verr := GetEmbedding(ctx, subject)
+	if verr != nil {
+		logger().Warnw("skip capability due to embedding fail", "id", doc.ID, "err", err)
+		return verr // Skip this capability, continue with next
+	}
+	if err == nil {
+		// Update existing
+		if existing.Subject != subject {
+			logger().Infow("subject changed", "id", doc.ID, "old", existing.Subject, "new", subject)
+		}
+		existing.SetWith(capability.CapabilityVectorSet{
+			Subject: &subject,
+			Vector:  &vec,
+		})
+		if err = dbUpdate(ctx, s.w.db, existing); err != nil {
+			return err
+		}
+	} else {
+		// Create new
+		cvb := capability.CapabilityVectorBasic{
+			CapID:   doc.ID,
+			Subject: subject,
+			Vector:  vec,
+		}
+		_, err = s.CreateCapabilityVector(ctx, cvb)
+		if err != nil {
+			logger().Warnw("create capability vector fail", "capId", doc.ID, "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
 // afterLoadCapability implements after load hook
 func (s *capabilityStore) afterLoadCapability(ctx context.Context, obj *capability.Capability) error {
 	return nil
@@ -191,42 +234,8 @@ func (s *capabilityStore) SyncEmbeddingCapabilities(ctx context.Context, spec *C
 		return err
 	}
 
-	for _, cap := range data {
-		subject := cap.GetSubject()
-		vec, err := GetEmbedding(ctx, subject)
-		if err != nil {
-			logger().Warnw("skip capability due to embedding fail", "id", cap.ID, "err", err)
-			continue // Skip this capability, continue with next
-		}
-
-		// Check if vector already exists
-		existing := new(capability.CapabilityVector)
-		err = dbGetWithUnique(ctx, s.w.db, existing, "cap_id", cap.ID)
-		if err == nil {
-			// Update existing
-			if existing.Subject != subject {
-				logger().Infow("subject changed", "id", cap.ID, "old", existing.Subject, "new", subject)
-			}
-			existing.SetWith(capability.CapabilityVectorSet{
-				Subject: &subject,
-				Vector:  &vec,
-			})
-			if err = dbUpdate(ctx, s.w.db, existing); err != nil {
-				return err
-			}
-		} else {
-			// Create new
-			cvb := capability.CapabilityVectorBasic{
-				CapID:   cap.ID,
-				Subject: subject,
-				Vector:  vec,
-			}
-			_, err = s.CreateCapabilityVector(ctx, cvb)
-			if err != nil {
-				logger().Warnw("create capability vector fail", "capId", cap.ID, "err", err)
-				continue
-			}
-		}
+	for _, doc := range data {
+		_ = s.afterUpdatedCapability(ctx, &doc)
 	}
 	return nil
 }

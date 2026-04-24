@@ -61,6 +61,7 @@ models:
     specNs: Cap
     hooks:
       afterCreated: yes
+      afterUpdated: yes
       afterLoad: yes
       afterList: yes
 

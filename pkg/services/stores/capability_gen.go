@@ -102,7 +102,10 @@ func (s *capabilityStore) UpdateCapability(ctx context.Context, id string, in ca
 	exist.SetIsUpdate(true)
 	exist.SetWith(in)
 	dbMetaUp(ctx, s.w.db, exist)
-	return dbUpdate(ctx, s.w.db, exist)
+	if err := dbUpdate(ctx, s.w.db, exist); err != nil {
+		return err
+	}
+	return s.afterUpdatedCapability(ctx, exist)
 }
 func (s *capabilityStore) DeleteCapability(ctx context.Context, id string) error {
 	obj := new(capability.Capability)
