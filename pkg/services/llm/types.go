@@ -89,6 +89,7 @@ func (z Tools) Names() []string {
 // ChatResult 聊天结果
 type ChatResult struct {
 	Content   string
+	Thinking  string // reasoning_content for DeepSeek thinking mode
 	ToolCalls []ToolCall
 	Usage     *Usage
 }

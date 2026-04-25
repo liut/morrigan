@@ -11,6 +11,7 @@ import (
 type HistoryChatItem struct {
 	User      string `json:"u"`
 	Assistant string `json:"a"`
+	Think     string `json:"th,omitempty"` // reasoning/thinking content
 }
 
 // HistoryItem is a history record item with timestamp and chat content

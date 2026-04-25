@@ -395,6 +395,7 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 
 	if len(res.answer) > 0 {
 		ccr.hi.ChatItem.Assistant = res.answer
+		ccr.hi.ChatItem.Think = res.think
 		if err := ccr.cs.AddHistory(r.Context(), ccr.hi); err == nil {
 			if err = ccr.cs.Save(r.Context()); err != nil {
 				logger().Infow("save convo fail", "err", err)

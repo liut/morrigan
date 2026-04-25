@@ -32,7 +32,7 @@ func TestBuildEndpoint(t *testing.T) {
 			name:     "custom URL",
 			baseURL:  "https://custom.api.com",
 			path:     "/chat/completions",
-			expected: "https://custom.api.com/chat/completions",
+			expected: "https://custom.api.com/v1/chat/completions",
 		},
 		{
 			name:     "openrouter URL",
@@ -41,10 +41,10 @@ func TestBuildEndpoint(t *testing.T) {
 			expected: "https://openrouter.ai/api/v1/chat/completions",
 		},
 		{
-			name:     "ollama local",
-			baseURL:  "http://localhost:11434",
-			path:     "/api/chat/completions",
-			expected: "http://localhost:11434/api/chat/completions",
+			name:     "ollama local (OpenAI compatible)",
+			baseURL:  "http://localhost:11434/v1",
+			path:     "/chat/completions",
+			expected: "http://localhost:11434/v1/chat/completions",
 		},
 	}
 
