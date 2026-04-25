@@ -5,14 +5,15 @@ import (
 	"net/http"
 
 	"github.com/liut/morign/pkg/services/stores"
+	"github.com/liut/morign/pkg/settings"
 )
 
-// GetOAuthTokenFunc 用于获取 OAuth token 的函数类型
-// 将来可能从 Redis/DB 获取，当前从 cookie 获取
+// GetOAuthTokenFunc is a function type for retrieving OAuth tokens.
+// Currently reads from cookie, future implementations may use Redis/DB.
 type GetOAuthTokenFunc func(ctx context.Context, r *http.Request) string
 
-// GetOAuthTokenFromCookie 从 cookie 获取 token（当前实现）
-// tokenCN 需要与 handle_user.go 中的保持一致
+// GetOAuthTokenFromCookie retrieves token from cookie.
+// tokenCN must stay consistent with handle_user.go.
 func GetOAuthTokenFromCookie(ctx context.Context, r *http.Request) string {
 	if r == nil {
 		return ""
@@ -24,14 +25,19 @@ func GetOAuthTokenFromCookie(ctx context.Context, r *http.Request) string {
 	return token.Value
 }
 
-// OAuthTokenMiddleware 创建中间件，将 cookie 中的 token 注入 context
+// OAuthTokenMiddleware creates a middleware that injects the OAuth token into the request context.
+// First tries to get token via getToken func (default: cookie), falls back to SiteTokenKey header.
 func OAuthTokenMiddleware(getToken GetOAuthTokenFunc) func(http.Handler) http.Handler {
 	if getToken == nil {
 		getToken = GetOAuthTokenFromCookie
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if tok := getToken(r.Context(), r); tok != "" {
+			tok := getToken(r.Context(), r)
+			if len(tok) == 0 {
+				tok = r.Header.Get(settings.Current.SiteTokenKey)
+			}
+			if len(tok) > 0 {
 				ctx := stores.OAuthContextWithToken(r.Context(), tok)
 				r = r.WithContext(ctx)
 			}
