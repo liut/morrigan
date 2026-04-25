@@ -237,13 +237,6 @@ var (
 					"type":        "object",
 					"description": "API parameters values to fill in (path variables, query params, body, etc.)",
 				},
-				"limit": map[string]any{
-					"type":        "number",
-					"description": "Max bytes of response body to return (default: 204800, max: 204800)",
-					"default":     204800,
-					"minimum":     0,
-					"maximum":     204800,
-				},
 			},
 			"required": []string{"method", "endpoint"},
 		},

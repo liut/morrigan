@@ -11,6 +11,8 @@ import (
 // type CapCapability = capability.Capability
 // type CapCapabilityVector = capability.CapabilityVector
 // type SwaggerParam = capability.SwaggerParam
+// type SwaggerResponse = capability.SwaggerResponse
+// type SwaggerSchema = capability.SwaggerSchema
 
 func init() {
 	RegisterModel((*capability.Capability)(nil), (*capability.CapabilityVector)(nil))

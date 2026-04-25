@@ -71,8 +71,8 @@ func strap(r chi.Router) {
 func newapi(sto stores.Storage) *api {
 	preset, _ := stores.LoadPreset()
 
-	if len(settings.Current.BusAPIURL) == 0 {
-		settings.Current.BusAPIURL = staffio.GetPrefix()
+	if len(settings.Current.BusPrefix) == 0 {
+		settings.Current.BusPrefix = staffio.GetPrefix()
 	}
 
 	// 初始化 OAuth MCP 配置

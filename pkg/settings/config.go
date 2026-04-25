@@ -36,8 +36,9 @@ type Config struct {
 	OAuthName    string `envconfig:"OAuth_Name" default:"oauth" desc:"Name of OAuth SP"`
 	OAuthPathMCP string `envconfig:"OAuth_Path_MCP" desc:"OAuth SP as A MCP Server"`
 
-	// BusAPIURL is the base URL for Bus API calls (used by capability invoke)
-	BusAPIURL string `envconfig:"Bus_API_URL" desc:"Base URL for Bus API"`
+	// BusPrefix is the base URL for Bus API calls (used by capability invoke)
+	BusPrefix string `envconfig:"Bus_Prefix" desc:"Prefix for Bus API"`
+	BusResult string `envconfig:"Bus_Result" default:"result"`
 
 	SitePathMe   string `envconfig:"Site_Path_Me" desc:"OAuth SP Path of /api/me in whole site"`
 	SiteTokenKey string `envconfig:"Site_Token_Key" default:"token" desc:"token key in whole site"`

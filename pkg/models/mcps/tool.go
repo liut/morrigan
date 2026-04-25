@@ -28,16 +28,16 @@ type ToolCallPayload struct {
 // 仅用于内嵌工具，不用兼容标准SDK
 func BuildToolSuccessResult(structured any) map[string]any {
 	result := map[string]any{}
-	if text, ok := structured.(string); ok {
-		result["content"] = []map[string]any{
-			{
-				"type": "text",
-				"text": text,
-			},
-		}
-		return result
-	}
 	if structured != nil {
+		if text, ok := structured.(string); ok {
+			result["content"] = []map[string]any{
+				{
+					"type": "text",
+					"text": text,
+				},
+			}
+			return result
+		}
 		result["structuredContent"] = structured
 		return result
 	}
@@ -66,23 +66,6 @@ func BuildToolErrorResult(message string) map[string]any {
 				"text": msg,
 			},
 		},
-	}
-}
-
-// stringifyStructuredContent converts structured content to string
-func stringifyStructuredContent(v any) string {
-	if v == nil {
-		return ""
-	}
-	switch value := v.(type) {
-	case string:
-		return strings.TrimSpace(value)
-	default:
-		payload, err := json.Marshal(value)
-		if err != nil {
-			return ""
-		}
-		return string(payload)
 	}
 }
 

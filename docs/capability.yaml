@@ -46,9 +46,9 @@ models:
         type: '[]SwaggerParam'
         tags: {bson: 'parameters', json: 'parameters,omitempty', pg: ",notnull,type:jsonb,default:'[]'"}
         isset: true
-      - comment: 响应结构 JSON
+      - comment: 响应结构 map[code]SwaggerResponse
         name: Responses
-        type: string
+        type: 'map[string]SwaggerResponse'
         tags: {bson: 'responses', json: 'responses,omitempty', pg: ",notnull,type:jsonb,default:'{}'"}
         isset: true
       - comment: API 标签
@@ -121,6 +121,42 @@ models:
       - comment: schema 定义
         name: Schema
         type: any
+        tags: {json: 'schema,omitempty', yaml: 'schema'}
+
+  - name: SwaggerSchema
+    comment: swagger schema 定义
+    fields:
+      - comment: 引用路径如 #/definitions/xxx
+        name: Ref
+        type: string
+        tags: {json: '$ref,omitempty', yaml: '$ref'}
+      - comment: 类型
+        name: Type
+        type: string
+        tags: {json: 'type,omitempty', yaml: 'type'}
+      - comment: 描述
+        name: Description
+        type: string
+        tags: {json: 'description,omitempty', yaml: 'description'}
+      - comment: allOf 组合
+        name: AllOf
+        type: '[]SwaggerSchema'
+        tags: {json: 'allOf,omitempty', yaml: 'allOf'}
+      - comment: 属性定义
+        name: Properties
+        type: map[string]SwaggerSchema
+        tags: {json: 'properties,omitempty', yaml: 'properties'}
+
+  - name: SwaggerResponse
+    comment: swagger 响应定义
+    fields:
+      - comment: 响应描述
+        name: Description
+        type: string
+        tags: {json: 'description', yaml: 'description'}
+      - comment: schema 定义
+        name: Schema
+        type: SwaggerSchema
         tags: {json: 'schema,omitempty', yaml: 'schema'}
 
 stores:

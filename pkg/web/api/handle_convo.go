@@ -720,6 +720,9 @@ func formatToolResult(result map[string]any) string {
 				return s
 			}
 		}
+		if b, err := json.Marshal(sc); err == nil {
+			return string(b)
+		}
 	}
 	// 最后：序列化为 JSON
 	if b, err := json.Marshal(result); err == nil {

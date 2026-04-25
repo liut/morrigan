@@ -40,8 +40,8 @@ type CapabilityBasic struct {
 	Description string `bson:"description" bun:",notnull,type:text" extensions:"x-order=E" form:"description" json:"description" pg:",notnull,type:text"`
 	// 参数结构 JSON
 	Parameters []SwaggerParam `bson:"parameters" bun:",notnull,type:jsonb,default:'[]'" extensions:"x-order=F" json:"parameters,omitempty" pg:",notnull,type:jsonb,default:'[]'"`
-	// 响应结构 JSON
-	Responses string `bson:"responses" bun:",notnull,type:jsonb,default:'{}'" extensions:"x-order=G" form:"responses" json:"responses,omitempty" pg:",notnull,type:jsonb,default:'{}'"`
+	// 响应结构 map[code]SwaggerResponse
+	Responses map[string]SwaggerResponse `bson:"responses" bun:",notnull,type:jsonb,default:'{}'" extensions:"x-order=G" json:"responses,omitempty" pg:",notnull,type:jsonb,default:'{}'"`
 	// API 标签
 	Tags []string `bson:"tags" bun:",notnull,type:jsonb,default:'[]'" extensions:"x-order=H" json:"tags,omitempty" pg:",notnull,type:jsonb,default:'[]'"`
 	// for meta update
@@ -88,8 +88,8 @@ type CapabilitySet struct {
 	Description *string `extensions:"x-order=E" json:"description"`
 	// 参数结构 JSON
 	Parameters *[]SwaggerParam `extensions:"x-order=F" json:"parameters,omitempty"`
-	// 响应结构 JSON
-	Responses *string `extensions:"x-order=G" form:"responses" json:"responses,omitempty"`
+	// 响应结构 map[code]SwaggerResponse
+	Responses *map[string]SwaggerResponse `extensions:"x-order=G" json:"responses,omitempty"`
 	// API 标签
 	Tags *[]string `extensions:"x-order=H" json:"tags,omitempty"`
 	// for meta update
@@ -121,7 +121,7 @@ func (z *Capability) SetWith(o CapabilitySet) {
 		z.LogChangeValue("parameters", z.Parameters, o.Parameters)
 		z.Parameters = *o.Parameters
 	}
-	if o.Responses != nil && z.Responses != *o.Responses {
+	if o.Responses != nil {
 		z.LogChangeValue("responses", z.Responses, o.Responses)
 		z.Responses = *o.Responses
 	}
@@ -261,3 +261,37 @@ type SwaggerParam struct {
 	// schema 定义
 	Schema any `extensions:"x-order=G" json:"schema,omitempty" yaml:"schema"`
 } // @name capabilitySwaggerParam
+
+// consts of SwaggerSchema swagger
+const (
+	SwaggerSchemaLabel = "swaggerSchema"
+	SwaggerSchemaTypID = "capabilitySwaggerSchema"
+)
+
+// SwaggerSchema swagger schema 定义
+type SwaggerSchema struct {
+	// 引用路径如
+	Ref string `extensions:"x-order=A" form:"$ref" json:"$ref,omitempty" yaml:"$ref"`
+	// 类型
+	Type string `extensions:"x-order=B" form:"type" json:"type,omitempty" yaml:"type"`
+	// 描述
+	Description string `extensions:"x-order=C" form:"description" json:"description,omitempty" yaml:"description"`
+	// allOf 组合
+	AllOf []SwaggerSchema `extensions:"x-order=D" json:"allOf,omitempty" yaml:"allOf"`
+	// 属性定义
+	Properties map[string]SwaggerSchema `extensions:"x-order=E" json:"properties,omitempty" yaml:"properties"`
+} // @name capabilitySwaggerSchema
+
+// consts of SwaggerResponse swagger
+const (
+	SwaggerResponseLabel = "swaggerResponse"
+	SwaggerResponseTypID = "capabilitySwaggerResponse"
+)
+
+// SwaggerResponse swagger 响应定义
+type SwaggerResponse struct {
+	// 响应描述
+	Description string `extensions:"x-order=A" form:"description" json:"description" yaml:"description"`
+	// schema 定义
+	Schema SwaggerSchema `extensions:"x-order=B" json:"schema,omitempty" yaml:"schema"`
+} // @name capabilitySwaggerResponse

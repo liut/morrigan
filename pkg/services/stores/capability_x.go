@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/liut/morign/pkg/models/corpus"
 	"github.com/liut/morign/pkg/models/mcps"
 	"github.com/liut/morign/pkg/settings"
-	"github.com/liut/morign/pkg/utils/words"
 )
 
 // CapabilityStoreX is the capability storage extension interface
@@ -39,12 +37,12 @@ type swaggerDoc struct {
 		Title string `json:"title" yaml:"title"`
 	} `json:"info" yaml:"info"`
 	Paths map[string]map[string]struct {
-		OperationID string                    `json:"operationId" yaml:"operationId"`
-		Summary     string                    `json:"summary" yaml:"summary"`
-		Description string                    `json:"description" yaml:"description"`
-		Parameters  []capability.SwaggerParam `json:"parameters" yaml:"parameters"`
-		Responses   map[string]any            `json:"responses" yaml:"responses"`
-		Tags        []string                  `json:"tags" yaml:"tags"`
+		OperationID string                                `json:"operationId" yaml:"operationId"`
+		Summary     string                                `json:"summary" yaml:"summary"`
+		Description string                                `json:"description" yaml:"description"`
+		Parameters  []capability.SwaggerParam             `json:"parameters" yaml:"parameters"`
+		Responses   map[string]capability.SwaggerResponse `json:"responses" yaml:"responses"`
+		Tags        []string                              `json:"tags" yaml:"tags"`
 	} `json:"paths" yaml:"paths"`
 }
 
@@ -294,9 +292,7 @@ func (s *capabilityStore) ImportCapabilities(ctx context.Context, r io.Reader, l
 
 			// Assign parameters and responses (filter out token header param)
 			basic.Parameters = capability.FilterParams(api.Parameters, "token")
-			if responses, err := json.Marshal(api.Responses); err == nil {
-				basic.Responses = string(responses)
-			}
+			basic.Responses = api.Responses
 
 			// Skip if no valid subject (no tags, summary, or description)
 			basic.EnrichSortableFields()
@@ -393,7 +389,6 @@ func (s *capabilityStore) InvokerForMatch() mcps.Invoker {
 
 // InvokerForInvoke returns an invoker for invoking capabilities
 func (s *capabilityStore) InvokerForInvoke(invoker *CapabilityInvoker) mcps.Invoker {
-	const defaultBodyLimit = 20 * 1024 // 10KB
 
 	return func(ctx context.Context, args map[string]any) (map[string]any, error) {
 		method, _ := args["method"].(string)
@@ -421,40 +416,28 @@ func (s *capabilityStore) InvokerForInvoke(invoker *CapabilityInvoker) mcps.Invo
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode == 403 {
-			return mcps.BuildToolErrorResult("Permission denied: no access to this API"), nil
+		if resp.StatusCode >= 400 {
+			if resp.StatusCode == 403 {
+				return mcps.BuildToolErrorResult("Permission denied: no access to this API"), nil
+			}
+			return mcps.BuildToolErrorResult(
+				fmt.Sprintf("HTTP error %d: %s", resp.StatusCode, resp.Status),
+			), nil
 		}
 
-		// Limit body to 10KB by default, allow override via args
-		limit := defaultBodyLimit
-		if l, ok := args["limit"].(float64); ok {
-			limit = int(l)
-		}
-		limitedReader := io.LimitReader(resp.Body, int64(limit))
-		body, err := io.ReadAll(limitedReader)
+		result := map[string]any{}
+
+		err = json.NewDecoder(resp.Body).Decode(&result)
 		if err != nil {
 			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
+		logger().Debugw("invoked", method, endpoint, "result", result)
 
-		if settings.InDevelop() {
-			fmt.Fprintf(os.Stderr, "\n%s\n", (body))
-		}
-
-		// Check if response was truncated by reading 1 more byte
-		truncated := false
-		if b := make([]byte, 1); len(body) == limit {
-			if n, _ := resp.Body.Read(b); n > 0 {
-				truncated = true
+		resultKey := settings.Current.BusResult
+		if len(resultKey) > 0 {
+			if res, ok := result[resultKey]; ok {
+				return mcps.BuildToolSuccessResult(res), nil
 			}
-		}
-
-		logger().Infow("invoked", "sc", resp.StatusCode, "cl", len(body),
-			"truncated", truncated, "tail", words.TakeTail(string(body), 20))
-
-		result := map[string]any{"body": string(body)}
-		if truncated {
-			result["truncated"] = true
-			result["limit"] = limit
 		}
 		return mcps.BuildToolSuccessResult(result), nil
 	}

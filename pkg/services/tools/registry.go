@@ -131,7 +131,7 @@ func (r *Registry) initTools(sto stores.Storage) {
 		if count, err := sto.Capability().CountCapability(ctx); err == nil && count > 10 {
 			r.tools = append(r.tools, capabilityMatchDescriptor, capabilityInvokeDescriptor)
 			r.invokers[ToolNameCapabilityMatch] = sto.Capability().InvokerForMatch()
-			r.invokers[ToolNameCapabilityInvoke] = sto.Capability().InvokerForInvoke(stores.NewCapabilityInvoker(settings.Current.BusAPIURL))
+			r.invokers[ToolNameCapabilityInvoke] = sto.Capability().InvokerForInvoke(stores.NewCapabilityInvoker(settings.Current.BusPrefix))
 		}
 	}
 

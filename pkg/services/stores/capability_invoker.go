@@ -45,6 +45,7 @@ func (inv *CapabilityInvoker) Invoke(ctx context.Context, method, endpoint strin
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	req.Header.Set("X-Ai-Agent", "morign")
 	req.Header.Set("Content-Type", "application/json")
 	if tk := OAuthTokenFromContext(ctx); len(tk) > 0 {
 		req.Header.Set("Authorization", "Bearer "+tk)
