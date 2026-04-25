@@ -25,27 +25,30 @@ type ToolCallPayload struct {
 }
 
 // BuildToolSuccessResult 构建标准的 MCP 工具成功结果
+// 仅用于内嵌工具，不用兼容标准SDK
 func BuildToolSuccessResult(structured any) map[string]any {
 	result := map[string]any{}
-	if structured != nil {
-		result["structuredContent"] = structured
-		if text := stringifyStructuredContent(structured); text != "" {
-			result["content"] = []map[string]any{
-				{
-					"type": "text",
-					"text": text,
-				},
-			}
-		}
-	}
-	if len(result) == 0 {
+	if text, ok := structured.(string); ok {
 		result["content"] = []map[string]any{
 			{
 				"type": "text",
-				"text": "ok",
+				"text": text,
 			},
 		}
+		return result
 	}
+	if structured != nil {
+		result["structuredContent"] = structured
+		return result
+	}
+
+	result["content"] = []map[string]any{
+		{
+			"type": "text",
+			"text": "ok",
+		},
+	}
+
 	return result
 }
 
