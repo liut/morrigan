@@ -401,11 +401,15 @@ func (p *openAIProvider) doChatRequest(ctx context.Context, cfg *config, message
 
 // buildEndpoint 构建 API 端点（OpenAI 兼容接口）
 func buildEndpoint(baseURL, path string) string {
-	endpoint := strings.TrimRight(baseURL, "/")
-	if endpoint == "" {
-		endpoint = "https://api.openai.com/v1"
+	base := strings.TrimRight(baseURL, "/")
+	if base == "" {
+		base = "https://api.openai.com/v1"
 	}
-	return endpoint + path
+	// 避免重复添加 /v1
+	if strings.HasSuffix(base, "/v1") || strings.HasSuffix(base, "/v1beta") {
+		return base + path
+	}
+	return base + "/v1" + path
 }
 
 func (p *openAIProvider) doRequest(ctx context.Context, cfg *config, endpoint string, body any) ([]byte, error) {

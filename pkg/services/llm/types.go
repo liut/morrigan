@@ -23,7 +23,8 @@ const (
 // Message 表示聊天消息
 type Message struct {
 	Role       string     `json:"role"`
-	Content    string     `json:"content"` // 不可省略
+	Content    string     `json:"content"`                     // 不可省略
+	Thinking   string     `json:"reasoning_content,omitempty"` // thinking mode 内容
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"` // only for role=tool
 }

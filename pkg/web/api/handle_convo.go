@@ -378,11 +378,12 @@ func (a *api) chatStreamResponseLoop(ccr *chatRequest, w http.ResponseWriter, r 
 			res.finish = streamRes.finish
 			break
 		}
-		logger().Infow("before execute tool calls", "tools", len(streamRes.toolCalls), "msgs", len(ccr.messages))
+		logger().Infow("before execute tool calls", "tools", len(streamRes.toolCalls), "msgs", len(ccr.messages),
+			"think_len", len(streamRes.think))
 
 		var hasToolCall bool
-		// 执行工具调用
-		ccr.messages, hasToolCall = a.doExecuteToolCalls(cctx, streamRes.toolCalls, ccr.messages)
+		// 执行工具调用，传入 reasoning_content 以便回传
+		ccr.messages, hasToolCall = a.doExecuteToolCalls(cctx, streamRes.toolCalls, ccr.messages, streamRes.think)
 		logger().Infow("executed tool calls", "hasToolCall", hasToolCall, "msgs", len(ccr.messages))
 		if !hasToolCall {
 			// 没有成功执行任何工具，跳出循环
@@ -450,6 +451,7 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 		cm.Delta = result.Delta
 		cm.Think = result.Think
 		res.answer += result.Delta
+		res.think += result.Think
 		res.usage = result.Usage
 		if len(result.ToolCalls) > 0 && result.FinishReason == llm.FinishReasonToolCalls {
 			cm.ToolCalls = convertToolCallsForJSON(result.ToolCalls)
@@ -498,13 +500,15 @@ func (a *api) doChatStream(ccr *chatRequest, w http.ResponseWriter, r *http.Requ
 }
 
 // doExecuteToolCalls 执行工具调用，返回更新后的 messages 和是否有成功执行的工具
-func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, messages []llm.Message) ([]llm.Message, bool) {
+// think 参数用于 DeepSeek thinking mode，需要在工具调用时回传 reasoning_content
+func (a *api) doExecuteToolCalls(ctx context.Context, toolCalls []llm.ToolCall, messages []llm.Message, think string) ([]llm.Message, bool) {
 	if len(toolCalls) == 0 {
 		return messages, false
 	}
 
 	messages = append(messages, llm.Message{
 		Role:      llm.RoleAssistant,
+		Thinking:  think,
 		ToolCalls: toolCalls,
 	})
 

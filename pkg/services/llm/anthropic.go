@@ -198,9 +198,12 @@ func (p *anthropicProvider) StreamChat(ctx context.Context, cfg *config, message
 			return
 		}
 
+		if cfg.debug || resp.StatusCode >= 300 {
+			fmt.Fprintf(os.Stderr, "\n%s\n%d bytes\n", string(reqBodyBytes), len(reqBodyBytes))
+		}
+
 		// 检查响应状态码
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			fmt.Fprintf(os.Stderr, "\n%s\n", string(reqBodyBytes))
 			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 			resp.Body.Close()
 			errMsg := fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
@@ -361,20 +364,22 @@ func (p *anthropicProvider) handleStreamEvent(event streamEvent, currentText *st
 			}
 		} else if event.Delta.Type == "thinking_delta" {
 			*thinkContent += event.Delta.Thinking
+			// thinking 独立于 tool_use，不附带正在构建的 tool_calls
 			ch <- StreamResult{
-				Think:     event.Delta.Thinking,
-				ToolCalls: currentToolCalls,
+				Think: event.Delta.Thinking,
 			}
 		} else if event.Delta.Type == "input_json_delta" {
 			// 处理 tool_use 的参数，直接取最后一个 tool_call
 			if len(currentToolCalls) > 0 && event.Delta.PartialJSON != "" {
 				lastIdx := len(currentToolCalls) - 1
-				currentToolCalls[lastIdx].Function.Arguments = append(
-					currentToolCalls[lastIdx].Function.Arguments,
-					event.Delta.PartialJSON...,
-				)
+				// 跳过 thinking 相关字段（thinking_delta 伴随 input_json_delta 出现，但不属于 tool_use 参数）
+				if !strings.HasPrefix(strings.TrimSpace(event.Delta.PartialJSON), "\"thinking") {
+					currentToolCalls[lastIdx].Function.Arguments = append(
+						currentToolCalls[lastIdx].Function.Arguments,
+						event.Delta.PartialJSON...,
+					)
+				}
 			}
-			// logger().Debugw("input json", "delta", event.Delta, "toolCalls", currentToolCalls)
 		}
 	case "content_block_stop":
 		// 内容块结束
@@ -451,6 +456,7 @@ type anthropicMsg struct {
 type anthropicContentPart struct {
 	Type      string           `json:"type"`
 	Text      string           `json:"text,omitempty"`
+	Thinking  string           `json:"thinking,omitempty"`
 	Source    *anthropicSource `json:"source,omitempty"`
 	ID        string           `json:"id,omitempty"`
 	Name      string           `json:"name,omitempty"`
@@ -496,18 +502,6 @@ func toAnthropicTools(tools []ToolDefinition) ([]anthropicTool, error) {
 func toAnthropicMessages(messages []Message) ([]anthropicMsg, string) {
 	out := make([]anthropicMsg, 0, len(messages))
 	systemParts := make([]string, 0, 1)
-	pendingToolResults := make([]anthropicContentPart, 0)
-
-	flushToolResults := func() {
-		if len(pendingToolResults) == 0 {
-			return
-		}
-		out = append(out, anthropicMsg{
-			Role:    "user",
-			Content: pendingToolResults,
-		})
-		pendingToolResults = pendingToolResults[:0]
-	}
 
 	for _, m := range messages {
 		role := strings.ToLower(strings.TrimSpace(m.Role))
@@ -516,51 +510,104 @@ func toAnthropicMessages(messages []Message) ([]anthropicMsg, string) {
 			if strings.TrimSpace(m.Content) != "" {
 				systemParts = append(systemParts, m.Content)
 			}
+
 		case "tool":
-			pendingToolResults = append(pendingToolResults, anthropicContentPart{
+			// Tool result — 尝试合并到前一个 user message
+			toolResultBlock := anthropicContentPart{
 				Type:      "tool_result",
 				ToolUseID: m.ToolCallID,
 				Content:   m.Content,
+			}
+			if len(out) > 0 {
+				last := &out[len(out)-1]
+				if last.Role == "user" {
+					last.Content = append(last.Content, toolResultBlock)
+					continue
+				}
+			}
+			// 无法合并，创建新的 user message
+			out = append(out, anthropicMsg{
+				Role:    "user",
+				Content: []anthropicContentPart{toolResultBlock},
 			})
-		case "user", "assistant":
-			flushToolResults()
 
-			parts := toAnthropicInputParts(m)
-			if role == "assistant" {
-				for i, tc := range m.ToolCalls {
-					toolID := strings.TrimSpace(tc.ID)
-					if toolID == "" {
-						toolID = fmt.Sprintf("toolu_%d", i+1)
+		case "user":
+			if m.ToolCallID != "" {
+				// Tool result via user message with ToolCallID
+				toolResultBlock := anthropicContentPart{
+					Type:      "tool_result",
+					ToolUseID: m.ToolCallID,
+					Content:   m.Content,
+				}
+				if len(out) > 0 {
+					last := &out[len(out)-1]
+					if last.Role == "user" {
+						last.Content = append(last.Content, toolResultBlock)
+						continue
 					}
-					parts = append(parts, anthropicContentPart{
-						Type:  "tool_use",
-						ID:    toolID,
-						Name:  tc.Function.Name,
-						Input: parseArgsToRawJSON(string(tc.Function.Arguments)),
+				}
+				out = append(out, anthropicMsg{
+					Role:    "user",
+					Content: []anthropicContentPart{toolResultBlock},
+				})
+			} else {
+				// Regular user message
+				parts := toAnthropicInputParts(m)
+				if len(parts) > 0 {
+					out = append(out, anthropicMsg{
+						Role:    "user",
+						Content: parts,
 					})
 				}
 			}
-			if len(parts) > 0 {
+
+		case "assistant":
+			content := toAnthropicInputParts(m)
+			// Add tool_use blocks
+			for i, tc := range m.ToolCalls {
+				toolID := strings.TrimSpace(tc.ID)
+				if toolID == "" {
+					toolID = fmt.Sprintf("toolu_%d", i+1)
+				}
+				content = append(content, anthropicContentPart{
+					Type:  "tool_use",
+					ID:    toolID,
+					Name:  tc.Function.Name,
+					Input: parseArgsToRawJSON(string(tc.Function.Arguments)),
+				})
+			}
+			if len(content) > 0 {
 				out = append(out, anthropicMsg{
-					Role:    role,
-					Content: parts,
+					Role:    "assistant",
+					Content: content,
 				})
 			}
 		}
 	}
-	flushToolResults()
+
 	return out, strings.Join(systemParts, "\n\n")
 }
 
 // toAnthropicInputParts 将 Message 转换为 Anthropic 输入内容块
+// 注意：这个函数不处理 tool_calls，tool_calls 由 toAnthropicMessages 处理
 func toAnthropicInputParts(m Message) []anthropicContentPart {
-	if strings.TrimSpace(m.Content) == "" {
+	if strings.TrimSpace(m.Content) == "" && strings.TrimSpace(m.Thinking) == "" {
 		return nil
 	}
-	return []anthropicContentPart{{
-		Type: "text",
-		Text: m.Content,
-	}}
+	var parts []anthropicContentPart
+	if strings.TrimSpace(m.Content) != "" {
+		parts = append(parts, anthropicContentPart{
+			Type: "text",
+			Text: m.Content,
+		})
+	}
+	if strings.TrimSpace(m.Thinking) != "" {
+		parts = append(parts, anthropicContentPart{
+			Type:     "thinking",
+			Thinking: m.Thinking,
+		})
+	}
+	return parts
 }
 
 // anthropicMessagesEndpoint 构建 Anthropic Messages API 端点

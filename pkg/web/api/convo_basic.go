@@ -105,6 +105,7 @@ type chatResponse struct {
 	toolCalls []llm.ToolCall
 	usage     *llm.Usage
 	finish    llm.FinishReason
+	think     string // reasoning_content for DeepSeek thinking mode
 
 	model    string
 	llmResID string
