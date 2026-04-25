@@ -60,6 +60,7 @@ models:
     oidcat: file
     specNs: Cap
     hooks:
+      beforeDeleting: yes
       afterCreated: yes
       afterUpdated: yes
       afterLoad: yes

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -143,6 +144,12 @@ func (s *capabilityStore) afterListCapability(ctx context.Context, spec *CapCapa
 	return nil
 }
 
+func dbBeforeDeleteCapability(ctx context.Context, db ormDB, obj *capability.Capability) error {
+	_, err := db.NewDelete().Model((*capability.CapabilityVector)(nil)).
+		Where("cap_id = ?", obj.ID).Exec(ctx)
+	return err
+}
+
 func (s *capabilityStore) CountCapability(ctx context.Context) (int, error) {
 	spec := &CapCapabilitySpec{}
 	spec.Limit = -1
@@ -256,6 +263,26 @@ func (s *capabilityStore) ImportCapabilities(ctx context.Context, r io.Reader, l
 				continue
 			}
 
+			// Try to find existing by method+endpoint (unique constraint)
+			existing, err := s.GetCapabilityWith(ctx, method, path)
+			if err != nil && !errors.Is(err, ErrNoRows) {
+				logger().Warnw("check existing fail", "path", path, "method", method, "err", err)
+				continue
+			}
+
+			// Skip APIs tagged with skipai, delete existing if found
+			if slices.Contains(api.Tags, "skipai") {
+				if existing != nil && existing.ID.Valid() {
+					if err := s.DeleteCapability(ctx, existing.StringID()); err != nil {
+						logger().Infow("delete skipai capability fail", "path", path, "method", method, "err", err)
+					} else if lw != nil {
+						fmt.Fprintf(lw, "%s %s [deleted]\n", method, path)
+					}
+				}
+				skipped++
+				continue
+			}
+
 			basic := capability.CapabilityBasic{
 				OperationID: api.OperationID,
 				Endpoint:    path,
@@ -278,13 +305,6 @@ func (s *capabilityStore) ImportCapabilities(ctx context.Context, r io.Reader, l
 					fmt.Fprintf(lw, "%s %s [skipped: empty subject]\n", method, path)
 				}
 				skipped++
-				continue
-			}
-
-			// Try to find existing by method+endpoint (unique constraint)
-			existing, err := s.GetCapabilityWith(ctx, method, path)
-			if err != nil && !errors.Is(err, ErrNoRows) {
-				logger().Warnw("check existing fail", "path", path, "method", method, "err", err)
 				continue
 			}
 

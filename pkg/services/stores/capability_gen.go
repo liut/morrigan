@@ -109,7 +109,16 @@ func (s *capabilityStore) UpdateCapability(ctx context.Context, id string, in ca
 }
 func (s *capabilityStore) DeleteCapability(ctx context.Context, id string) error {
 	obj := new(capability.Capability)
-	return s.w.db.DeleteModel(ctx, obj, id)
+	if err := dbGetWithPKID(ctx, s.w.db, obj, id); err != nil {
+		return err
+	}
+	return s.w.db.RunInTx(ctx, nil, func(ctx context.Context, tx pgTx) (err error) {
+		if err = dbBeforeDeleteCapability(ctx, tx, obj); err != nil {
+			return
+		}
+		err = dbDeleteM(ctx, tx, s.w.db.Schema(), s.w.db.SchemaCrap(), obj)
+		return
+	})
 }
 
 func (s *capabilityStore) ListCapabilityVector(ctx context.Context, spec *CapCapabilityVectorSpec) (data capability.CapabilityVectors, total int, err error) {
