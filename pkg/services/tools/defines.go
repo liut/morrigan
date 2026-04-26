@@ -208,8 +208,8 @@ var (
 				},
 				"limit": map[string]any{
 					"type":        "integer",
-					"description": "Max results to return (default: 5)",
-					"default":     5,
+					"description": "Max results to return (default: 6)",
+					"default":     6,
 					"minimum":     1,
 					"maximum":     10,
 				},

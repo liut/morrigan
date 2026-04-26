@@ -350,7 +350,7 @@ func (s *capabilityStore) InvokerForMatch() mcps.Invoker {
 			return mcps.BuildToolErrorResult("missing required argument: intent"), nil
 		}
 
-		limit := 5
+		limit := 6
 		if l, ok := args["limit"].(float64); ok {
 			limit = int(l)
 		}
