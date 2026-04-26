@@ -113,7 +113,7 @@ models:
       - comment: 是否必填
         name: Required
         type: bool
-        tags: {json: 'required', yaml: 'required'}
+        tags: {json: 'required,omitempty', yaml: 'required'}
       - comment: 参数示例
         name: Example
         type: string

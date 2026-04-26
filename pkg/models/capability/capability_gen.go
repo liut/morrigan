@@ -255,7 +255,7 @@ type SwaggerParam struct {
 	// 参数位置 header/query/body/path
 	In string `extensions:"x-order=D" form:"in" json:"in" yaml:"in"`
 	// 是否必填
-	Required bool `extensions:"x-order=E" form:"required" json:"required" yaml:"required"`
+	Required bool `extensions:"x-order=E" form:"required" json:"required,omitempty" yaml:"required"`
 	// 参数示例
 	Example string `extensions:"x-order=F" form:"example" json:"example,omitempty" yaml:"example"`
 	// schema 定义
