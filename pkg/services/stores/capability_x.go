@@ -416,20 +416,21 @@ func (s *capabilityStore) InvokerForInvoke(invoker *CapabilityInvoker) mcps.Invo
 		}
 		defer resp.Body.Close()
 
+		result := map[string]any{}
+
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		if err != nil {
+			return mcps.BuildToolErrorResult(err.Error()), nil
+		}
+
 		if resp.StatusCode >= 400 {
+			logger().Infow("invoked", method, endpoint, "status", resp.StatusCode, "result", result)
 			if resp.StatusCode == 403 {
 				return mcps.BuildToolErrorResult("Permission denied: no access to this API"), nil
 			}
 			return mcps.BuildToolErrorResult(
 				fmt.Sprintf("HTTP error %d: %s", resp.StatusCode, resp.Status),
 			), nil
-		}
-
-		result := map[string]any{}
-
-		err = json.NewDecoder(resp.Body).Decode(&result)
-		if err != nil {
-			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
 		logger().Debugw("invoked", method, endpoint, "result", result)
 
