@@ -269,17 +269,17 @@ func TestBuildToolSuccessResult(t *testing.T) {
 		{
 			name:       "string",
 			structured: "hello",
-			wantKeys:   []string{"content", "structuredContent"},
+			wantKeys:   []string{"content"},
 		},
 		{
 			name:       "map",
 			structured: map[string]any{"key": "value"},
-			wantKeys:   []string{"content", "structuredContent"},
+			wantKeys:   []string{"structuredContent"},
 		},
 		{
 			name:       "empty string",
 			structured: "",
-			wantKeys:   []string{"structuredContent"}, // empty string adds structuredContent but not content
+			wantKeys:   []string{"content"},
 		},
 	}
 
