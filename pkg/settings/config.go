@@ -72,8 +72,8 @@ type Config struct {
 }
 
 type Provider struct {
-	APIKey string `envconfig:"Api_Key" required:"true"`
-	URL    string `envconfig:"url" required:"true"`
+	APIKey string `envconfig:"Api_Key" `
+	URL    string `envconfig:"url" `
 	Model  string `envconfig:"MODEL" required:"true"`
 	Type   string `envconfig:"type" default:"openai" desc:"provider type: openai, anthropic, openrouter, ollama"`
 	Debug  bool   `envconfig:"debug" desc:"enable debug mode for this provider"`
@@ -99,6 +99,16 @@ func init() {
 
 	Current.Name = Name
 	Current.Version = version
+
+	validateProvider("Embedding", &Current.Embedding)
+	validateProvider("Interact", &Current.Interact)
+	validateProvider("Summarize", &Current.Summarize)
+}
+
+func validateProvider(name string, p *Provider) {
+	if p.APIKey == "" && p.URL == "" {
+		log.Fatalf("[config] %s provider: API_KEY and URL cannot both be empty", name)
+	}
 }
 
 // Usage 打印配置帮助

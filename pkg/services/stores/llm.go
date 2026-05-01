@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/liut/morign/pkg/models/aigc"
 	"github.com/liut/morign/pkg/services/llm"
@@ -19,17 +20,17 @@ const (
 
 var (
 	// 新的 LLM Clients - 按用途分离
-	llmEm llm.Client // for Embedding
-	llmIt llm.Client // for Interact (chat)
-	llmSu llm.Client // for Summarize/Completion
+	llmEm   llm.Client // for Embedding
+	llmIt   llm.Client // for Interact (chat)
+	llmSu   llm.Client // for Summarize/Completion
+
+	llmOnce sync.Once
 )
 
-func init() {
-	// 初始化新的 llm clients
+func initLLMClients() {
 	var err error
 
-	// Embedding Client
-	llmEmPtr, err := llm.NewClient(
+	llmEm, err = llm.NewClient(
 		llm.WithProvider(settings.Current.Embedding.Type),
 		llm.WithAPIKey(settings.Current.Embedding.APIKey),
 		llm.WithBaseURL(settings.Current.Embedding.URL),
@@ -40,10 +41,8 @@ func init() {
 	if err != nil {
 		logger().Fatalw("create llm embedding client failed", "err", err)
 	}
-	llmEm = llmEmPtr
 
-	// Interact Client (chat)
-	llmItPtr, err := llm.NewClient(
+	llmIt, err = llm.NewClient(
 		llm.WithProvider(settings.Current.Interact.Type),
 		llm.WithAPIKey(settings.Current.Interact.APIKey),
 		llm.WithBaseURL(settings.Current.Interact.URL),
@@ -54,10 +53,8 @@ func init() {
 	if err != nil {
 		logger().Fatalw("create llm interact client failed", "err", err)
 	}
-	llmIt = llmItPtr
 
-	// Summarize/Completion Client (共用)
-	llmSuPtr, err := llm.NewClient(
+	llmSu, err = llm.NewClient(
 		llm.WithProvider(settings.Current.Summarize.Type),
 		llm.WithAPIKey(settings.Current.Summarize.APIKey),
 		llm.WithBaseURL(settings.Current.Summarize.URL),
@@ -68,21 +65,23 @@ func init() {
 	if err != nil {
 		logger().Fatalw("create llm summarize client failed", "err", err)
 	}
-	llmSu = llmSuPtr
 }
 
 // GetLLMClient 获取 LLM Client (默认 Interact)
 func GetLLMClient() llm.Client {
+	llmOnce.Do(initLLMClients)
 	return llmIt
 }
 
 // GetLLMEmbeddingClient 获取 Embedding 用 LLM Client
 func GetLLMEmbeddingClient() llm.Client {
+	llmOnce.Do(initLLMClients)
 	return llmEm
 }
 
 // GetLLMSummarizeClient 获取 Summarize/Completion 用 LLM Client
 func GetLLMSummarizeClient() llm.Client {
+	llmOnce.Do(initLLMClients)
 	return llmSu
 }
 

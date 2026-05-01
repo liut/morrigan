@@ -403,6 +403,7 @@ func (p *openAIProvider) doChatRequest(ctx context.Context, cfg *config, message
 func buildEndpoint(baseURL, path string) string {
 	base := strings.TrimRight(baseURL, "/")
 	if base == "" {
+		logger().Infow("empty baseURL")
 		base = "https://api.openai.com/v1"
 	}
 	// 避免重复添加 /v1
