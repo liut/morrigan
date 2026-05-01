@@ -28,6 +28,10 @@ var (
 )
 
 func initLLMClients() {
+	validateProvider("Embedding", &settings.Current.Embedding)
+	validateProvider("Interact", &settings.Current.Interact)
+	validateProvider("Summarize", &settings.Current.Summarize)
+
 	var err error
 
 	llmEm, err = llm.NewClient(
@@ -64,6 +68,12 @@ func initLLMClients() {
 	)
 	if err != nil {
 		logger().Fatalw("create llm summarize client failed", "err", err)
+	}
+}
+
+func validateProvider(name string, p *settings.Provider) {
+	if p.APIKey == "" && p.URL == "" {
+		logger().Fatalw("provider config invalid: API_KEY and URL cannot both be empty", "provider", name)
 	}
 }
 

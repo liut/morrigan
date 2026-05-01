@@ -99,16 +99,6 @@ func init() {
 
 	Current.Name = Name
 	Current.Version = version
-
-	validateProvider("Embedding", &Current.Embedding)
-	validateProvider("Interact", &Current.Interact)
-	validateProvider("Summarize", &Current.Summarize)
-}
-
-func validateProvider(name string, p *Provider) {
-	if p.APIKey == "" && p.URL == "" {
-		log.Fatalf("[config] %s provider: API_KEY and URL cannot both be empty", name)
-	}
 }
 
 // Usage 打印配置帮助
