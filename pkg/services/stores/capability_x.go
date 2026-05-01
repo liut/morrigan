@@ -432,7 +432,7 @@ func (s *capabilityStore) InvokerForInvoke(invoker *CapabilityInvoker) mcps.Invo
 				fmt.Sprintf("HTTP error %d: %s", resp.StatusCode, resp.Status),
 			), nil
 		}
-		logger().Debugw("invoked", method, endpoint, "result", result)
+		logger().Debugw("invoked", method, endpoint, "response", result)
 
 		resultKey := settings.Current.BusResult
 		if len(resultKey) > 0 {
