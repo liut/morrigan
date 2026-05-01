@@ -196,7 +196,7 @@ func GetEmbedding(ctx context.Context, text string) (vec corpus.Vector, err erro
 	}
 
 	// 使用 embedding client
-	embedding, err := llmEm.Embedding(ctx, []string{text})
+	embedding, err := GetLLMEmbeddingClient().Embedding(ctx, []string{text})
 	if err != nil {
 		logger().Infow("embedding fail", "text", text, "err", err)
 		return
