@@ -269,7 +269,9 @@ func (s *capabilityStore) ImportCapabilities(ctx context.Context, r io.Reader, l
 			}
 
 			// Skip APIs tagged with skipai, delete existing if found
-			if slices.Contains(api.Tags, "skipai") {
+			if slices.ContainsFunc(api.Tags, func(s string) bool {
+				return s == "skipai" || s == "skipAI"
+			}) {
 				if existing != nil && existing.ID.Valid() {
 					if err := s.DeleteCapability(ctx, existing.StringID()); err != nil {
 						logger().Infow("delete skipai capability fail", "path", path, "method", method, "err", err)
