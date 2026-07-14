@@ -2,6 +2,7 @@
 depends:
   comm: 'github.com/cupogo/andvari/models/comm'
   oid: 'github.com/cupogo/andvari/models/oid'
+  time: 'time'
 
 enums:
 
@@ -225,6 +226,32 @@ models:
         name: Content
         type: string
         tags: {json: 'content', pg: ',notnull,type:text'}
+        isset: true
+      - comment: 分层  (working/short-term/long-term)
+        name: Tier
+        type: string
+        tags: {json: 'tier', pg: ',notnull,type:text,default:working'}
+        isset: true
+        query: 'match'
+      - comment: 重要性评分  (0-1)
+        name: ImportanceScore
+        type: float64
+        tags: {json: 'importanceScore', pg: 'importance_score,notnull,type:float,default:0.5'}
+        isset: true
+      - comment: 最近访问时间
+        name: LastAccessedAt
+        type: "time.Time"
+        tags: {json: 'lastAccessedAt', pg: 'last_accessed_at,notnull,type:timestamptz,default:now()'}
+        isset: true
+      - comment: 访问计数
+        name: AccessCount
+        type: int
+        tags: {json: 'accessCount', pg: 'access_count,notnull,type:int,default:0'}
+        isset: true
+      - comment: 衰减率
+        name: DecayRate
+        type: float64
+        tags: {json: 'decayRate', pg: 'decay_rate,notnull,type:float,default:1.0'}
         isset: true
       - type: comm.MetaField
     oidcat: event

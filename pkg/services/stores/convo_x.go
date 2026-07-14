@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/spf13/cast"
@@ -11,6 +12,7 @@ import (
 	"github.com/liut/morign/pkg/models/convo"
 	"github.com/liut/morign/pkg/models/corpus"
 	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/settings"
 )
 
 // ConvoStoreX is the conversation storage extension interface
@@ -241,12 +243,58 @@ func (s *convoStore) MatchMemories(ctx context.Context, ms MatchSpec) (data conv
 
 	logger().Infow("matched memories", "count", len(ps))
 
-	// Fetch memories by IDs
-	spec := &ConvoMemorySpec{IsFull: true}
-	spec.IDs = ps.DocumentIDs()
-	err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
+	// Load decay metadata for composite re-ranking
+	memoryIDs := ps.DocumentIDs()
+	decayMetas, loadErr := s.loadDecayMetas(ctx, memoryIDs)
+	if loadErr != nil {
+		logger().Infow("load decay metas fail", "err", loadErr)
+	}
+
+	if len(decayMetas) > 0 {
+		// Re-rank by composite score
+		type scoredID struct {
+			id    oid.OID
+			score float64
+		}
+		metaByID := make(map[oid.OID]convo.MemoryDecayMeta, len(decayMetas))
+		for _, m := range decayMetas {
+			metaByID[m.ID] = m
+		}
+
+		scored := make([]scoredID, 0, len(ps))
+		for _, m := range ps {
+			meta, ok := metaByID[m.DocID]
+			if !ok {
+				scored = append(scored, scoredID{id: m.DocID, score: float64(m.Similarity)})
+				continue
+			}
+			r := convo.CalcRetention(meta.LastAccessedAt, meta.DecayRate)
+			fm := convo.ForgottenMultiplier(r, settings.Current.MemoryForgetThreshold)
+			scored = append(scored, scoredID{id: m.DocID, score: float64(m.Similarity) * r * fm})
+		}
+
+		sort.Slice(scored, func(i, j int) bool { return scored[i].score > scored[j].score })
+
+		limit := ms.Limit
+		if limit > len(scored) {
+			limit = len(scored)
+		}
+		topIDs := make(oid.OIDs, limit)
+		for i := 0; i < limit; i++ {
+			topIDs[i] = scored[i].id
+		}
+
+		spec := &ConvoMemorySpec{IsFull: true}
+		spec.IDs = topIDs
+		err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
+	} else {
+		// Fallback: fetch by original vector order
+		spec := &ConvoMemorySpec{IsFull: true}
+		spec.IDs = ps.DocumentIDs()
+		err = queryList(ctx, s.w.db, spec, &data).Scan(ctx)
+	}
 	if err != nil {
-		logger().Infow("list memories fail", "spec", spec, "err", err)
+		logger().Infow("list memories fail", "err", err)
 	}
 	return
 }
@@ -316,6 +364,11 @@ func (s *convoStore) InvokerForMemoryList() mcps.Invoker {
 		}
 		spec.IsFull = includeContent
 
+		// Support tier filtering
+		if tier, ok := args["tier"]; ok {
+			spec.Tier = cast.ToString(tier)
+		}
+
 		data, err := s.ListMyMomory(ctx, spec)
 		if err != nil {
 			return mcps.BuildToolErrorResult(err.Error()), nil
@@ -328,6 +381,7 @@ func (s *convoStore) InvokerForMemoryList() mcps.Invoker {
 			item := map[string]any{
 				"key":      m.Key,
 				"category": m.Cate,
+				"tier":     m.Tier,
 			}
 			if includeContent {
 				item["content"] = m.Content
@@ -375,7 +429,13 @@ func (s *convoStore) InvokerForMemoryRecall() mcps.Invoker {
 				"key":      m.Key,
 				"category": m.Cate,
 				"content":  m.Content,
+				"tier":     m.Tier,
 			})
+		}
+
+		// Reinforce accessed memories (best-effort, don't block results)
+		for _, m := range data {
+			s.reinforceMemory(ctx, m)
 		}
 
 		return mcps.BuildToolSuccessResult(results), nil
@@ -424,11 +484,22 @@ func (s *convoStore) InvokerForMemoryStore() mcps.Invoker {
 			}), nil
 		}
 
-		// Create new
+		// Create new with tier routing
+		importanceScore := convo.EvaluateImportance(content)
+		tier := convo.RouteTier(importanceScore,
+			settings.Current.MemoryLongTermThreshold,
+			settings.Current.MemoryShortTermThreshold)
+		dr := convo.TierDecayRate(tier)
+		now := time.Now()
+
 		mb := convo.MemoryBasic{
-			Key:     key,
-			Cate:    category,
-			Content: content,
+			Key:             key,
+			Cate:            category,
+			Content:         content,
+			Tier:            tier,
+			ImportanceScore: importanceScore,
+			DecayRate:       dr,
+			LastAccessedAt:  now,
 		}
 		mb.SetOwnerID(user.OID)
 		obj, err := s.CreateMemory(ctx, mb)
@@ -437,10 +508,12 @@ func (s *convoStore) InvokerForMemoryStore() mcps.Invoker {
 		}
 
 		return mcps.BuildToolSuccessResult(map[string]any{
-			"action":    "created",
-			"key":       key,
-			"category":  category,
-			"memory_id": obj.StringID(),
+			"action":     "created",
+			"key":        key,
+			"category":   category,
+			"memory_id":  obj.StringID(),
+			"tier":       tier,
+			"importance": importanceScore,
 		}), nil
 	}
 }
@@ -462,6 +535,12 @@ func (s *convoStore) InvokerForMemoryForget() mcps.Invoker {
 			}), nil
 		}
 
+		// Clean up vector entry
+		if _, err := s.w.db.NewDelete().Model((*corpus.DocVector)(nil)).
+			Where("doc_id = ?", existing.ID).Exec(ctx); err != nil {
+			logger().Infow("delete memory vector fail", "id", existing.ID, "err", err)
+		}
+
 		if err := s.DeleteMemory(ctx, existing.StringID()); err != nil {
 			return mcps.BuildToolErrorResult(err.Error()), nil
 		}
@@ -470,5 +549,54 @@ func (s *convoStore) InvokerForMemoryForget() mcps.Invoker {
 			"action": "deleted",
 			"key":    key,
 		}), nil
+	}
+}
+
+// loadDecayMetas loads decay metadata for a set of memory IDs.
+func (s *convoStore) loadDecayMetas(ctx context.Context, ids oid.OIDs) ([]convo.MemoryDecayMeta, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var metas []convo.MemoryDecayMeta
+	err := s.w.db.NewSelect().
+		Table("convo_memory").
+		Column("id", "tier", "decay_rate", "last_accessed_at").
+		Where("id IN (?)", ids).
+		Scan(ctx, &metas)
+	if err != nil {
+		return nil, err
+	}
+	return metas, nil
+}
+
+// reinforceMemory updates access stats and checks tier promotion for a recalled memory.
+func (s *convoStore) reinforceMemory(ctx context.Context, m convo.Memory) {
+	now := time.Now()
+	accessCount := m.AccessCount + 1
+
+	// Calculate new retention
+	factor := settings.Current.MemoryReinforceFactor
+	r := convo.CalcRetention(m.LastAccessedAt, m.DecayRate)
+	rNew := convo.CalcReinforce(r, factor)
+
+	// Check tier promotion
+	newTier := convo.PromoteTier(m.Tier, accessCount,
+		settings.Current.MemoryPromoteW2S,
+		settings.Current.MemoryPromoteS2L)
+	if newTier != "" {
+		m.Tier = newTier
+		m.DecayRate = convo.TierDecayRate(newTier)
+		m.LastAccessedAt = now
+	} else {
+		m.LastAccessedAt = now
+	}
+
+	m.AccessCount = accessCount
+	_ = rNew // reinforced retention stored implicitly via last_accessed_at update
+
+	m.SetIsUpdate(true)
+	dbMetaUp(ctx, s.w.db, &m)
+	if err := dbUpdate(ctx, s.w.db, &m); err != nil {
+		logger().Infow("reinforce memory fail", "id", m.ID, "err", err)
 	}
 }

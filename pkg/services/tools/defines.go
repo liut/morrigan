@@ -127,6 +127,11 @@ var (
 					"description": "Include content preview (default: true)",
 					"default":     true,
 				},
+				"tier": map[string]any{
+					"type":        "string",
+					"description": "Optional tier filter (working, short-term, long-term)",
+					"enum":        []string{"working", "short-term", "long-term"},
+				},
 			},
 		},
 	}
@@ -134,7 +139,7 @@ var (
 	// memoryRecallDescriptor 记忆召回工具描述
 	memoryRecallDescriptor = mcps.ToolDescriptor{
 		Name:        ToolNameMemoryRecall,
-		Description: "Search long-term memory for relevant facts, preferences, or context.",
+		Description: "Search long-term memory for relevant facts, preferences, or context. Results include a tier field (working/short-term/long-term) indicating memory importance.",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

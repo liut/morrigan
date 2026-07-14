@@ -70,6 +70,14 @@ type Config struct {
 	// LLM调用循环次数限制，防止无限循环
 	MaxLoopIterations int `envconfig:"MAX_LOOP_ITERATIONS" default:"12"`
 
+	// Memory tier decay configuration
+	MemoryLongTermThreshold  float64 `envconfig:"MEMORY_LONG_TERM_THRESHOLD" default:"0.8"`
+	MemoryShortTermThreshold float64 `envconfig:"MEMORY_SHORT_TERM_THRESHOLD" default:"0.6"`
+	MemoryReinforceFactor    float64 `envconfig:"MEMORY_REINFORCE_FACTOR" default:"0.3"`
+	MemoryForgetThreshold    float64 `envconfig:"MEMORY_FORGET_THRESHOLD" default:"0.05"`
+	MemoryPromoteW2S         int     `envconfig:"MEMORY_PROMOTE_W2S" default:"3"`
+	MemoryPromoteS2L         int     `envconfig:"MEMORY_PROMOTE_S2L" default:"10"`
+
 	Embedding Provider
 	Interact  Provider
 	Summarize Provider

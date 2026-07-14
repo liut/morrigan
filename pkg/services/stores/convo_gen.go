@@ -155,10 +155,12 @@ type ConvoMemorySpec struct {
 	Key string `extensions:"x-order=B" form:"key" json:"key"`
 	// 分类
 	Cate string `extensions:"x-order=C" form:"cate" json:"cate"`
+	// 分层  (working/short-term/long-term)
+	Tier string `extensions:"x-order=D" form:"tier" json:"tier"`
 	// 查全部（含内容）
-	IsFull bool `extensions:"x-order=D" form:"full" json:"full"`
+	IsFull bool `extensions:"x-order=E" form:"full" json:"full"`
 	// 只查询自己的
-	IsOwner bool `extensions:"x-order=E" form:"own" json:"own"`
+	IsOwner bool `extensions:"x-order=F" form:"own" json:"own"`
 }
 
 func (spec *ConvoMemorySpec) Sift(q *ormQuery) *ormQuery {
@@ -166,6 +168,7 @@ func (spec *ConvoMemorySpec) Sift(q *ormQuery) *ormQuery {
 	q, _ = siftOID(q, "owner_id", spec.OwnerID, false)
 	q, _ = siftMatch(q, "key", spec.Key, false)
 	q, _ = siftMatch(q, "cate", spec.Cate, false)
+	q, _ = siftMatch(q, "tier", spec.Tier, false)
 
 	return q
 }

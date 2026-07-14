@@ -50,7 +50,7 @@ func init() {
 }
 
 // @Tags 默认 文档生成
-// @Summary 列出会话
+// @Summary 查询 会话 列表
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -79,7 +79,7 @@ func (a *api) getConvoSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 获取会话
+// @Summary 获取 会话 详情
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -105,7 +105,7 @@ func (a *api) getConvoSession(w http.ResponseWriter, r *http.Request) {
 
 // @Tags 默认 文档生成
 // @ID convo-sessions-id-delete
-// @Summary 删除会话 🔑
+// @Summary 删除 会话 🔑
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -128,7 +128,7 @@ func (a *api) deleteConvoSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 列出消息
+// @Summary 查询 消息 列表
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -157,7 +157,7 @@ func (a *api) getConvoMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 获取消息
+// @Summary 获取 消息 详情
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -183,7 +183,7 @@ func (a *api) getConvoMessage(w http.ResponseWriter, r *http.Request) {
 
 // @Tags 默认 文档生成
 // @ID convo-messages-id-delete
-// @Summary 删除消息 🔑
+// @Summary 删除 消息 🔑
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -206,7 +206,8 @@ func (a *api) deleteConvoMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 列出用户
+// @Description <sortable>id,created,updated,email</sortable>
+// @Summary 查询 用户 列表
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -235,7 +236,7 @@ func (a *api) getConvoUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 获取用户
+// @Summary 获取 用户 详情
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -261,7 +262,7 @@ func (a *api) getConvoUser(w http.ResponseWriter, r *http.Request) {
 
 // @Tags 默认 文档生成
 // @ID convo-users-id-delete
-// @Summary 删除用户 🔑
+// @Summary 删除 用户 🔑
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -284,7 +285,7 @@ func (a *api) deleteConvoUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 列出使用情况
+// @Summary 查询 使用情况 列表
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -313,7 +314,7 @@ func (a *api) getConvoUsageRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Tags 默认 文档生成
-// @Summary 获取使用情况
+// @Summary 获取 使用情况 详情
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
@@ -339,7 +340,7 @@ func (a *api) getConvoUsageRecord(w http.ResponseWriter, r *http.Request) {
 
 // @Tags 默认 文档生成
 // @ID convo-usagerecords-id-delete
-// @Summary 删除使用情况 🔑
+// @Summary 删除 使用情况 🔑
 // @Accept json
 // @Produce json
 // @Param token    header   string  true "登录票据凭证"
