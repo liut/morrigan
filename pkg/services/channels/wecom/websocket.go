@@ -275,7 +275,7 @@ func (p *WSChannel) handleFrame(frame wsFrame) {
 	case "ping", "":
 		// pong response: cmd can be "ping" or "" depending on server version
 		p.missedPong.Store(0)
-		slog.Debug("wecom-ws: heartbeat ack received", "cmd", frame.Cmd, "req_id", frame.Headers.ReqID)
+		// slog.Debug("wecom-ws: heartbeat ack received", "cmd", frame.Cmd, "req_id", frame.Headers.ReqID)
 	case "aibot_subscribe":
 		slog.Debug("wecom-ws: late subscribe ack", "req_id", frame.Headers.ReqID)
 	default:
@@ -315,7 +315,7 @@ func (p *WSChannel) heartbeat(ctx context.Context, conn *websocket.Conn) {
 				slog.Warn("wecom-ws: ping failed", "error", err)
 				return
 			}
-			slog.Debug("wecom-ws: ping sent", "missed_pong", p.missedPong.Load())
+			// slog.Debug("wecom-ws: ping sent", "missed_pong", p.missedPong.Load())
 		}
 	}
 }
@@ -448,7 +448,7 @@ func (p *WSChannel) AppendStream(ctx context.Context, rctx any, streamID string,
 		slog.Warn("wecom-ws: append stream failed", "user", rc.userID, "streamID", streamID, "error", err)
 		return err
 	}
-	slog.Debug("wecom-ws: stream appended", "user", rc.userID, "streamID", streamID, "len", len(content))
+	// slog.Debug("wecom-ws: stream appended", "user", rc.userID, "streamID", streamID, "len", len(content))
 	return nil
 }
 
