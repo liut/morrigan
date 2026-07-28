@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.8.0 (2026-07-28)
+
+### 新功能
+
+- **Channel**: 新增 token fallback 机制 — 频道用户（企业微信/飞书）未登录 Web 前端时，通过 aurora 内部 API 自动获取 token，确保 API 调用携带 Authorization header
+
+### Bug 修复
+
+- **LLM**: 修复翻译后的错误消息未传递到 fallback 回复的问题，并处理 overloaded 错误状态
+
+### 重构
+
+- **Agent**: 提取 AgentLoop，新增并行工具执行和 terminate 支持 (#24)
+- **Agent**: 将 Agent 类型从 `pkg/web/api` 移至 `pkg/services/agent`，消除 AgentLoop 职责重叠
+- **Lint**: 新增 `.golangci.yml` 配置，修复存量 lint 问题（errcheck、staticcheck 等）
+- **CI**: 升级 golangci-lint 至 v2，同步更新 CI action 至 v7
+
+### 维护
+
+- 抑制企业微信 WebSocket 高频心跳/流式调试日志，减少生产环境日志噪音
+
+---
+
 ## v0.7.0 (2026-06-04)
 
 ### 新功能
