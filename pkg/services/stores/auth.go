@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	tokenExpire = time.Hour * 24
+	TokenExpire = time.Hour * 24
 )
 
 func tokenUserKey(token string) string {
@@ -87,7 +87,7 @@ func SaveUserWithToken(ctx context.Context, user Encoder, token string) error {
 		return err
 	}
 	key := tokenUserKey(token)
-	if err := SgtRC().Set(ctx, key, s, tokenExpire).Err(); err != nil {
+	if err := SgtRC().Set(ctx, key, s, TokenExpire).Err(); err != nil {
 		logger().Infow("save user to redis failed", "key", key, "err", err)
 		return err
 	}
@@ -121,11 +121,15 @@ func DeleteUserToken(ctx context.Context, token string) error {
 }
 
 func SaveTokenWithUser(ctx context.Context, id, token string) error {
+	return SaveTokenWithExpiry(ctx, id, token, TokenExpire)
+}
+
+func SaveTokenWithExpiry(ctx context.Context, id, token string, expiry time.Duration) error {
 	if len(id) == 0 || len(token) == 0 {
 		return fmt.Errorf("empty id or token")
 	}
 	key := userTokenKey(id)
-	if err := SgtRC().Set(ctx, key, token, tokenExpire).Err(); err != nil {
+	if err := SgtRC().Set(ctx, key, token, expiry).Err(); err != nil {
 		logger().Infow("save token to redis failed", "key", key, "err", err)
 		return err
 	}

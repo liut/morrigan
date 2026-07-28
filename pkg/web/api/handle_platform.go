@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/liut/morign/pkg/services/channels"
 	"github.com/liut/morign/pkg/services/channels/feishu"
 	"github.com/liut/morign/pkg/services/channels/wecom"
+	"github.com/liut/morign/pkg/services/clients"
 	"github.com/liut/morign/pkg/services/llm"
 	"github.com/liut/morign/pkg/services/runner"
 	"github.com/liut/morign/pkg/services/stores"
@@ -133,6 +135,18 @@ func (chh *channelHandler) MessageHandler(p channel.Channel, msg *channel.Messag
 		ctx = ContextWithUser(ctx, user)
 		if token, err := stores.LoadTokenWithUser(ctx, user.StringID()); err == nil {
 			ctx = stores.OAuthContextWithToken(ctx, token)
+		} else if tok, exp, ferr := clients.IssueToken(ctx, user.StringID()); ferr == nil {
+			// Fallback: 从 aurora 获取 token 并缓存
+			ttl := time.Duration(exp) * time.Second
+			if ttl <= 0 {
+				logger().Warnw("token fallback: invalid expiresIn, using default", "userID", user.StringID(), "expiresIn", exp)
+				ttl = stores.TokenExpire
+			}
+			_ = stores.SaveTokenWithExpiry(ctx, user.StringID(), tok, ttl)
+			ctx = stores.OAuthContextWithToken(ctx, tok)
+			logger().Infow("token fallback from aurora", "userID", user.StringID())
+		} else {
+			logger().Warnw("token fallback failed", "userID", user.StringID(), "err", ferr)
 		}
 	} else {
 		logger().Infow("not found user", "userID", msg.UserID, "err", err)

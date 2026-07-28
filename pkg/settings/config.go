@@ -40,6 +40,10 @@ type Config struct {
 	BusPrefix string `envconfig:"Bus_Prefix" desc:"Prefix for Bus API"`
 	BusResult string `envconfig:"Bus_Result" default:"result"`
 
+	// OAuthInternalURL is the base URL for aurora internal API calls
+	OAuthInternalURL string `envconfig:"OAUTH_INTERNAL_URL" desc:"aurora internal API base URL, e.g. http://aurora:3560/api/intra"`
+	ServiceAuthKey    string `envconfig:"SERVICE_AUTH_KEY" desc:"pre-shared key for aurora internal service calls"`
+
 	SitePathMe   string `envconfig:"Site_Path_Me" desc:"OAuth SP Path of /api/me in whole site"`
 	SiteTokenKey string `envconfig:"Site_Token_Key" default:"token" desc:"token key in whole site"`
 
