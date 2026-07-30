@@ -230,7 +230,7 @@ models:
       - comment: 分层  (working/short-term/long-term)
         name: Tier
         type: string
-        tags: {json: 'tier', pg: ',notnull,type:text,default:working'}
+        tags: {json: 'tier', pg: ",notnull,type:text,default:'working'"}
         isset: true
         query: 'match'
       - comment: 重要性评分  (0-1)

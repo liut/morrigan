@@ -581,7 +581,7 @@ type MemoryBasic struct {
 	// 内容
 	Content string `bun:",notnull,type:text" extensions:"x-order=D" form:"content" json:"content" pg:",notnull,type:text"`
 	// 分层  (working/short-term/long-term)
-	Tier string `bun:",notnull,type:text,default:working" extensions:"x-order=E" form:"tier" json:"tier" pg:",notnull,type:text,default:working"`
+	Tier string `bun:",notnull,type:text,default:'working'" extensions:"x-order=E" form:"tier" json:"tier" pg:",notnull,type:text,default:'working'"`
 	// 重要性评分  (0-1)
 	ImportanceScore float64 `bun:"importance_score,notnull,type:float,default:0.5" extensions:"x-order=F" json:"importanceScore" pg:"importance_score,notnull,type:float,default:0.5"`
 	// 最近访问时间
