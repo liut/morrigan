@@ -24,7 +24,7 @@ origin: docs/brainstorms/2026-07-04-memory-tier-decay-requirements.md
 
 **Origin actors:** A1 (LLM Agent), A2 (Memory Engine), A3 (终端用户)
 **Origin flows:** F1 (记忆写入与自动分层), F2 (衰减检索与重排), F3 (访问强化与晋升), F4 (系统提示注入——第一阶段不变)
-**Origin acceptance examples:** AE1 (long-term 分配), AE2 (working 分配), AE3 (衰减排序差异), AE4 (强化计算), AE5 (遗忘淡出), AE6 (向量清理)
+**Origin acceptance examples:** AE1 (long-term 分配), AE2 (working 分配), AE3 (衰减排序差异), AE4 (时钟重置强化), AE5 (遗忘淡出), AE6 (向量清理)
 
 ### 数据模型
 
@@ -48,9 +48,9 @@ origin: docs/brainstorms/2026-07-04-memory-tier-decay-requirements.md
 
 ### 强化与晋升
 
-- R12. 检索命中时 `R_new = min(1.0, R + F × (1 - R))`，更新 last_accessed_at 和 access_count
+- R12. 检索命中时更新 last_accessed_at（时钟重置，下次 CalcRetention 得 R≈1.0）和 access_count
 - R13. access_count 达阈值时自动晋升 tier
-- R14. 晋升阈值和强化因子 F 可配置
+- R14. 晋升阈值可配置
 
 ### 系统提示注入
 
@@ -110,7 +110,7 @@ origin: docs/brainstorms/2026-07-04-memory-tier-decay-requirements.md
 - **字段新增走 codegen 流程**: 编辑 `docs/convo.yaml` Memory 模型定义 → `make codegen` 重新生成 `convo_gen.go`。若 codegen 工具不可用，备选方案是手动添加字段到 `convo_gen.go`（一次性例外）并创建迁移 SQL
 - **衰减重排插入 MatchMemories 中段**: `MatchVectorWith` 返回 `DocMatches`（含 similarity）→ 计算 composite score → 重排 → 再取完整记录。不修改 `MatchVectorWith` 或 `DocMatch` 类型，避免影响知识库检索路径
 - **重要性评估为纯函数**: `evaluateImportance(text string) float64`，无副作用，独立可测。便于后续替换为 LLM 评估器
-- **强化与晋升在 InvokerForMemoryRecall 中触发**: 检索返回结果后同步更新 `last_accessed_at`/`access_count`/`tier`。同步更新保证原子性，且记忆表写入量极低
+- **强化通过时钟重置实现，不使用 CalcReinforce**: Retention 是 `last_accessed_at` 的派生值，不持久化。将 `last_accessed_at` 更新为 now 即可使下次 `CalcRetention` 得到 R≈1.0，效果等价于完全强化。`CalcReinforce` 保留为库函数供未来使用
 - **tier 用 text 存储而非 enum**: PostgreSQL enum 类型的 ALTER 操作复杂，text + 应用层校验更灵活，与现有 `cate` 字段一致
 - **decay_rate 存于行而非计算**: 每条记忆在写入/晋升时固化 `decay_rate`，避免每次检索时查配置做映射。晋升时更新为新 tier 的 decay_rate
 
@@ -194,17 +194,18 @@ memory_recall 返回结果后
   ▼
 [同步] 对每条返回的记忆:
   │
-  ├─ 1. 计算当前 R = exp(-t / (24 * decay_rate))
-  ├─ 2. R_new = min(1.0, R + reinforcement_factor * (1.0 - R))
-  ├─ 3. access_count += 1, last_accessed_at = now()
+  ├─ 1. access_count += 1, last_accessed_at = now()
+  │     (时钟重置策略: 更新 last_accessed_at 后，下次 CalcRetention 得 R≈1.0)
   │
-  ├─ 4. [晋升检查]
+  ├─ 2. [晋升检查]
   │     if tier == "working" && access_count >= promote_w2s → tier = "short-term"
   │     if tier == "short-term" && access_count >= promote_s2l → tier = "long-term"
   │     decay_rate 同步更新为新 tier 的值
   │
-  └─ 5. UPDATE convo_memory SET ... WHERE id = ?
+  └─ 3. UPDATE convo_memory SET ... WHERE id = ?
 ```
+
+> **设计决策: 为什么不用 CalcReinforce?** Retention（R）是 `last_accessed_at` 和 `decay_rate` 的派生值（`R = e^(-t/(24×S))`），不持久化。曾设计 `CalcReinforce(R, F)` 计算部分强化值，但无字段可持久化其输出。最终采用时钟重置策略——直接将 `last_accessed_at` 设为 now，等价于将留存率拉回 1.0，比部分强化更简单且效果一致。`CalcReinforce` 保留为库函数，供未来需要部分强化的场景使用。
 
 ---
 
@@ -424,8 +425,8 @@ spec.IDs = topDocIDs(scored, ms.Limit)
 **Test scenarios:**
 - Happy path: 新建记忆 → tier 和 decay_rate 被正确设置（Covers AE1, AE2）
 - Happy path: 更新已有记忆的 content → tier 和 decay_rate 不变
-- Happy path: recall 命中一条 R=0.5 的记忆 → R_new = min(1.0, 0.5+0.3×0.5)=0.65（Covers AE4）
-- Edge case: recall 命中多条记忆 → 每条独立计算 reinforce
+- Happy path: recall 命中一条记忆 → last_accessed_at 更新为 now，下次检索时 R≈1.0（Covers AE4）
+- Edge case: recall 命中多条记忆 → 每条独立执行 reinforce
 - Edge case: access_count 达到晋升阈值 → tier 提升，decay_rate 更新
 - Edge case: long-term 记忆达到晋升阈值 → 保持 long-term（已是最高层）
 
@@ -461,8 +462,10 @@ spec.IDs = topDocIDs(scored, ms.Limit)
 - `ConvoMemorySpec.Sift`: 新增 `siftMatch(q, "tier", spec.Tier, false)` 过滤逻辑
 - `memoryListDescriptor`: InputSchema 增加 `tier` 可选参数
 - `memoryRecallDescriptor`: Description 更新，说明返回包含 tier
-- `settings.Config`: 添加 `MemoryLongTermThreshold`（默认 0.8）、`MemoryShortTermThreshold`（默认 0.6）、`MemoryReinforcementFactor`（默认 0.3）、`MemoryForgetThreshold`（默认 0.05）、`MemoryDecayRateWorking`（默认 1）、`MemoryDecayRateShortTerm`（默认 7）、`MemoryDecayRateLongTerm`（默认 60）、`MemoryPromoteW2S`（默认 3）、`MemoryPromoteS2L`（默认 10）
-- U4 中的路由逻辑引用 `settings.Current.MemoryLongTermThreshold` 等方法而非硬编码，config 值通过 U4/U5 共享 `memory_decay.go` 中的函数获取（`tierDecayRate` 读取 config，`forgottenMultiplier` 读取 config）
+- `settings.Config`: 添加 `MemoryLongTermThreshold`（默认 0.8）、`MemoryShortTermThreshold`（默认 0.6）、`MemoryForgetThreshold`（默认 0.05）、`MemoryPromoteW2S`（默认 3）、`MemoryPromoteS2L`（默认 10）
+- `MemoryReinforcementFactor` 原计划作为强化因子配置，因采用时钟重置策略（重置 `last_accessed_at` 即可使 R≈1.0）不再需要，已移除
+- `MemoryDecayRateWorking/ShortTerm/LongTerm` 原计划可配置 decay_rate，当前 `TierDecayRate()` 使用硬编码值（1/7/60），待后续需要调参时再改为可配置
+- U4 中的路由逻辑引用 `settings.Current.MemoryLongTermThreshold` 等方法而非硬编码
 
 **Patterns to follow:**
 - `pkg/settings/config.go` 中现有 `VectorThreshold`/`VectorLimit` 的 envconfig 模式

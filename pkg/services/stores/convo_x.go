@@ -403,10 +403,7 @@ func (s *convoStore) InvokerForMemoryRecall() mcps.Invoker {
 
 		limit := defaultMemoryLimit
 		if l := cast.ToInt(args["limit"]); l > 0 {
-			limit = l
-			if limit > maxMemoryLimit {
-				limit = maxMemoryLimit
-			}
+			limit = min(l, maxMemoryLimit)
 		}
 
 		// Use vector-based matching
@@ -561,9 +558,10 @@ func (s *convoStore) loadDecayMetas(ctx context.Context, ids oid.OIDs) ([]convo.
 	err := s.w.db.NewSelect().
 		Table("convo_memory").
 		Column("id", "tier", "decay_rate", "last_accessed_at").
-		Where("id IN (?)", ids).
+		Where("id IN (?)", pgList(ids)).
 		Scan(ctx, &metas)
 	if err != nil {
+		logger().Infow("load decay metas fail", "err", err, "ids", ids)
 		return nil, err
 	}
 	return metas, nil
@@ -574,27 +572,22 @@ func (s *convoStore) reinforceMemory(ctx context.Context, m convo.Memory) {
 	now := time.Now()
 	accessCount := m.AccessCount + 1
 
-	// Calculate new retention
-	factor := settings.Current.MemoryReinforceFactor
-	r := convo.CalcRetention(m.LastAccessedAt, m.DecayRate)
-	rNew := convo.CalcReinforce(r, factor)
-
 	// Check tier promotion
+	ms := convo.MemorySet{
+		LastAccessedAt: &now,
+		AccessCount:    &accessCount,
+	}
 	newTier := convo.PromoteTier(m.Tier, accessCount,
 		settings.Current.MemoryPromoteW2S,
 		settings.Current.MemoryPromoteS2L)
 	if newTier != "" {
-		m.Tier = newTier
-		m.DecayRate = convo.TierDecayRate(newTier)
-		m.LastAccessedAt = now
-	} else {
-		m.LastAccessedAt = now
+		decayRate := convo.TierDecayRate(newTier)
+		ms.Tier = &newTier
+		ms.DecayRate = &decayRate
 	}
 
-	m.AccessCount = accessCount
-	_ = rNew // reinforced retention stored implicitly via last_accessed_at update
-
 	m.SetIsUpdate(true)
+	m.SetWith(ms)
 	dbMetaUp(ctx, s.w.db, &m)
 	if err := dbUpdate(ctx, s.w.db, &m); err != nil {
 		logger().Infow("reinforce memory fail", "id", m.ID, "err", err)
