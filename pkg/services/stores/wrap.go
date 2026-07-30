@@ -31,7 +31,7 @@ type StringsDiff = pgx.StringsDiff
 // vars
 // nolint
 var (
-	pgIn = pgx.In
+	pgList = pgx.List
 
 	ErrNoRows   = pgx.ErrNoRows
 	ErrNotFound = pgx.ErrNotFound
