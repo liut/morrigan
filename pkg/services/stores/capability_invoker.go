@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/spf13/cast"
+
+	"github.com/liut/morign/pkg/models/mcps"
+	"github.com/liut/morign/pkg/settings"
 )
 
 // CapabilityInvoker invokes Bus API calls with path parameter substitution.
@@ -104,4 +107,59 @@ func (inv *CapabilityInvoker) buildRequestData(method, endpoint string, params m
 	}
 
 	return u.String(), body, nil
+}
+
+// InvokeAsTool wraps Invoke for use as an MCP tool handler — parses args,
+// invokes the API, decodes the JSON response, and normalizes errors.
+func (inv *CapabilityInvoker) InvokeAsTool(ctx context.Context, args map[string]any) (map[string]any, error) {
+	method, _ := args["method"].(string)
+	if method == "" {
+		return mcps.BuildToolErrorResult("missing required argument: method"), nil
+	}
+
+	endpoint, _ := args["endpoint"].(string)
+	if endpoint == "" {
+		return mcps.BuildToolErrorResult("missing required argument: endpoint"), nil
+	}
+
+	params, _ := args["params"].(map[string]any)
+	if params == nil {
+		params = make(map[string]any)
+	}
+
+	resp, err := inv.Invoke(ctx, method, endpoint, params)
+	if err != nil {
+		logger().Infow("invoke fail", "err", err)
+		return mcps.BuildToolErrorResult(err.Error()), nil
+	}
+	if resp == nil {
+		return mcps.BuildToolErrorResult("nil response from invoker"), nil
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	result := map[string]any{}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return mcps.BuildToolErrorResult(err.Error()), nil
+	}
+
+	if resp.StatusCode >= 400 {
+		logger().Infow("invoked", method, endpoint, "status", resp.StatusCode, "result", result)
+		if resp.StatusCode == 403 {
+			return mcps.BuildToolErrorResult("Permission denied: no access to this API"), nil
+		}
+		return mcps.BuildToolErrorResult(
+			fmt.Sprintf("HTTP error %d: %s", resp.StatusCode, resp.Status),
+		), nil
+	}
+	logger().Debugw("invoked", method, endpoint, "response", result)
+
+	resultKey := settings.Current.BusResult
+	if len(resultKey) > 0 {
+		if res, ok := result[resultKey]; ok {
+			return mcps.BuildToolSuccessResult(res), nil
+		}
+	}
+	return mcps.BuildToolSuccessResult(result), nil
 }
