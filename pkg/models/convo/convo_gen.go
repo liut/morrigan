@@ -4,6 +4,7 @@ package convo
 
 import (
 	"fmt"
+	"time"
 
 	comm "github.com/cupogo/andvari/models/comm"
 	oid "github.com/cupogo/andvari/models/oid"
@@ -579,6 +580,16 @@ type MemoryBasic struct {
 	Cate string `bun:",notnull,type:text" extensions:"x-order=C" form:"cate" json:"cate" pg:",notnull,type:text"`
 	// 内容
 	Content string `bun:",notnull,type:text" extensions:"x-order=D" form:"content" json:"content" pg:",notnull,type:text"`
+	// 分层  (working/short-term/long-term)
+	Tier string `bun:",notnull,type:text,default:working" extensions:"x-order=E" form:"tier" json:"tier" pg:",notnull,type:text,default:working"`
+	// 重要性评分  (0-1)
+	ImportanceScore float64 `bun:"importance_score,notnull,type:float,default:0.5" extensions:"x-order=F" json:"importanceScore" pg:"importance_score,notnull,type:float,default:0.5"`
+	// 最近访问时间
+	LastAccessedAt time.Time `bun:"last_accessed_at,notnull,type:timestamptz,default:now()" extensions:"x-order=G" json:"lastAccessedAt" pg:"last_accessed_at,notnull,type:timestamptz,default:now()"`
+	// 访问计数
+	AccessCount int `bun:"access_count,notnull,type:int,default:0" extensions:"x-order=H" form:"accessCount" json:"accessCount" pg:"access_count,notnull,type:int,default:0"`
+	// 衰减率
+	DecayRate float64 `bun:"decay_rate,notnull,type:float,default:1.0" extensions:"x-order=I" json:"decayRate" pg:"decay_rate,notnull,type:float,default:1.0"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `bson:"-" bun:"-" json:"metaUp,omitempty" pg:"-" swaggerignore:"true"`
 } // @name convoMemoryBasic
@@ -615,6 +626,16 @@ type MemorySet struct {
 	Cate *string `extensions:"x-order=A" json:"cate"`
 	// 内容
 	Content *string `extensions:"x-order=B" json:"content"`
+	// 分层  (working/short-term/long-term)
+	Tier *string `extensions:"x-order=C" json:"tier"`
+	// 重要性评分  (0-1)
+	ImportanceScore *float64 `extensions:"x-order=D" json:"importanceScore"`
+	// 最近访问时间
+	LastAccessedAt *time.Time `extensions:"x-order=E" json:"lastAccessedAt"`
+	// 访问计数
+	AccessCount *int `extensions:"x-order=F" json:"accessCount"`
+	// 衰减率
+	DecayRate *float64 `extensions:"x-order=G" json:"decayRate"`
 	// for meta update
 	MetaDiff *comm.MetaDiff `json:"metaUp,omitempty" swaggerignore:"true"`
 } // @name convoMemorySet
@@ -627,6 +648,26 @@ func (z *Memory) SetWith(o MemorySet) {
 	if o.Content != nil && z.Content != *o.Content {
 		z.LogChangeValue("content", z.Content, o.Content)
 		z.Content = *o.Content
+	}
+	if o.Tier != nil && z.Tier != *o.Tier {
+		z.LogChangeValue("tier", z.Tier, o.Tier)
+		z.Tier = *o.Tier
+	}
+	if o.ImportanceScore != nil {
+		z.LogChangeValue("importance_score", z.ImportanceScore, o.ImportanceScore)
+		z.ImportanceScore = *o.ImportanceScore
+	}
+	if o.LastAccessedAt != nil {
+		z.LogChangeValue("last_accessed_at", z.LastAccessedAt, o.LastAccessedAt)
+		z.LastAccessedAt = *o.LastAccessedAt
+	}
+	if o.AccessCount != nil && z.AccessCount != *o.AccessCount {
+		z.LogChangeValue("access_count", z.AccessCount, o.AccessCount)
+		z.AccessCount = *o.AccessCount
+	}
+	if o.DecayRate != nil {
+		z.LogChangeValue("decay_rate", z.DecayRate, o.DecayRate)
+		z.DecayRate = *o.DecayRate
 	}
 	if o.MetaDiff != nil && z.MetaUp(o.MetaDiff) {
 		z.SetChange("meta")
