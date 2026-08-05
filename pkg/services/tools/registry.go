@@ -30,6 +30,7 @@ type channelToolSet struct {
 type Registry struct {
 	tools    []mcps.ToolDescriptor
 	invokers map[string]Invoker
+	skills   SkillToolStore
 
 	// 受限工具列表（需要 keeper 角色）
 	privTools []mcps.ToolDescriptor
@@ -147,6 +148,17 @@ func (r *Registry) initTools(sto stores.Storage) {
 		r.invokers[ToolNameMemoryRecall] = sto.Convo().InvokerForMemoryRecall()
 		r.invokers[ToolNameMemoryStore] = sto.Convo().InvokerForMemoryStore()
 		r.invokers[ToolNameMemoryForget] = sto.Convo().InvokerForMemoryForget()
+
+		// 技能工具
+		r.skills = sto.Skill()
+		r.tools = append(r.tools,
+			skillListDescriptor, skillReadDescriptor,
+			skillFileListDescriptor, skillFileReadDescriptor,
+		)
+		r.invokers[ToolNameSkillList] = r.callSkillList
+		r.invokers[ToolNameSkillRead] = r.callSkillRead
+		r.invokers[ToolNameSkillFileList] = r.callSkillFileList
+		r.invokers[ToolNameSkillFileRead] = r.callSkillFileRead
 
 		// Capability tools - type assert to get X interface
 		ctx := context.Background()

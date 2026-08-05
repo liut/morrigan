@@ -14,6 +14,8 @@ type ChatRequest struct {
 	Stream          bool   `json:"stream"`
 
 	MCPs []string `json:"mcps,omitempty"`
+	// 技能清单范围：仅圈定注入 system prompt 的技能元数据
+	Skills []string `json:"skills,omitempty"`
 
 	// deprecated: for github.com/Chanzhaoyu/chatgpt-web only
 	Options struct {

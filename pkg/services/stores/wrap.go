@@ -33,9 +33,10 @@ type StringsDiff = pgx.StringsDiff
 var (
 	pgList = pgx.List
 
-	ErrNoRows   = pgx.ErrNoRows
-	ErrNotFound = pgx.ErrNotFound
-	ErrEmptyKey = pgx.ErrEmptyKey
+	ErrNoRows    = pgx.ErrNoRows
+	ErrNotFound  = pgx.ErrNotFound
+	ErrEmptyKey  = pgx.ErrEmptyKey
+	ErrDuplicate = pgx.ErrDuplicate
 
 	dbGet           = pgx.Get
 	dbFirst         = pgx.First
@@ -106,6 +107,7 @@ type Wrap struct {
 	mcpStore        *mcpStore        // gened
 	convoStore      *convoStore      // gened
 	capabilityStore *capabilityStore // gened
+	skillStore      *skillStore      // gened
 }
 
 // NewWithDB return new instance of Wrap
@@ -121,6 +123,7 @@ func NewWithDB(db *pgx.DB) *Wrap {
 	w.mcpStore = &mcpStore{w: w}               // gened
 	w.convoStore = &convoStore{w: w}           // gened
 	w.capabilityStore = &capabilityStore{w: w} // gened
+	w.skillStore = &skillStore{w: w}           // gened
 
 	// more member stores
 	return w
@@ -186,3 +189,4 @@ func (w *Wrap) MCP() MCPStore               { return w.mcpStore }   // MCP gened
 func (w *Wrap) Convo() ConvoStore           { return w.convoStore } // Convo gened
 func (w *Wrap) State() StateStore           { return w.stateStore }
 func (w *Wrap) Capability() CapabilityStore { return w.capabilityStore } // Capability gened
+func (w *Wrap) Skill() SkillStore           { return w.skillStore }      // Skill gened

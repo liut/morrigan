@@ -31,6 +31,7 @@ type Message struct {
 	UserName   string
 	ChatName   string // human-readable chat/group name (optional)
 	Content    string
+	SkillName  string // /skill 指令激活的技能名（注入全文后从 Content 剥离）
 	Images     []ImageAttachment // attached images (if any)
 	Files      []FileAttachment  // attached files (if any)
 	Audio      *AudioAttachment  // voice message (if any)
