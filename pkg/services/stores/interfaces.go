@@ -11,4 +11,5 @@ type Storage interface {
 	Convo() ConvoStore  // gened
 	State() StateStore
 	Capability() CapabilityStore // gened
+	Skill() SkillStore           // gened
 }

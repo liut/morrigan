@@ -1,0 +1,145 @@
+
+depends:
+  comm: 'github.com/cupogo/andvari/models/comm'
+  oid: 'github.com/cupogo/andvari/models/oid'
+
+enums:
+
+  - comment: 技能可用频道 位掩码（0=未投放，仅创建者可见）
+    name: Channel
+    type: int8
+    values:
+      - label: 无
+        suffix: None
+      - label: Web
+        suffix: Web
+      - label: 企业微信
+        suffix: Wecom
+      - label: 飞书
+        suffix: Feishu
+    multiple: true
+    stringer: true
+    decodable: true
+    textMarshaler: true
+    textUnmarshaler: true
+
+  - comment: 技能资源文件类型
+    name: FileKind
+    type: int8
+    start: 1
+    values:
+      - label: 文本
+        suffix: Text
+      - label: 二进制
+        suffix: Binary
+    stringer: true
+    decodable: true
+    textMarshaler: true
+    textUnmarshaler: true
+
+dbcode: bun
+modelpkg: skills
+
+models:
+
+  - name: Skill
+    comment: '技能'
+    tableTag: 'agent_skill,alias:sk'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 技能名 全局唯一（小写字母数字连字符）
+        name: Name
+        type: string
+        tags: {bson: 'name', json: 'name', pg: ',notnull,unique,type:name', binding: 'required'}
+        isset: true
+        query: 'match'
+      - comment: 技能描述 做什么+何时用
+        name: Description
+        type: string
+        tags: {bson: 'description', json: 'description', pg: ',notnull,type:varchar(124)'}
+        isset: true
+      - comment: 正文
+        name: Content
+        type: string
+        tags: {bson: 'content', json: 'content,omitempty', pg: ',notnull,type:text'}
+        isset: true
+      - comment: 可用频道 位掩码（0=未投放，仅创建者可见）
+        name: Channel
+        type: Channel
+        tags: {bson: 'channel', json: 'channel', pg: ',notnull,type:smallint,default:0'}
+        isset: true
+        query: 'equal,decode'
+      - comment: 创建者 uid
+        name: Owner
+        type: oid.OID
+        tags: {json: 'owner', pg: 'owner,notnull,type:bigint'}
+        basic: true
+        query: equal
+      - type: comm.MetaField
+    oidcat: file
+    hooks:
+      beforeCreating: yes
+      beforeDeleting: yes
+    specExtras:
+      - comment: 仅查看可见的
+        name: VisibleOnly
+        type: bool
+        tags: {form: 'visible', json: 'visible'}
+
+  - name: File
+    comment: '技能资源文件'
+    tableTag: 'agent_skill_file,alias:sf'
+    fields:
+      - type: comm.DefaultModel
+      - comment: 所属技能 id
+        name: SkillID
+        type: oid.OID
+        tags: {bson: 'skillId', json: 'skillId', pg: 'skill_id,notnull,type:bigint,unique:uk_skill_path'}
+        basic: true
+        query: 'equal'
+      - comment: 资源文件相对路径 技能内唯一
+        name: Path
+        type: string
+        tags: {bson: 'path', json: 'path', pg: ',notnull,type:varchar(255),unique:uk_skill_path'}
+        basic: true
+        query: 'equal'
+      - comment: 文件内容 文本按 UTF-8 字节存
+        name: Content
+        type: '[]byte'
+        tags: {bson: 'content', json: 'content,omitempty', pg: ',notnull,type:bytea'}
+        isset: true
+      - comment: 内容类型
+        name: Mime
+        type: string
+        tags: {bson: 'mime', json: 'mime,omitempty', pg: ',notnull,type:varchar(128)'}
+        isset: true
+      - comment: 文件类型
+        name: Kind
+        type: FileKind
+        tags: {bson: 'kind', json: 'kind,omitempty', pg: ',notnull,type:smallint'}
+        isset: true
+      - comment: 字节数
+        name: Size
+        type: int64
+        tags: {bson: 'size', json: 'size', pg: ',notnull,type:bigint'}
+        isset: true
+    oidcat: file
+
+stores:
+  - name: skillStore
+    iname: SkillStore
+    embed: SkillStoreX
+    siname: Skill
+    hods:
+      - { name: Skill, type: LGCUD }
+      - { name: File, type: L }
+
+webcode: chi
+webapi:
+  formTag: form
+  pkg: api
+  needAuth: true
+  needPerm: true
+  uris:
+    - model: Skill
+      prefix: '/api/admin'

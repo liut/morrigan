@@ -153,7 +153,8 @@ func newTestRegistry() *Registry {
 func TestNewRegistry(t *testing.T) {
 	r := newTestRegistry()
 	if r == nil {
-		t.Fatal("NewRegistry returned nil")
+		t.Error("NewRegistry returned nil")
+		return
 	}
 	if len(r.tools) == 0 {
 		t.Error("should have at least fetch tool")

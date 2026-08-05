@@ -42,7 +42,7 @@ type Config struct {
 
 	// OAuthInternalURL is the base URL for aurora internal API calls
 	OAuthInternalURL string `envconfig:"OAUTH_INTERNAL_URL" desc:"aurora internal API base URL, e.g. http://aurora:3560/api/intra"`
-	ServiceAuthKey    string `envconfig:"SERVICE_AUTH_KEY" desc:"pre-shared key for aurora internal service calls"`
+	ServiceAuthKey   string `envconfig:"SERVICE_AUTH_KEY" desc:"pre-shared key for aurora internal service calls"`
 
 	SitePathMe   string `envconfig:"Site_Path_Me" desc:"OAuth SP Path of /api/me in whole site"`
 	SiteTokenKey string `envconfig:"Site_Token_Key" default:"token" desc:"token key in whole site"`
@@ -69,6 +69,11 @@ type Config struct {
 
 	// LLM调用循环次数限制，防止无限循环
 	MaxLoopIterations int `envconfig:"MAX_LOOP_ITERATIONS" default:"12"`
+
+	// Skill 注入：清单数量小于该阈值时直接注入全文
+	SkillDirectThreshold int `envconfig:"SKILL_DIRECT_THRESHOLD" default:"3" desc:"skill 清单小于该数量时直接注入全文"`
+	// Skill 注入：频道默认加载的最近技能数量
+	SkillDefaultCount int `envconfig:"SKILL_DEFAULT_COUNT" default:"5" desc:"频道默认加载的最近技能数量"`
 
 	// Memory tier decay configuration
 	MemoryLongTermThreshold  float64 `envconfig:"MEMORY_LONG_TERM_THRESHOLD" default:"0.8"`

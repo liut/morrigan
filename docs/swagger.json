@@ -10,6 +10,477 @@
         "version": "1.0"
     },
     "paths": {
+        "/api/admin/skills": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "默认 文档生成"
+                ],
+                "summary": "查询 技能 列表 🔑",
+                "operationId": "admin-skills-get",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "aaa,bbb,ccc",
+                        "x-order": "0",
+                        "description": "主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:\"aaa,bbb,ccc\"",
+                        "name": "ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "2",
+                        "description": "创建者ID",
+                        "name": "creatorID",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "3",
+                        "description": "创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months",
+                        "name": "created",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "4",
+                        "description": "更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months",
+                        "name": "updated",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "x-order": "5",
+                        "description": "IsDelete 查询删除的记录",
+                        "name": "isDelete",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "A",
+                        "description": "技能名 全局唯一（小写字母数字连字符）",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "B",
+                        "description": "可用频道 位掩码（0=未投放，仅创建者可见） (支持混合解码)\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "C",
+                        "description": "创建者 uid",
+                        "name": "owner",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "x-order": "D",
+                        "description": "仅查看可见的",
+                        "name": "visible",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "x-order": "[",
+                        "description": "第几页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "x-order": "]",
+                        "description": "跳过多少条记录，如果提供 page 此项跳过",
+                        "name": "skip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "x-order": "_",
+                        "description": "分页大小，默认20",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "|",
+                        "description": "排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/api.ResultData"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "data": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/skillsSkill"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "404": {
+                        "description": "目标未找到",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json",
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "默认 文档生成"
+                ],
+                "summary": "录入 技能 🔑",
+                "operationId": "admin-skills-post",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Object",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/skillsSkillBasic"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/api.ResultID"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "403": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/skills/{id}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "默认 文档生成"
+                ],
+                "summary": "获取 技能 详情 🔑",
+                "operationId": "admin-skills-id-get",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "编号",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/skillsSkill"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "404": {
+                        "description": "目标未找到",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json",
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "默认 文档生成"
+                ],
+                "summary": "更新 技能 🔑",
+                "operationId": "admin-skills-id-put",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "编号",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Object",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/skillsSkillSet"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "403": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "默认 文档生成"
+                ],
+                "summary": "删除 技能 🔑",
+                "operationId": "admin-skills-id-delete",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "编号",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Done"
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "403": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            }
+        },
         "/api/chat": {
             "post": {
                 "consumes": [
@@ -179,7 +650,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "列出消息",
+                "summary": "查询 消息 列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -340,7 +811,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "获取消息",
+                "summary": "获取 消息 详情",
                 "parameters": [
                     {
                         "type": "string",
@@ -412,7 +883,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "删除消息 🔑",
+                "summary": "删除 消息 🔑",
                 "operationId": "convo-messages-id-delete",
                 "parameters": [
                     {
@@ -475,7 +946,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "列出会话",
+                "summary": "查询 会话 列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -537,6 +1008,13 @@
                     {
                         "type": "string",
                         "x-order": "C",
+                        "description": "频道",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "D",
                         "description": "所有者编号 (多值使用逗号分隔)",
                         "name": "owner",
                         "in": "query"
@@ -643,7 +1121,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "获取会话",
+                "summary": "获取 会话 详情",
                 "parameters": [
                     {
                         "type": "string",
@@ -715,7 +1193,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "删除会话 🔑",
+                "summary": "删除 会话 🔑",
                 "operationId": "convo-sessions-id-delete",
                 "parameters": [
                     {
@@ -778,7 +1256,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "列出使用情况",
+                "summary": "查询 使用情况 列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -932,7 +1410,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "获取使用情况",
+                "summary": "获取 使用情况 详情",
                 "parameters": [
                     {
                         "type": "string",
@@ -1004,7 +1482,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "删除使用情况 🔑",
+                "summary": "删除 使用情况 🔑",
                 "operationId": "convo-usagerecords-id-delete",
                 "parameters": [
                     {
@@ -1058,6 +1536,7 @@
         },
         "/api/convo/users": {
             "get": {
+                "description": "\u003csortable\u003eid,created,updated,email\u003c/sortable\u003e",
                 "consumes": [
                     "application/json"
                 ],
@@ -1067,7 +1546,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "列出用户",
+                "summary": "查询 用户 列表",
                 "parameters": [
                     {
                         "type": "string",
@@ -1242,7 +1721,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "获取用户",
+                "summary": "获取 用户 详情",
                 "parameters": [
                     {
                         "type": "string",
@@ -1314,7 +1793,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "删除用户 🔑",
+                "summary": "删除 用户 🔑",
                 "operationId": "convo-users-id-delete",
                 "parameters": [
                     {
@@ -1449,7 +1928,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "列出服务器 🔑",
+                "summary": "查询 服务器 列表 🔑",
                 "operationId": "mcp-servers-get",
                 "parameters": [
                     {
@@ -1624,7 +2103,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "录入服务器 🔑",
+                "summary": "录入 服务器 🔑",
                 "operationId": "mcp-servers-post",
                 "parameters": [
                     {
@@ -1701,7 +2180,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "获取服务器 🔑",
+                "summary": "获取 服务器 详情 🔑",
                 "operationId": "mcp-servers-id-get",
                 "parameters": [
                     {
@@ -1775,7 +2254,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "更新服务器 🔑",
+                "summary": "更新 服务器 🔑",
                 "operationId": "mcp-servers-id-put",
                 "parameters": [
                     {
@@ -1857,7 +2336,7 @@
                 "tags": [
                     "默认 文档生成"
                 ],
-                "summary": "删除服务器 🔑",
+                "summary": "删除 服务器 🔑",
                 "operationId": "mcp-servers-id-delete",
                 "parameters": [
                     {
@@ -2136,6 +2615,484 @@
                 }
             }
         },
+        "/api/skills": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "技能"
+                ],
+                "summary": "查询 可见技能列表（元数据）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "aaa,bbb,ccc",
+                        "x-order": "0",
+                        "description": "主键编号`ids`（以逗号分隔的字串），仅供 Form 或 Query 使用, example:\"aaa,bbb,ccc\"",
+                        "name": "ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "2",
+                        "description": "创建者ID",
+                        "name": "creatorID",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "3",
+                        "description": "创建时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months",
+                        "name": "created",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "4",
+                        "description": "更新时间 形式： yyyy-mm-dd, 1_day, 2_weeks, 3_months",
+                        "name": "updated",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "x-order": "5",
+                        "description": "IsDelete 查询删除的记录",
+                        "name": "isDelete",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "A",
+                        "description": "技能名 全局唯一（小写字母数字连字符）",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "B",
+                        "description": "可用频道 位掩码（0=未投放，仅创建者可见） (支持混合解码)\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "C",
+                        "description": "创建者 uid",
+                        "name": "owner",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "x-order": "D",
+                        "description": "仅查看可见的",
+                        "name": "visible",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "x-order": "[",
+                        "description": "第几页",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "x-order": "]",
+                        "description": "跳过多少条记录，如果提供 page 此项跳过",
+                        "name": "skip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "x-order": "_",
+                        "description": "分页大小，默认20",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "x-order": "|",
+                        "description": "排序，允许最多两个字段排序 field1 [asc | desc] [,field2 [asc | desc] ...]",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/api.ResultData"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "data": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/skillsSkill"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json",
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "技能"
+                ],
+                "summary": "创建 自己的技能",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Object",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.skillCreateIn"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/api.ResultID"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/skills/{name}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "技能"
+                ],
+                "summary": "获取 技能详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "技能名",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/api.skillDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "404": {
+                        "description": "目标未找到",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json",
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "技能"
+                ],
+                "summary": "更新 自己的技能",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "技能名",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Object",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.skillUpdateIn"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/api.ResultID"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "403": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "404": {
+                        "description": "目标未找到",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "技能"
+                ],
+                "summary": "删除 自己的技能",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "登录票据凭证",
+                        "name": "token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "技能名",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.Done"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求或参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "403": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "404": {
+                        "description": "目标未找到",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    },
+                    "503": {
+                        "description": "服务端错误",
+                        "schema": {
+                            "$ref": "#/definitions/api.Failure"
+                        }
+                    }
+                }
+            }
+        },
         "/api/summary": {
             "post": {
                 "description": "根据聊天记录生成简短标题",
@@ -2316,6 +3273,10 @@
                 "a": {
                     "type": "string"
                 },
+                "th": {
+                    "description": "reasoning/thinking content",
+                    "type": "string"
+                },
                 "u": {
                     "type": "string"
                 }
@@ -2414,6 +3375,13 @@
                 },
                 "regen": {
                     "type": "boolean"
+                },
+                "skills": {
+                    "description": "技能清单范围：仅圈定注入 system prompt 的技能元数据",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "stream": {
                     "type": "boolean"
@@ -2574,6 +3542,159 @@
                 }
             }
         },
+        "api.skillCreateIn": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "description": "技能名 全局唯一（小写字母数字连字符）",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "description": {
+                    "description": "技能描述 做什么+何时用",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "正文",
+                    "type": "string",
+                    "x-order": "C"
+                },
+                "channel": {
+                    "description": "可用频道 位掩码（0=未投放，仅创建者可见）\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "wecom",
+                        "feishu"
+                    ],
+                    "x-order": "D"
+                },
+                "owner": {
+                    "description": "创建者 uid",
+                    "type": "string",
+                    "x-order": "E"
+                },
+                "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.skillDetail": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "createdAt": {
+                    "description": "创建时间",
+                    "type": "string",
+                    "x-order": ""
+                },
+                "id": {
+                    "description": "主键",
+                    "type": "string",
+                    "x-order": "!"
+                },
+                "updatedAt": {
+                    "description": "变更时间",
+                    "type": "string",
+                    "x-order": "."
+                },
+                "name": {
+                    "description": "技能名 全局唯一（小写字母数字连字符）",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "description": {
+                    "description": "技能描述 做什么+何时用",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "正文",
+                    "type": "string",
+                    "x-order": "C"
+                },
+                "channel": {
+                    "description": "可用频道 位掩码（0=未投放，仅创建者可见）\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "wecom",
+                        "feishu"
+                    ],
+                    "x-order": "D"
+                },
+                "owner": {
+                    "description": "创建者 uid",
+                    "type": "string",
+                    "x-order": "E"
+                },
+                "creatorID": {
+                    "description": "创建者ID",
+                    "type": "string",
+                    "x-order": "_"
+                },
+                "meta": {
+                    "description": "Meta 元信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Meta"
+                        }
+                    ],
+                    "x-order": "|"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/skillsFile"
+                    }
+                }
+            }
+        },
+        "api.skillUpdateIn": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "技能名 全局唯一（小写字母数字连字符）",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "description": {
+                    "description": "技能描述 做什么+何时用",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "正文",
+                    "type": "string",
+                    "x-order": "C"
+                },
+                "channel": {
+                    "description": "可用频道 位掩码（0=未投放，仅创建者可见）\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "wecom",
+                        "feishu"
+                    ],
+                    "x-order": "D"
+                },
+                "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "api.verifyReq": {
             "type": "object",
             "properties": {
@@ -2690,6 +3811,11 @@
                         "type": "string"
                     },
                     "x-order": "D"
+                },
+                "channel": {
+                    "description": "频道",
+                    "type": "string",
+                    "x-order": "E"
                 },
                 "creatorID": {
                     "description": "创建者ID",
@@ -2925,6 +4051,11 @@
                     ],
                     "x-order": "H"
                 },
+                "channel": {
+                    "description": "频道名，非空时该 server 为频道专属",
+                    "type": "string",
+                    "x-order": "J"
+                },
                 "creatorID": {
                     "description": "创建者ID",
                     "type": "string",
@@ -3002,6 +4133,11 @@
                         "sessionID"
                     ],
                     "x-order": "H"
+                },
+                "channel": {
+                    "description": "频道名，非空时该 server 为频道专属",
+                    "type": "string",
+                    "x-order": "J"
                 }
             }
         },
@@ -3083,6 +4219,203 @@
                 "t": {
                     "description": "时间戳",
                     "type": "integer"
+                }
+            }
+        },
+        "skillsFile": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "description": "创建时间",
+                    "type": "string",
+                    "x-order": ""
+                },
+                "id": {
+                    "description": "主键",
+                    "type": "string",
+                    "x-order": "!"
+                },
+                "updatedAt": {
+                    "description": "变更时间",
+                    "type": "string",
+                    "x-order": "."
+                },
+                "skillId": {
+                    "description": "所属技能 id",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "path": {
+                    "description": "资源文件相对路径 技能内唯一",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "文件内容 文本按 UTF-8 字节存",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "x-order": "C"
+                },
+                "mime": {
+                    "description": "内容类型",
+                    "type": "string",
+                    "x-order": "D"
+                },
+                "kind": {
+                    "description": "文件类型\n * `binary` - 二进制\n * `text` - 文本",
+                    "type": "string",
+                    "enum": [
+                        "binary",
+                        "text"
+                    ],
+                    "x-order": "E"
+                },
+                "size": {
+                    "description": "字节数",
+                    "type": "integer",
+                    "x-order": "F"
+                },
+                "creatorID": {
+                    "description": "创建者ID",
+                    "type": "string",
+                    "x-order": "_"
+                }
+            }
+        },
+        "skillsSkill": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "createdAt": {
+                    "description": "创建时间",
+                    "type": "string",
+                    "x-order": ""
+                },
+                "id": {
+                    "description": "主键",
+                    "type": "string",
+                    "x-order": "!"
+                },
+                "updatedAt": {
+                    "description": "变更时间",
+                    "type": "string",
+                    "x-order": "."
+                },
+                "name": {
+                    "description": "技能名 全局唯一（小写字母数字连字符）",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "description": {
+                    "description": "技能描述 做什么+何时用",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "正文",
+                    "type": "string",
+                    "x-order": "C"
+                },
+                "channel": {
+                    "description": "可用频道 位掩码（0=未投放，仅创建者可见）\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "wecom",
+                        "feishu"
+                    ],
+                    "x-order": "D"
+                },
+                "owner": {
+                    "description": "创建者 uid",
+                    "type": "string",
+                    "x-order": "E"
+                },
+                "creatorID": {
+                    "description": "创建者ID",
+                    "type": "string",
+                    "x-order": "_"
+                },
+                "meta": {
+                    "description": "Meta 元信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Meta"
+                        }
+                    ],
+                    "x-order": "|"
+                }
+            }
+        },
+        "skillsSkillBasic": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "description": "技能名 全局唯一（小写字母数字连字符）",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "description": {
+                    "description": "技能描述 做什么+何时用",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "正文",
+                    "type": "string",
+                    "x-order": "C"
+                },
+                "channel": {
+                    "description": "可用频道 位掩码（0=未投放，仅创建者可见）\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "wecom",
+                        "feishu"
+                    ],
+                    "x-order": "D"
+                },
+                "owner": {
+                    "description": "创建者 uid",
+                    "type": "string",
+                    "x-order": "E"
+                }
+            }
+        },
+        "skillsSkillSet": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "技能名 全局唯一（小写字母数字连字符）",
+                    "type": "string",
+                    "x-order": "A"
+                },
+                "description": {
+                    "description": "技能描述 做什么+何时用",
+                    "type": "string",
+                    "x-order": "B"
+                },
+                "content": {
+                    "description": "正文",
+                    "type": "string",
+                    "x-order": "C"
+                },
+                "channel": {
+                    "description": "可用频道 位掩码（0=未投放，仅创建者可见）\n * `web`\n * `wecom` - 企业微信\n * `feishu` - 飞书",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "wecom",
+                        "feishu"
+                    ],
+                    "x-order": "D"
                 }
             }
         }

@@ -55,11 +55,12 @@ type chatRequest struct {
 	isSSE    bool
 	cs       stores.Conversation
 	prompt   string
+	skills   []string
 }
 
 // prepareSystemMessage 准备系统消息，包括基础 prompt、记忆、工具或知识库
 func prepareSystemMessage(ctx context.Context, sto stores.Storage,
-	toolreg *tools.Registry, prompt string, cs stores.Conversation) (
+	toolreg *tools.Registry, prompt string, skills []string, cs stores.Conversation) (
 	llm.Message, []llm.ToolDefinition) {
 	var sb strings.Builder
 
@@ -130,6 +131,8 @@ func prepareSystemMessage(ctx context.Context, sto stores.Storage,
 		sb.WriteString(sto.Preset().ChannelPrompt)
 	}
 
+	appendSkillPrompt(ctx, &sb, sto.Skill(), skills)
+
 	msg := llm.Message{
 		Role:    llm.RoleSystem,
 		Content: sb.String(),
@@ -138,10 +141,22 @@ func prepareSystemMessage(ctx context.Context, sto stores.Storage,
 	return msg, tools
 }
 
+// appendSkillPrompt 将技能注入块追加到 system prompt 构建器，失败时降级为空。
+func appendSkillPrompt(ctx context.Context, sb *strings.Builder, sk agent.SkillStore, requested []string) {
+	block, err := agent.BuildSkillPrompt(ctx, sk, requested)
+	if err != nil {
+		logger().Warnw("skill prompt fail", "err", err)
+		return
+	}
+	if block != "" {
+		sb.WriteString(block)
+	}
+}
+
 func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatRequest {
 	cs := stores.NewConversation(ctx, param.GetConversionID())
 
-	sysMsg, tools := prepareSystemMessage(ctx, a.sto, a.toolreg, param.Prompt, cs)
+	sysMsg, tools := prepareSystemMessage(ctx, a.sto, a.toolreg, param.Prompt, param.Skills, cs)
 	messages := []llm.Message{sysMsg}
 
 	data, err := cs.ListHistory(ctx)
@@ -185,6 +200,7 @@ func (a *api) prepareChatRequest(ctx context.Context, param *ChatRequest) *chatR
 		tools:    tools,
 		cs:       cs,
 		prompt:   param.Prompt,
+		skills:   param.Skills,
 	}
 }
 

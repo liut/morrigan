@@ -348,7 +348,11 @@ func translateLLMErrorToUser(err error) string {
 
 // buildChatMessagesAndTools builds the message list and returns tools for the chat.
 func (chh *channelHandler) buildChatMessagesAndTools(ctx context.Context, msg *channel.Message, cs stores.Conversation) ([]llm.Message, []llm.ToolDefinition) {
-	sysMsg, tools := prepareSystemMessage(ctx, chh.sto, chh.toolreg, msg.Content, cs)
+	var requested []string
+	if msg.SkillName != "" {
+		requested = []string{msg.SkillName}
+	}
+	sysMsg, tools := prepareSystemMessage(ctx, chh.sto, chh.toolreg, msg.Content, requested, cs)
 
 	content := msg.Content
 	if len(msg.Images) > 0 {
