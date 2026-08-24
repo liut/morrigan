@@ -141,6 +141,7 @@ type respSession struct {
 		URI   string `json:"uri,omitempty"`   // uri of auth
 		Model string `json:"model,omitempty"` // for chatgpt-web
 		Token string `json:"token,omitempty"` // token from oauth2 provider
+		Keeper bool `json:"keeper"` // user is keeper
 	} `json:"data"`
 }
 
@@ -201,6 +202,7 @@ func (a *api) syncUserToCache(ctx context.Context, user *O2User, token string, w
 func fillUserResponse(res *respSession, user *User, token string) {
 	user.Avatar = patchImageURI(user.Avatar, staffio.GetPrefix())
 	res.Data.User = user
+	res.Data.Keeper = stores.UserIsKeeper(user)
 	if token != "" {
 		res.Data.Token = token
 	}
