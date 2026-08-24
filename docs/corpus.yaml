@@ -125,3 +125,12 @@ stores:
       - { name: DocVector, type: GCD }
       - { name: ChatLog, type: CGLD }
 
+webcode: chi
+webapi:
+  formTag: form
+  pkg: api
+  needAuth: true
+  uris:
+    - model: Document
+      prefix: '/api/corpus'
+      ignore: C
