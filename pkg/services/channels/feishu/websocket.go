@@ -79,9 +79,8 @@ func (p *WSChannel) Start(handler channel.MessageHandler) error {
 	p.wsClient = larkws.NewClient(p.appID, p.appSecret, wsOpts...)
 
 	go func() {
-		if err := p.wsClient.Start(p.ctx); err != nil {
-			slog.Error("feishu-ws: websocket error", "error", err)
-		}
+		err := p.wsClient.Start(p.ctx)
+		slog.Error("feishu-ws: websocket error", "error", err)
 	}()
 
 	if err := p.fetchBotOpenID(); err != nil {
