@@ -54,6 +54,14 @@ func IsKeeper(ctx context.Context) bool {
 	if !ok {
 		return false
 	}
+	return UserIsKeeper(user)
+}
+
+// UserIsKeeper checks if a user has keeper role or UID
+func UserIsKeeper(user *User) bool {
+	if user == nil {
+		return false
+	}
 	// 检查 UID 是否在白名单中
 	if len(settings.Current.KeeperUIDs) > 0 && slices.Contains(settings.Current.KeeperUIDs, user.UID) {
 		return true
